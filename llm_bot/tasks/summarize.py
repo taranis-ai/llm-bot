@@ -11,7 +11,11 @@ def load_summary_prompt() -> str:
 
 
 def build_summary_messages(request: SummarizeRequest) -> list[dict[str, str]]:
+    system_prompt = load_summary_prompt()
+    if request.max_words is not None:
+        system_prompt = f"{system_prompt}\n- The summary must not exceed {request.max_words} words."
+
     return [
-        {"role": "system", "content": load_summary_prompt()},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": request.text},
     ]

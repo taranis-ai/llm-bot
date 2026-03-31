@@ -5,6 +5,7 @@ class SummarizeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1)
+    max_words: int | None = Field(default=None, ge=1)
 
 
 class SummarizeResponse(BaseModel):
