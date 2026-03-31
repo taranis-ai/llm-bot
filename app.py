@@ -1,6 +1,8 @@
-from quart import Quart
+from quart import Quart, request
 
 from llm_bot.config import Config
+from llm_bot.schemas import SummarizeRequest
+from llm_bot.tasks.summarize import summarize
 
 
 def create_app() -> Quart:
@@ -23,6 +25,13 @@ def create_app() -> Quart:
             "llm_timeout": Config.LLM_TIMEOUT,
             "summary_route_path": Config.SUMMARY_ROUTE_PATH,
         }, 200
+
+    @app.post(Config.SUMMARY_ROUTE_PATH)
+    async def summarize_view() -> tuple[dict[str, str], int]:
+        payload = await request.get_json()
+        request_model = SummarizeRequest.model_validate(payload)
+        response_model = await summarize(request_model)
+        return response_model.model_dump(), 200
 
     return app
 
