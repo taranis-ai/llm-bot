@@ -6,7 +6,8 @@ from quart import Quart, request
 
 from llm_bot.config import Config
 from llm_bot.log import configure_logging, logger
-from llm_bot.schemas import SummarizeRequest
+from llm_bot.schemas import NerRequest, SummarizeRequest
+from llm_bot.tasks.ner import extract_entities
 from llm_bot.tasks.summarize import summarize
 
 
@@ -68,6 +69,27 @@ def create_app() -> Quart:
             return {"error": "Failed to generate summary"}, 502
 
         logger.info("Generated summary successfully")
+        return response_model.model_dump(), 200
+
+    @app.post("/ner")
+    @api_key_required
+    async def ner_view() -> tuple[dict[str, str], int]:
+        try:
+            payload = await request.get_json()
+            if Config.DEBUG:
+                logger.debug("NER payload: %s", json.dumps(payload, ensure_ascii=True))
+            request_model = NerRequest.model_validate(payload)
+        except ValidationError:
+            logger.warning("Invalid NER request payload")
+            return {"error": "Invalid NER request payload"}, 400
+
+        try:
+            response_model = await extract_entities(request_model)
+        except Exception:
+            logger.exception("Failed to extract entities")
+            return {"error": "Failed to extract entities"}, 502
+
+        logger.info("Extracted entities successfully")
         return response_model.model_dump(), 200
 
     return app
