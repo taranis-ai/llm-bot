@@ -1,3 +1,4 @@
+from pydantic import ValidationError
 from quart import Quart, request
 
 from llm_bot.config import Config
@@ -28,9 +29,17 @@ def create_app() -> Quart:
 
     @app.post(Config.SUMMARY_ROUTE_PATH)
     async def summarize_view() -> tuple[dict[str, str], int]:
-        payload = await request.get_json()
-        request_model = SummarizeRequest.model_validate(payload)
-        response_model = await summarize(request_model)
+        try:
+            payload = await request.get_json()
+            request_model = SummarizeRequest.model_validate(payload)
+        except ValidationError:
+            return {"error": "Invalid summarize request payload"}, 400
+
+        try:
+            response_model = await summarize(request_model)
+        except Exception:
+            return {"error": "Failed to generate summary"}, 502
+
         return response_model.model_dump(), 200
 
     return app

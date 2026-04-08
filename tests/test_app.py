@@ -37,3 +37,27 @@ async def test_summarize_endpoint(app, monkeypatch):
 
     assert response.status_code == 200
     assert body == {"summary": "Condensed summary"}
+
+
+async def test_summarize_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/summarize", json={"max_words": 25})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid summarize request payload"}
+
+
+async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_summarize(request_model):
+        raise ValueError("malformed upstream response")
+
+    monkeypatch.setattr("app.summarize", failing_summarize)
+
+    test_client = app.test_client()
+    response = await test_client.post("/summarize", json={"text": "Story text"})
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to generate summary"}
