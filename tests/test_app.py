@@ -39,6 +39,42 @@ async def test_summarize_endpoint(app, monkeypatch):
     assert body == {"summary": "Condensed summary"}
 
 
+async def test_summarize_endpoint_rejects_missing_api_key(app, monkeypatch):
+    app.config["TESTING"] = True
+
+    async def fake_summarize(request_model):
+        return SummarizeResponse(summary="Condensed summary")
+
+    monkeypatch.setattr("app.summarize", fake_summarize)
+    monkeypatch.setattr("app.Config.API_KEY", "secret")
+
+    test_client = app.test_client()
+    response = await test_client.post("/summarize", json={"text": "Story text"})
+    body = await response.get_json()
+
+    assert response.status_code == 401
+    assert body == {"error": "Unauthorized"}
+
+
+async def test_summarize_endpoint_accepts_valid_api_key(app, monkeypatch):
+    async def fake_summarize(request_model):
+        return SummarizeResponse(summary="Condensed summary")
+
+    monkeypatch.setattr("app.summarize", fake_summarize)
+    monkeypatch.setattr("app.Config.API_KEY", "secret")
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/summarize",
+        json={"text": "Story text"},
+        headers={"Authorization": "Bearer secret"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"summary": "Condensed summary"}
+
+
 async def test_summarize_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
 
