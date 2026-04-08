@@ -1,0 +1,171 @@
+openapi: 3.1.0
+info:
+  title: LLM Bot for Taranis AI
+  description: |
+    Multi-route LLM-backed bot service for Taranis AI.
+
+    The current implementation exposes a single summarization route backed by an
+    OpenAI-compatible Responses API.
+  version: 0.0.0
+  license:
+    name: EUPL-1.2
+    url: https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+
+servers:
+  - url: http://localhost:5500
+    description: Local development server
+  - url: http://localhost:8000
+    description: Container server
+
+paths:
+  /summarize:
+    post:
+      summary: Summarize input text
+      description: |
+        Accepts input text and returns a summarized version.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: summarizeText
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummarizeRequest"
+            examples:
+              basic:
+                summary: Example summarize request
+                value:
+                  text: "This is the input text to summarize."
+                  max_words: 80
+      responses:
+        "200":
+          description: Summary generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummarizeResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid summarize request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to generate summary"
+
+  /health:
+    get:
+      summary: Health check endpoint
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /info:
+    get:
+      summary: Runtime information
+      operationId: serviceInfo
+      responses:
+        "200":
+          description: Service configuration overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+  schemas:
+    SummarizeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to summarize
+        max_words:
+          type: integer
+          minimum: 1
+          description: Optional maximum number of words in the summary
+    SummarizeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - summary
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          description: Generated summary text
+    InfoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - package_name
+        - llm_base_url
+        - llm_model
+        - llm_timeout
+        - summary_route_path
+      properties:
+        package_name:
+          type: string
+        llm_base_url:
+          type: string
+        llm_model:
+          type: string
+        llm_timeout:
+          type: integer
+        summary_route_path:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: string
+
+tags:
+  - name: Summarization
+    description: Summarization operations
+  - name: System
+    description: Health and info endpoints
