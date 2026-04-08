@@ -1,4 +1,4 @@
-from llm_bot.schemas import SummarizeResponse
+from llm_bot.schemas import NerResponse, SummarizeResponse
 
 
 async def test_health_endpoint(app):
@@ -97,3 +97,43 @@ async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
 
     assert response.status_code == 502
     assert body == {"error": "Failed to generate summary"}
+
+
+async def test_ner_endpoint(app, monkeypatch):
+    async def fake_extract_entities(request_model):
+        assert request_model.text == "APT29 used Mimikatz."
+        assert request_model.cybersecurity is True
+        return NerResponse({"APT29": "Group", "Mimikatz": "Tool"})
+
+    monkeypatch.setattr("app.extract_entities", fake_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post("/ner", json={"text": "APT29 used Mimikatz.", "cybersecurity": True})
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"APT29": "Group", "Mimikatz": "Tool"}
+
+
+async def test_ner_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/ner", json={"cybersecurity": True})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid NER request payload"}
+
+
+async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_extract_entities(request_model):
+        raise ValueError("malformed upstream response")
+
+    monkeypatch.setattr("app.extract_entities", failing_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post("/ner", json={"text": "APT29 used Mimikatz."})
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to extract entities"}
