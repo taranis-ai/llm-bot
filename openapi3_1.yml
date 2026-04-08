@@ -4,8 +4,8 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes a single summarization route backed by an
-    OpenAI-compatible Responses API.
+    The current implementation exposes summarization and named entity
+    recognition routes backed by an OpenAI-compatible Responses API.
   version: 0.0.0
   license:
     name: EUPL-1.2
@@ -73,6 +73,70 @@ paths:
               example:
                 error: "Failed to generate summary"
 
+  /ner:
+    post:
+      summary: Extract named entities from input text
+      description: |
+        Accepts input text and returns a flat JSON object that maps entity
+        values to entity types.
+
+        When `cybersecurity` is enabled, the extraction includes
+        cybersecurity-relevant entities in addition to general named entities.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: extractEntities
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NerRequest"
+            examples:
+              basic:
+                summary: Example NER request
+                value:
+                  text: "Microsoft announced that Outlook users in Vienna should install updates immediately."
+                  cybersecurity: false
+              cybersecurity:
+                summary: Example cybersecurity-aware NER request
+                value:
+                  text: "APT29 used Mimikatz and PowerShell to dump credentials from government systems."
+                  cybersecurity: true
+      responses:
+        "200":
+          description: Entities extracted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NerResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid NER request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to extract entities"
+
   /health:
     get:
       summary: Health check endpoint
@@ -135,6 +199,27 @@ components:
           type: string
           minLength: 1
           description: Generated summary text
+    NerRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to analyze for named entities
+        cybersecurity:
+          type: boolean
+          default: false
+          description: |
+            When true, include cybersecurity-relevant entities in addition to
+            general named entities.
+    NerResponse:
+      type: object
+      description: Flat map of entity values to entity types
+      additionalProperties:
+        type: string
     InfoResponse:
       type: object
       additionalProperties: false
@@ -167,5 +252,7 @@ components:
 tags:
   - name: Summarization
     description: Summarization operations
+  - name: NER
+    description: Named entity recognition operations
   - name: System
     description: Health and info endpoints

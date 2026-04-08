@@ -1,9 +1,9 @@
 # llm-bot
 
-LLM-backed bot service for Taranis AI.
+LLM-backed bot service.
 
-The current implementation exposes a summary endpoint that accepts text and
-returns a strict JSON summary via an OpenAI-compatible Responses API.
+The current implementation exposes summary and named entity recognition
+endpoints backed by an OpenAI-compatible Responses API.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/summarize`
+- `API_KEY`: protects incoming requests to `/summarize` and `/ner`
 - `LLM_TIMEOUT`
 - `SUMMARY_MAX_INPUT_CHARS`
 
@@ -55,6 +55,33 @@ Response body:
 ```json
 {
   "summary": "Short summary"
+}
+```
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /ner`
+
+Request body:
+
+```json
+{
+  "text": "APT29 used Mimikatz and PowerShell to dump credentials.",
+  "cybersecurity": true
+}
+```
+
+Response body:
+
+```json
+{
+  "APT29": "Group",
+  "Mimikatz": "Tool",
+  "PowerShell": "CLICommand/CodeSnippet"
 }
 ```
 
