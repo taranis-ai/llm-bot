@@ -1,9 +1,27 @@
+from functools import wraps
+
 from pydantic import ValidationError
 from quart import Quart, request
 
 from llm_bot.config import Config
 from llm_bot.schemas import SummarizeRequest
 from llm_bot.tasks.summarize import summarize
+
+
+def api_key_required(view_func):
+    @wraps(view_func)
+    async def wrapped(*args, **kwargs):
+        if not Config.API_KEY:
+            return await view_func(*args, **kwargs)
+
+        auth_header = request.headers.get("Authorization", "")
+        expected_header = f"Bearer {Config.API_KEY}"
+        if auth_header != expected_header:
+            return {"error": "Unauthorized"}, 401
+
+        return await view_func(*args, **kwargs)
+
+    return wrapped
 
 
 def create_app() -> Quart:
@@ -28,6 +46,7 @@ def create_app() -> Quart:
         }, 200
 
     @app.post(Config.SUMMARY_ROUTE_PATH)
+    @api_key_required
     async def summarize_view() -> tuple[dict[str, str], int]:
         try:
             payload = await request.get_json()
