@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
 from llm_bot.schemas import ClusterRequest, ClusterResponse
 
 
@@ -13,16 +14,24 @@ def load_cluster_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
+def _truncate_text(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "…"
+
+
 def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
     compact_stories: list[dict[str, Any]] = []
     for story in request.stories:
         first_news_item = story.news_items[0]
+        tags = list(story.tags.keys())[: Config.CLUSTER_MAX_TAGS_PER_STORY]
+        summary_text = first_news_item.review or first_news_item.content
         compact_stories.append(
             {
                 "id": story.id,
-                "tags": list(story.tags.keys()),
+                "tags": tags,
                 "title": first_news_item.title,
-                "content": first_news_item.content,
+                "summary_text": _truncate_text(summary_text, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY),
                 "language": first_news_item.language,
             }
         )

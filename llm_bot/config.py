@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_ROUTE_PATH: str = "/summarize"
+    CLUSTER_MAX_CONTENT_CHARS_PER_STORY: int = 800
+    CLUSTER_MAX_TAGS_PER_STORY: int = 10
 
 
 Config = Settings()
