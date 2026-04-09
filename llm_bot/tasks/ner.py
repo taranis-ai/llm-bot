@@ -9,12 +9,14 @@ from llm_bot.schemas import NerRequest, NerResponse
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
-ALLOWED_ENTITY_TYPES = {
+GENERAL_ENTITY_TYPES = {
     "Person",
     "Location",
     "Organization",
     "Product",
-    "Address",
+    "Address"
+}
+CYBERSECURITY_ENTITY_TYPES = {
     "CLICommand/CodeSnippet",
     "Con",
     "Group",
@@ -23,8 +25,8 @@ ALLOWED_ENTITY_TYPES = {
     "Tactic",
     "Technique",
     "Tool",
-    "Misc",
 }
+ALLOWED_ENTITY_TYPES = GENERAL_ENTITY_TYPES | CYBERSECURITY_ENTITY_TYPES
 
 
 def load_ner_prompt() -> str:
@@ -36,20 +38,24 @@ def resolve_entity_types(request: NerRequest) -> list[str]:
     unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
     if unknown_entity_types:
         raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
-    return entity_types
+    if request.cybersecurity:
+        return entity_types
+    return [entity_type for entity_type in entity_types if entity_type in GENERAL_ENTITY_TYPES]
 
 
 def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
     system_prompt = load_ner_prompt()
     entity_types = resolve_entity_types(request)
-    system_prompt = f"{system_prompt}\nUse only these entity types: {', '.join(entity_types)}."
     if request.cybersecurity:
         system_prompt = (
             f"{system_prompt}\n"
-            "Cybersecurity mode is enabled. Extract general named entities and cybersecurity-relevant entities when present."
+            f"Cybersecurity mode is enabled. Use only these entity types: {', '.join(entity_types)}."
         )
     else:
-        system_prompt = f"{system_prompt}\nCybersecurity mode is disabled."
+        system_prompt = (
+            f"{system_prompt}\n"
+            f"Cybersecurity mode is disabled. Use only these entity types: {', '.join(entity_types)}."
+        )
 
     return [
         {"role": "system", "content": system_prompt},
