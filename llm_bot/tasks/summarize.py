@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
 
 
@@ -39,6 +40,7 @@ def _get_output_text(response_data: dict[str, Any]) -> str:
 
 def parse_summary_response(response_data: dict[str, Any]) -> SummarizeResponse:
     output_text = _get_output_text(response_data)
+    logger.debug("Raw summarize output: %s", output_text)
     parsed_output = json.loads(output_text)
     return SummarizeResponse.model_validate(parsed_output)
 

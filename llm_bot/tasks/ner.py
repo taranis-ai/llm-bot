@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
 
 
@@ -44,6 +45,7 @@ def _get_output_text(response_data: dict[str, Any]) -> str:
 
 def parse_ner_response(response_data: dict[str, Any]) -> NerResponse:
     output_text = _get_output_text(response_data)
+    logger.debug("Raw NER output: %s", output_text)
     parsed_output = json.loads(output_text)
     return NerResponse.model_validate(parsed_output)
 
