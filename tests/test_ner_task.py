@@ -1,7 +1,7 @@
 import pytest
 
 from llm_bot.schemas import NerRequest, NerResponse
-from llm_bot.tasks.ner import build_ner_messages, extract_entities, parse_ner_response
+from llm_bot.tasks.ner import build_ner_messages, extract_entities, parse_ner_response, resolve_entity_types
 
 
 class StubLLMClient:
@@ -19,6 +19,7 @@ def test_build_ner_messages_without_cybersecurity():
 
     system_message, user_message = build_ner_messages(request)
 
+    assert "Use only these entity types:" in system_message["content"]
     assert "Cybersecurity mode is disabled." in system_message["content"]
     assert user_message["content"] == "Microsoft announced a new Outlook update."
 
@@ -30,6 +31,29 @@ def test_build_ner_messages_with_cybersecurity():
 
     assert "Cybersecurity mode is enabled." in system_message["content"]
     assert user_message["content"] == "APT29 used Mimikatz."
+
+
+def test_resolve_entity_types_uses_request_override():
+    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "Tool"])
+
+    resolved = resolve_entity_types(request)
+
+    assert resolved == ["Group", "Tool"]
+
+
+def test_build_ner_messages_includes_request_entity_types():
+    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "Tool"])
+
+    system_message, _ = build_ner_messages(request)
+
+    assert "Use only these entity types: Group, Tool." in system_message["content"]
+
+
+def test_resolve_entity_types_rejects_unknown_request_entity_types():
+    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "AlienType"])
+
+    with pytest.raises(ValueError, match="Unsupported entity types requested: AlienType"):
+        resolve_entity_types(request)
 
 
 def test_parse_ner_response_from_output_text():
