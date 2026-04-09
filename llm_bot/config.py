@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,8 +17,31 @@ class Settings(BaseSettings):
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_ROUTE_PATH: str = "/summarize"
+    NER_ENTITY_TYPES: list[str] = [
+        "Person",
+        "Location",
+        "Organization",
+        "Product",
+        "Address",
+        "CLICommand/CodeSnippet",
+        "Con",
+        "Group",
+        "Malware",
+        "Sector",
+        "Tactic",
+        "Technique",
+        "Tool",
+        "Misc",
+    ]
     CLUSTER_MAX_CONTENT_CHARS_PER_STORY: int = 800
     CLUSTER_MAX_TAGS_PER_STORY: int = 10
+
+    @field_validator("NER_ENTITY_TYPES", mode="before")
+    @classmethod
+    def parse_ner_entity_types(cls, value):
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
 
 Config = Settings()

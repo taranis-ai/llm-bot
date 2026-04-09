@@ -19,6 +19,7 @@ class NerRequest(BaseModel):
 
     text: str = Field(min_length=1)
     cybersecurity: bool = False
+    entity_types: list[str] | None = None
 
 
 class NerResponse(RootModel[dict[str, str]]):
