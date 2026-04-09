@@ -3,19 +3,46 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
+ALLOWED_ENTITY_TYPES = {
+    "Person",
+    "Location",
+    "Organization",
+    "Product",
+    "Address",
+    "CLICommand/CodeSnippet",
+    "Con",
+    "Group",
+    "Malware",
+    "Sector",
+    "Tactic",
+    "Technique",
+    "Tool",
+    "Misc",
+}
 
 
 def load_ner_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
+def resolve_entity_types(request: NerRequest) -> list[str]:
+    entity_types = request.entity_types or Config.NER_ENTITY_TYPES
+    unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
+    if unknown_entity_types:
+        raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
+    return entity_types
+
+
 def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
     system_prompt = load_ner_prompt()
+    entity_types = resolve_entity_types(request)
+    system_prompt = f"{system_prompt}\nUse only these entity types: {', '.join(entity_types)}."
     if request.cybersecurity:
         system_prompt = (
             f"{system_prompt}\n"
