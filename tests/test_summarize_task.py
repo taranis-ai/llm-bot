@@ -9,8 +9,8 @@ class StubLLMClient:
         self.response_data = response_data
         self.calls = []
 
-    async def create_response(self, input_text: str, instructions: str):
-        self.calls.append({"input_text": input_text, "instructions": instructions})
+    async def create_response(self, input_text: str, instructions: str, response_format=None):
+        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
         return self.response_data
 
 
@@ -67,3 +67,4 @@ async def test_summarize_calls_client_and_returns_validated_response():
     assert response == SummarizeResponse(summary="Short summary")
     assert client.calls[0]["input_text"] == "Story text"
     assert "must not exceed 40 words" in client.calls[0]["instructions"]
+    assert client.calls[0]["response_format"]["type"] == "json_schema"

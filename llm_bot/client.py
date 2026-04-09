@@ -25,12 +25,19 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    async def create_response(self, input_text: str, instructions: str) -> dict[str, Any]:
+    async def create_response(
+        self,
+        input_text: str,
+        instructions: str,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         payload = {
             "model": self.model,
             "input": input_text,
             "instructions": instructions,
         }
+        if response_format is not None:
+            payload["text"] = {"format": response_format}
 
         async with AsyncSession(base_url=self.base_url, headers=self._headers()) as session:
             response = await session.post("/responses", json=payload, timeout=self.timeout)

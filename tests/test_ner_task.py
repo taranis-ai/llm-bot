@@ -9,8 +9,8 @@ class StubLLMClient:
         self.response_data = response_data
         self.calls = []
 
-    async def create_response(self, input_text: str, instructions: str):
-        self.calls.append({"input_text": input_text, "instructions": instructions})
+    async def create_response(self, input_text: str, instructions: str, response_format=None):
+        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
         return self.response_data
 
 
@@ -66,3 +66,4 @@ async def test_extract_entities_calls_client_and_returns_validated_response():
 
     assert response == NerResponse({"Microsoft": "Organization", "Outlook": "Product"})
     assert client.calls[0]["input_text"] == "Microsoft announced Outlook."
+    assert client.calls[0]["response_format"]["type"] == "json_schema"

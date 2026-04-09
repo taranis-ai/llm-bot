@@ -45,8 +45,31 @@ def parse_summary_response(response_data: dict[str, Any]) -> SummarizeResponse:
     return SummarizeResponse.model_validate(parsed_output)
 
 
+def get_summary_response_format() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "name": "summary_response",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["summary"],
+            "properties": {
+                "summary": {
+                    "type": "string",
+                    "minLength": 1,
+                }
+            },
+        },
+    }
+
+
 async def summarize(request: SummarizeRequest, client: LLMClient | None = None) -> SummarizeResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_summary_messages(request)
-    response_data = await llm_client.create_response(user_message["content"], system_message["content"])
+    response_data = await llm_client.create_response(
+        user_message["content"],
+        system_message["content"],
+        get_summary_response_format(),
+    )
     return parse_summary_response(response_data)

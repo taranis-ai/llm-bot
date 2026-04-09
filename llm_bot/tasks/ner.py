@@ -50,8 +50,24 @@ def parse_ner_response(response_data: dict[str, Any]) -> NerResponse:
     return NerResponse.model_validate(parsed_output)
 
 
+def get_ner_response_format() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "name": "ner_response",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+    }
+
+
 async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_ner_messages(request)
-    response_data = await llm_client.create_response(user_message["content"], system_message["content"])
+    response_data = await llm_client.create_response(
+        user_message["content"],
+        system_message["content"],
+        get_ner_response_format(),
+    )
     return parse_ner_response(response_data)
