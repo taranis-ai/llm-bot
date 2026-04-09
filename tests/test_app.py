@@ -127,7 +127,7 @@ async def test_ner_endpoint_rejects_invalid_payload(app):
 
 async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
     async def failing_extract_entities(request_model):
-        raise ValueError("malformed upstream response")
+        raise RuntimeError("malformed upstream response")
 
     monkeypatch.setattr("app.extract_entities", failing_extract_entities)
 
@@ -137,3 +137,20 @@ async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
 
     assert response.status_code == 502
     assert body == {"error": "Failed to extract entities"}
+
+
+async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
+    async def failing_extract_entities(request_model):
+        raise ValueError("Unsupported entity types requested: AlienType")
+
+    monkeypatch.setattr("app.extract_entities", failing_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/ner",
+        json={"text": "APT29 used Mimikatz.", "entity_types": ["Group", "AlienType"]},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Unsupported entity types requested: AlienType"}

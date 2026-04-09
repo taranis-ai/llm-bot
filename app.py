@@ -85,6 +85,9 @@ def create_app() -> Quart:
 
         try:
             response_model = await extract_entities(request_model)
+        except ValueError as exc:
+            logger.warning("Invalid NER entity type selection: %s", exc)
+            return {"error": str(exc)}, 400
         except Exception:
             logger.exception("Failed to extract entities")
             return {"error": "Failed to extract entities"}, 502

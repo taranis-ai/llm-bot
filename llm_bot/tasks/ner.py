@@ -32,7 +32,7 @@ def load_ner_prompt() -> str:
 
 
 def resolve_entity_types(request: NerRequest) -> list[str]:
-    entity_types = request.entity_types or Config.NER_ENTITY_TYPES
+    entity_types = request.entity_types or Config.ner_entity_types
     unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
     if unknown_entity_types:
         raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
