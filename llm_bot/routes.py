@@ -7,9 +7,10 @@ from quart import Blueprint, request
 
 from llm_bot.config import Config
 from llm_bot.log import logger
-from llm_bot.schemas import NerRequest, SummarizeRequest
+from llm_bot.schemas import NerRequest, SummarizeRequest, ClusterRequest
 from llm_bot.tasks.ner import extract_entities
 from llm_bot.tasks.summarize import summarize
+from llm_bot.tasks.cluster import cluster_stories
 
 
 def api_key_required(view_func):
@@ -36,6 +37,7 @@ async def _handle_model_request(
     processing_error_message: str,
     request_model_factory: Callable[[object], object],
     task: Callable[[object], Awaitable[object]],
+    client_error_exceptions: tuple[type[Exception], ...] = (),
 ) -> tuple[dict[str, str], int]:
     try:
         payload = await request.get_json()
@@ -48,6 +50,9 @@ async def _handle_model_request(
 
     try:
         response_model = await task(request_model)
+    except client_error_exceptions as exc:
+        logger.warning("%s client error: %s", log_prefix, exc)
+        return {"error": str(exc)}, 400
     except Exception:
         logger.exception(processing_error_message)
         return {"error": processing_error_message}, 502
@@ -72,6 +77,7 @@ def create_api_blueprint() -> Blueprint:
             "llm_timeout": Config.LLM_TIMEOUT,
             "summary_route_path": Config.SUMMARY_ROUTE_PATH,
             "ner_route_path": Config.NER_ROUTE_PATH,
+            "cluster_route_path": Config.CLUSTER_ROUTE_PATH
         }, 200
 
     @api.post(Config.SUMMARY_ROUTE_PATH)
@@ -94,6 +100,18 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to extract entities",
             request_model_factory=NerRequest.model_validate,
             task=extract_entities,
+            client_error_exceptions=(ValueError,),
+        )
+
+    @api.post(Config.CLUSTER_ROUTE_PATH)
+    @api_key_required
+    async def cluster_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Cluster",
+            validation_error_message="Invalid Cluster request payload",
+            processing_error_message="Failed to cluster stories",
+            request_model_factory=ClusterRequest.model_validate,
+            task=cluster_stories,
         )
 
     return api

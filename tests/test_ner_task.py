@@ -21,6 +21,8 @@ def test_build_ner_messages_without_cybersecurity():
 
     assert "Use only these entity types:" in system_message["content"]
     assert "Cybersecurity mode is disabled." in system_message["content"]
+    assert "CLICommand/CodeSnippet" not in system_message["content"]
+    assert "Malware" not in system_message["content"]
     assert user_message["content"] == "Microsoft announced a new Outlook update."
 
 
@@ -30,6 +32,8 @@ def test_build_ner_messages_with_cybersecurity():
     system_message, user_message = build_ner_messages(request)
 
     assert "Cybersecurity mode is enabled." in system_message["content"]
+    assert "CLICommand/CodeSnippet" in system_message["content"]
+    assert "Malware" in system_message["content"]
     assert user_message["content"] == "APT29 used Mimikatz."
 
 
@@ -38,11 +42,27 @@ def test_resolve_entity_types_uses_request_override():
 
     resolved = resolve_entity_types(request)
 
+    assert resolved == []
+
+
+def test_resolve_entity_types_uses_request_override_with_cybersecurity():
+    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["Group", "Tool"])
+
+    resolved = resolve_entity_types(request)
+
     assert resolved == ["Group", "Tool"]
 
 
 def test_build_ner_messages_includes_request_entity_types():
     request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "Tool"])
+
+    system_message, _ = build_ner_messages(request)
+
+    assert "Use only these entity types: ." in system_message["content"]
+
+
+def test_build_ner_messages_includes_request_entity_types_with_cybersecurity():
+    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["Group", "Tool"])
 
     system_message, _ = build_ner_messages(request)
 

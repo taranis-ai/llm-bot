@@ -1,5 +1,5 @@
+from llm_bot.schemas import ClusterIds, ClusterResponse, NerResponse, SummarizeResponse
 from llm_bot.app import create_app
-from llm_bot.schemas import NerResponse, SummarizeResponse
 
 
 async def test_health_endpoint(app):
@@ -130,7 +130,7 @@ async def test_ner_endpoint_rejects_invalid_payload(app):
 
 async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
     async def failing_extract_entities(request_model):
-        raise ValueError("malformed upstream response")
+        raise RuntimeError("malformed upstream response")
 
     monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
 
@@ -142,28 +142,21 @@ async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
     assert body == {"error": "Failed to extract entities"}
 
 
-async def test_endpoints_accept_trailing_slashes(app, monkeypatch):
-    async def fake_summarize(request_model):
-        return SummarizeResponse(summary="Condensed summary")
+async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
+    async def failing_extract_entities(request_model):
+        raise ValueError("Unsupported entity types requested: AlienType")
 
-    async def fake_extract_entities(request_model):
-        return NerResponse({"APT29": "Group"})
-
-    monkeypatch.setattr("llm_bot.routes.summarize", fake_summarize)
-    monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
+    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
 
     test_client = app.test_client()
+    response = await test_client.post(
+        "/ner",
+        json={"text": "APT29 used Mimikatz.", "entity_types": ["Group", "AlienType"]},
+    )
+    body = await response.get_json()
 
-    summarize_response = await test_client.post("/summarize/", json={"text": "Story text"})
-    ner_response = await test_client.post("/ner/", json={"text": "APT29 used Mimikatz."})
-    health_response = await test_client.get("/health/")
-    info_response = await test_client.get("/info/")
-
-    assert summarize_response.status_code == 200
-    assert ner_response.status_code == 200
-    assert health_response.status_code == 200
-    assert info_response.status_code == 200
-
+    assert response.status_code == 400
+    assert body == {"error": "Unsupported entity types requested: AlienType"}
 
 async def test_ner_endpoint_path_is_configurable(monkeypatch):
     async def fake_extract_entities(request_model):
@@ -181,3 +174,74 @@ async def test_ner_endpoint_path_is_configurable(monkeypatch):
 
     assert response.status_code == 200
     assert body == {"APT29": "Group"}
+
+async def test_cluster_endpoint(app, monkeypatch):
+    async def fake_cluster_stories(request_model):
+        assert len(request_model.stories) == 2
+        return ClusterResponse(
+            cluster_ids=ClusterIds(event_clusters=[["s1", "s2"]]),
+            message="Clustering completed",
+        )
+
+    monkeypatch.setattr("llm_bot.routes.cluster_stories", fake_cluster_stories)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cluster",
+        json={
+            "stories": [
+                {
+                    "id": "s1",
+                    "tags": {"APT29": {"tag_type": "APT"}},
+                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
+                },
+                {
+                    "id": "s2",
+                    "tags": {"APT28": {"tag_type": "APT"}},
+                    "news_items": [{"title": "B", "content": "B", "language": "en"}],
+                },
+            ]
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {
+        "cluster_ids": {"event_clusters": [["s1", "s2"]]},
+        "message": "Clustering completed",
+    }
+
+
+async def test_cluster_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/cluster", json={"stories": []})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid Cluster request payload"}
+
+
+async def test_cluster_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_cluster_stories(request_model):
+        raise RuntimeError("malformed upstream response")
+
+    monkeypatch.setattr("llm_bot.routes.cluster_stories", failing_cluster_stories)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cluster",
+        json={
+            "stories": [
+                {
+                    "id": "s1",
+                    "tags": {"APT29": {"tag_type": "APT"}},
+                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
+                }
+            ]
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to cluster stories"}

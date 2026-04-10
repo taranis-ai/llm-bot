@@ -9,12 +9,14 @@ from llm_bot.schemas import NerRequest, NerResponse
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
-ALLOWED_ENTITY_TYPES = {
+GENERAL_ENTITY_TYPES = {
     "Person",
     "Location",
     "Organization",
     "Product",
-    "Address",
+    "Address"
+}
+CYBERSECURITY_ENTITY_TYPES = {
     "CLICommand/CodeSnippet",
     "Con",
     "Group",
@@ -23,8 +25,22 @@ ALLOWED_ENTITY_TYPES = {
     "Tactic",
     "Technique",
     "Tool",
-    "Misc",
 }
+ALLOWED_ENTITY_TYPES = GENERAL_ENTITY_TYPES | CYBERSECURITY_ENTITY_TYPES
+CYBERSECURITY_EXAMPLES = """
+
+Cybersecurity examples:
+
+Input text:
+APT29 used Mimikatz and PowerShell to dump credentials from government systems.
+Expected output:
+{"APT29": "Group", "Mimikatz": "Tool", "PowerShell": "CLICommand/CodeSnippet", "government": "Sector"}
+
+Input text:
+Analysts observed Emotet spreading through malicious Word documents.
+Expected output:
+{"Emotet": "Malware", "Word": "Product"}
+""".strip()
 
 
 def load_ner_prompt() -> str:
@@ -32,24 +48,29 @@ def load_ner_prompt() -> str:
 
 
 def resolve_entity_types(request: NerRequest) -> list[str]:
-    entity_types = request.entity_types or Config.NER_ENTITY_TYPES
+    entity_types = request.entity_types or Config.ner_entity_types
     unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
     if unknown_entity_types:
         raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
-    return entity_types
+    if request.cybersecurity:
+        return entity_types
+    return [entity_type for entity_type in entity_types if entity_type in GENERAL_ENTITY_TYPES]
 
 
 def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
     system_prompt = load_ner_prompt()
     entity_types = resolve_entity_types(request)
-    system_prompt = f"{system_prompt}\nUse only these entity types: {', '.join(entity_types)}."
     if request.cybersecurity:
         system_prompt = (
             f"{system_prompt}\n"
-            "Cybersecurity mode is enabled. Extract general named entities and cybersecurity-relevant entities when present."
+            f"{CYBERSECURITY_EXAMPLES}\n"
+            f"Cybersecurity mode is enabled. Use only these entity types: {', '.join(entity_types)}."
         )
     else:
-        system_prompt = f"{system_prompt}\nCybersecurity mode is disabled."
+        system_prompt = (
+            f"{system_prompt}\n"
+            f"Cybersecurity mode is disabled. Use only these entity types: {', '.join(entity_types)}."
+        )
 
     return [
         {"role": "system", "content": system_prompt},
