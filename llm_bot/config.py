@@ -16,10 +16,12 @@ class Settings(BaseSettings):
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_ROUTE_PATH: str = "/summarize"
+    NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: str = (
         "Person,Location,Organization,Product,Address,CLICommand/CodeSnippet,"
         "Con,Group,Malware,Sector,Tactic,Technique,Tool"
     )
+    CLUSTER_ROUTE_PATH: str = "/cluster"
     CLUSTER_MAX_CONTENT_CHARS_PER_STORY: int = 800
     CLUSTER_MAX_TAGS_PER_STORY: int = 10
 

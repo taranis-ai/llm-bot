@@ -4,9 +4,11 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes summarization, named entity
-    recognition, and clustering routes backed by an OpenAI-compatible
-    Responses API.
+    The current implementation exposes summarization, clustering, and named entity
+    recognition routes backed by an OpenAI-compatible Responses API.
+
+    Canonical paths are documented without a trailing slash. The service
+    accepts both forms.
   version: 0.0.0
   license:
     name: EUPL-1.2
@@ -382,6 +384,7 @@ components:
         - llm_model
         - llm_timeout
         - summary_route_path
+        - ner_route_path
       properties:
         package_name:
           type: string
@@ -392,6 +395,8 @@ components:
         llm_timeout:
           type: integer
         summary_route_path:
+          type: string
+        ner_route_path:
           type: string
     Error:
       type: object

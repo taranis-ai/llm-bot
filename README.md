@@ -30,6 +30,8 @@ Optional:
 - `API_KEY`: protects incoming requests to `/summarize`, `/ner`, and `/cluster`
 - `LLM_TIMEOUT`
 - `SUMMARY_MAX_INPUT_CHARS`
+- `SUMMARY_ROUTE_PATH`
+- `NER_ROUTE_PATH`
 
 ## Run
 
@@ -38,6 +40,9 @@ uv run granian --interface asgi app:app --port 5500
 ```
 
 ## API
+
+Canonical paths are documented below. The service also accepts the same
+routes with a trailing slash.
 
 ### `POST /summarize`
 
@@ -156,7 +161,7 @@ Returns:
 ### `GET /info`
 
 Returns non-secret runtime configuration fields such as configured base URL,
-model, timeout, and route path.
+model, timeout, and route paths.
 
 ## Tests
 
