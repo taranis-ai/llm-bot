@@ -38,7 +38,7 @@ class StoryNewsItem(BaseModel):
     title: str
     content: str
     review: str | None = None
-    language: str
+    language: str | None = None
 
 
 class StoryClusterItem(BaseModel):

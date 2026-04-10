@@ -2,8 +2,8 @@
 
 LLM-backed bot service.
 
-The current implementation exposes summary and named entity recognition
-endpoints backed by an OpenAI-compatible Responses API.
+The current implementation exposes summary, named entity recognition, and
+clustering endpoints backed by an OpenAI-compatible Responses API.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/summarize` and `/ner`
+- `API_KEY`: protects incoming requests to `/summarize`, `/ner`, and `/cluster`
 - `LLM_TIMEOUT`
 - `SUMMARY_MAX_INPUT_CHARS`
 
@@ -55,6 +55,60 @@ Response body:
 ```json
 {
   "summary": "Short summary"
+}
+```
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /cluster`
+
+Request body:
+
+```json
+{
+  "stories": [
+    {
+      "id": "s1",
+      "tags": {
+        "APT29": { "tag_type": "APT" }
+      },
+      "news_items": [
+        {
+          "title": "APT29 targets Microsoft users",
+          "content": "APT29 targeted Microsoft users in Vienna.",
+          "language": "en"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "tags": {
+        "Microsoft": { "tag_type": "Organization" }
+      },
+      "news_items": [
+        {
+          "title": "Microsoft users targeted in Vienna",
+          "content": "Users in Vienna were targeted in an APT29 campaign.",
+          "language": "en"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Response body:
+
+```json
+{
+  "cluster_ids": {
+    "event_clusters": [["s1", "s2"]]
+  },
+  "message": "Clustering completed"
 }
 ```
 
