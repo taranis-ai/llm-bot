@@ -1,4 +1,4 @@
-from llm_bot.schemas import NerResponse, SummarizeResponse
+from llm_bot.schemas import ClusterIds, ClusterResponse, NerResponse, SummarizeResponse
 
 
 async def test_health_endpoint(app):
@@ -154,3 +154,75 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
 
     assert response.status_code == 400
     assert body == {"error": "Unsupported entity types requested: AlienType"}
+
+
+async def test_cluster_endpoint(app, monkeypatch):
+    async def fake_cluster_stories(request_model):
+        assert len(request_model.stories) == 2
+        return ClusterResponse(
+            cluster_ids=ClusterIds(event_clusters=[["s1", "s2"]]),
+            message="Clustering completed",
+        )
+
+    monkeypatch.setattr("app.cluster_stories", fake_cluster_stories)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cluster",
+        json={
+            "stories": [
+                {
+                    "id": "s1",
+                    "tags": {"APT29": {"tag_type": "APT"}},
+                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
+                },
+                {
+                    "id": "s2",
+                    "tags": {"APT28": {"tag_type": "APT"}},
+                    "news_items": [{"title": "B", "content": "B", "language": "en"}],
+                },
+            ]
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {
+        "cluster_ids": {"event_clusters": [["s1", "s2"]]},
+        "message": "Clustering completed",
+    }
+
+
+async def test_cluster_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/cluster", json={"stories": []})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid cluster request payload"}
+
+
+async def test_cluster_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_cluster_stories(request_model):
+        raise RuntimeError("malformed upstream response")
+
+    monkeypatch.setattr("app.cluster_stories", failing_cluster_stories)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cluster",
+        json={
+            "stories": [
+                {
+                    "id": "s1",
+                    "tags": {"APT29": {"tag_type": "APT"}},
+                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
+                }
+            ]
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to cluster stories"}

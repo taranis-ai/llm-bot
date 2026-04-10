@@ -6,7 +6,8 @@ from quart import Quart, request
 
 from llm_bot.config import Config
 from llm_bot.log import configure_logging, logger
-from llm_bot.schemas import NerRequest, SummarizeRequest
+from llm_bot.schemas import ClusterRequest, NerRequest, SummarizeRequest
+from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.ner import extract_entities
 from llm_bot.tasks.summarize import summarize
 
@@ -93,6 +94,27 @@ def create_app() -> Quart:
             return {"error": "Failed to extract entities"}, 502
 
         logger.info("Extracted entities successfully")
+        return response_model.model_dump(), 200
+
+    @app.post("/cluster")
+    @api_key_required
+    async def cluster_view() -> tuple[dict[str, object], int]:
+        try:
+            payload = await request.get_json()
+            if Config.DEBUG:
+                logger.debug("Cluster payload: %s", json.dumps(payload, ensure_ascii=True))
+            request_model = ClusterRequest.model_validate(payload)
+        except ValidationError:
+            logger.warning("Invalid cluster request payload")
+            return {"error": "Invalid cluster request payload"}, 400
+
+        try:
+            response_model = await cluster_stories(request_model)
+        except Exception:
+            logger.exception("Failed to cluster stories")
+            return {"error": "Failed to cluster stories"}, 502
+
+        logger.info("Clustered stories successfully")
         return response_model.model_dump(), 200
 
     return app
