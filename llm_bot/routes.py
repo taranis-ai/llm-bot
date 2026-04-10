@@ -37,6 +37,7 @@ async def _handle_model_request(
     processing_error_message: str,
     request_model_factory: Callable[[object], object],
     task: Callable[[object], Awaitable[object]],
+    client_error_exceptions: tuple[type[Exception], ...] = (),
 ) -> tuple[dict[str, str], int]:
     try:
         payload = await request.get_json()
@@ -49,6 +50,9 @@ async def _handle_model_request(
 
     try:
         response_model = await task(request_model)
+    except client_error_exceptions as exc:
+        logger.warning("%s client error: %s", log_prefix, exc)
+        return {"error": str(exc)}, 400
     except Exception:
         logger.exception(processing_error_message)
         return {"error": processing_error_message}, 502
@@ -96,6 +100,7 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to extract entities",
             request_model_factory=NerRequest.model_validate,
             task=extract_entities,
+            client_error_exceptions=(ValueError,),
         )
 
     @api.post(Config.CLUSTER_ROUTE_PATH)
