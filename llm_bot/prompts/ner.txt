@@ -12,7 +12,7 @@ Guidelines:
 - Do not return explanations.
 - Do not include any keys other than extracted entity values.
 
-Examples:
+General examples:
 
 Input text:
 Microsoft announced that Outlook users in Vienna should install updates immediately.
@@ -23,13 +23,3 @@ Input text:
 The bottle was left on the desk near a Windows 11 laptop.
 Expected output:
 {"Windows 11": "Product"}
-
-Input text:
-APT29 used Mimikatz and PowerShell to dump credentials from government systems.
-Expected output:
-{"APT29": "Group", "Mimikatz": "Tool", "PowerShell": "CLICommand/CodeSnippet", "government": "Sector"}
-
-Input text:
-Analysts observed Emotet spreading through malicious Word documents.
-Expected output:
-{"Emotet": "Malware", "Word": "Product"}

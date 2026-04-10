@@ -27,6 +27,20 @@ CYBERSECURITY_ENTITY_TYPES = {
     "Tool",
 }
 ALLOWED_ENTITY_TYPES = GENERAL_ENTITY_TYPES | CYBERSECURITY_ENTITY_TYPES
+CYBERSECURITY_EXAMPLES = """
+
+Cybersecurity examples:
+
+Input text:
+APT29 used Mimikatz and PowerShell to dump credentials from government systems.
+Expected output:
+{"APT29": "Group", "Mimikatz": "Tool", "PowerShell": "CLICommand/CodeSnippet", "government": "Sector"}
+
+Input text:
+Analysts observed Emotet spreading through malicious Word documents.
+Expected output:
+{"Emotet": "Malware", "Word": "Product"}
+""".strip()
 
 
 def load_ner_prompt() -> str:
@@ -49,6 +63,7 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
     if request.cybersecurity:
         system_prompt = (
             f"{system_prompt}\n"
+            f"{CYBERSECURITY_EXAMPLES}\n"
             f"Cybersecurity mode is enabled. Use only these entity types: {', '.join(entity_types)}."
         )
     else:
