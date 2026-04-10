@@ -4,6 +4,7 @@ from typing import Any
 
 from llm_bot.client import LLMClient
 from llm_bot.config import Config
+from llm_bot.log import logger
 from llm_bot.schemas import ClusterRequest, ClusterResponse
 
 
@@ -58,12 +59,50 @@ def _get_output_text(response_data: dict[str, Any]) -> str:
 
 def parse_cluster_response(response_data: dict[str, Any]) -> ClusterResponse:
     output_text = _get_output_text(response_data)
+    logger.debug("Raw cluster output: %s", output_text)
     parsed_output = json.loads(output_text)
     return ClusterResponse.model_validate(parsed_output)
+
+
+def get_cluster_response_format() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "name": "cluster_response",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["cluster_ids", "message"],
+            "properties": {
+                "cluster_ids": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["event_clusters"],
+                    "properties": {
+                        "event_clusters": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        }
+                    },
+                },
+                "message": {
+                    "type": "string",
+                    "minLength": 1,
+                },
+            },
+        },
+    }
 
 
 async def cluster_stories(request: ClusterRequest, client: LLMClient | None = None) -> ClusterResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_cluster_messages(request)
-    response_data = await llm_client.create_response(user_message["content"], system_message["content"])
+    response_data = await llm_client.create_response(
+        user_message["content"],
+        system_message["content"],
+        get_cluster_response_format(),
+    )
     return parse_cluster_response(response_data)
