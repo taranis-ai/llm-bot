@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_ROUTE_PATH: str = "/summarize"
+    NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: list[str] = [
         "Person",
         "Location",

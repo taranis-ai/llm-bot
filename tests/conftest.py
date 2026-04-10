@@ -1,6 +1,6 @@
 import pytest
 
-from app import create_app
+from llm_bot.app import create_app
 
 
 @pytest.fixture
