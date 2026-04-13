@@ -5,6 +5,7 @@ Return JSON only, with this exact shape:
 
 Requirements:
 - Write a concise factual summary of the provided text.
+- Write the summary in the same language as the input text.
 - Preserve important people, organizations, locations, events, and impacts when present.
 - Do not invent facts.
 - Do not include markdown.
