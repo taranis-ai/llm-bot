@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 120
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
+    SUMMARY_MAX_OUTPUT_CHARS: int = 1000
     SUMMARY_ROUTE_PATH: str = "/summarize"
     NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: str = (
