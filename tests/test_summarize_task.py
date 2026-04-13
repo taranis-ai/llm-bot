@@ -19,6 +19,7 @@ def test_build_summary_messages_without_max_words():
 
     system_message, user_message = build_summary_messages(request)
 
+    assert "same language as the input text" in system_message["content"]
     assert "must not exceed" not in system_message["content"]
     assert user_message["content"] == "Example story text"
 
@@ -30,6 +31,15 @@ def test_build_summary_messages_with_max_words():
 
     assert "must not exceed 80 words" in system_message["content"]
     assert user_message["content"] == "Example story text"
+
+
+def test_build_summary_messages_truncates_input_text(monkeypatch):
+    monkeypatch.setattr("llm_bot.tasks.summarize.Config.SUMMARY_MAX_INPUT_CHARS", 12)
+    request = SummarizeRequest(text="This is a very long story text")
+
+    _, user_message = build_summary_messages(request)
+
+    assert user_message["content"] == "This is a v…"
 
 
 def test_parse_summary_response_from_output_text():
