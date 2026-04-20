@@ -19,8 +19,7 @@ class Settings(BaseSettings):
     SUMMARY_ROUTE_PATH: str = "/summarize"
     NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: str = (
-        "Person,Location,Organization,Product,Event,CLICommand/CodeSnippet,"
-        "Con,Group,Malware,Sector,Tactic,Technique,Tool"
+        "PER,ORG,GPE,PRODUCT,EVENT,GROUP,MALWARE,TOOL,TACTIC,TECHNIQUE,SECTOR,INDICATOR"
     )
     CLUSTER_ROUTE_PATH: str = "/cluster"
     CLUSTER_MAX_CONTENT_CHARS_PER_STORY: int = 800
