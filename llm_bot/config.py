@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     SUMMARY_ROUTE_PATH: str = "/summarize"
     NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: str = (
-        "Person,Location,Organization,Product,Address,CLICommand/CodeSnippet,"
+        "Person,Location,Organization,Product,Event,CLICommand/CodeSnippet,"
         "Con,Group,Malware,Sector,Tactic,Technique,Tool"
     )
     CLUSTER_ROUTE_PATH: str = "/cluster"

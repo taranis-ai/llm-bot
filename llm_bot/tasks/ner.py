@@ -14,7 +14,7 @@ GENERAL_ENTITY_TYPES = {
     "Location",
     "Organization",
     "Product",
-    "Address"
+    "Event"
 }
 CYBERSECURITY_ENTITY_TYPES = {
     "CLICommand/CodeSnippet",
