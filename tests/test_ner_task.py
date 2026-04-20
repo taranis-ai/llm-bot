@@ -1,7 +1,13 @@
 import pytest
 
 from llm_bot.schemas import NerRequest, NerResponse
-from llm_bot.tasks.ner import build_ner_messages, extract_entities, parse_ner_response, resolve_entity_types
+from llm_bot.tasks.ner import (
+    build_ner_messages,
+    extract_entities,
+    normalize_entity_types,
+    parse_ner_response,
+    resolve_entity_types,
+)
 
 
 class StubLLMClient:
@@ -19,10 +25,16 @@ def test_build_ner_messages_without_cybersecurity():
 
     system_message, user_message = build_ner_messages(request)
 
-    assert "Use only these entity types:" in system_message["content"]
     assert "Cybersecurity mode is disabled." in system_message["content"]
-    assert "CLICommand/CodeSnippet" not in system_message["content"]
-    assert "Malware" not in system_message["content"]
+    assert "Allowed labels for this request:" in system_message["content"]
+    assert "PER" in system_message["content"]
+    assert "ORG" in system_message["content"]
+    assert "GPE" in system_message["content"]
+    assert "PRODUCT" in system_message["content"]
+    assert "EVENT" in system_message["content"]
+    assert "GROUP" not in system_message["content"]
+    assert "MALWARE" not in system_message["content"]
+    assert "Cybersecurity examples:" not in system_message["content"]
     assert user_message["content"] == "Microsoft announced a new Outlook update."
 
 
@@ -32,54 +44,63 @@ def test_build_ner_messages_with_cybersecurity():
     system_message, user_message = build_ner_messages(request)
 
     assert "Cybersecurity mode is enabled." in system_message["content"]
-    assert "CLICommand/CodeSnippet" in system_message["content"]
-    assert "Malware" in system_message["content"]
+    assert "Allowed labels for this request:" in system_message["content"]
+    assert "GROUP" in system_message["content"]
+    assert "MALWARE" in system_message["content"]
+    assert "TOOL" in system_message["content"]
+    assert "Cybersecurity examples:" in system_message["content"]
     assert user_message["content"] == "APT29 used Mimikatz."
 
 
 def test_resolve_entity_types_uses_request_override():
-    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "Tool"])
+    request = NerRequest(text="Joe Biden visited Vienna.", entity_types=["PER", "ORG"])
 
     resolved = resolve_entity_types(request)
 
-    assert resolved == []
+    assert resolved == ["PER", "ORG"]
 
 
 def test_resolve_entity_types_uses_request_override_with_cybersecurity():
-    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["Group", "Tool"])
+    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["GROUP", "TOOL"])
 
     resolved = resolve_entity_types(request)
 
-    assert resolved == ["Group", "Tool"]
+    assert resolved == ["GROUP", "TOOL"]
 
 
 def test_build_ner_messages_includes_request_entity_types():
-    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "Tool"])
+    request = NerRequest(text="Joe Biden visited Vienna.", entity_types=["PER", "ORG"])
 
     system_message, _ = build_ner_messages(request)
 
-    assert "Use only these entity types: ." in system_message["content"]
+    assert "Allowed labels for this request: PER, ORG." in system_message["content"]
 
 
 def test_build_ner_messages_includes_request_entity_types_with_cybersecurity():
-    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["Group", "Tool"])
+    request = NerRequest(text="APT29 used Mimikatz.", cybersecurity=True, entity_types=["GROUP", "TOOL"])
 
     system_message, _ = build_ner_messages(request)
 
-    assert "Use only these entity types: Group, Tool." in system_message["content"]
+    assert "Allowed labels for this request: GROUP, TOOL." in system_message["content"]
 
 
 def test_resolve_entity_types_rejects_unknown_request_entity_types():
-    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["Group", "AlienType"])
+    request = NerRequest(text="APT29 used Mimikatz.", entity_types=["GROUP", "AlienType"])
 
     with pytest.raises(ValueError, match="Unsupported entity types requested: AlienType"):
         resolve_entity_types(request)
 
 
-def test_parse_ner_response_from_output_text():
-    response = parse_ner_response({"output_text": '{"Microsoft":"Organization","Outlook":"Product"}'})
+def test_normalize_entity_types_supports_legacy_labels():
+    normalized = normalize_entity_types(["Person", "Organization", "CLICommand/CodeSnippet", "Con", "Tool"])
 
-    assert response == NerResponse({"Microsoft": "Organization", "Outlook": "Product"})
+    assert normalized == ["PER", "ORG", "TOOL", "INDICATOR"]
+
+
+def test_parse_ner_response_from_output_text():
+    response = parse_ner_response({"output_text": '{"Microsoft":"ORG","Outlook":"PRODUCT"}'})
+
+    assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
 
 
 def test_parse_ner_response_from_output_messages():
@@ -91,7 +112,7 @@ def test_parse_ner_response_from_output_messages():
                     "content": [
                         {
                             "type": "output_text",
-                            "text": '{"APT29":"Group","Mimikatz":"Tool"}',
+                            "text": '{"APT29":"GROUP","Mimikatz":"TOOL"}',
                         }
                     ],
                 }
@@ -99,15 +120,15 @@ def test_parse_ner_response_from_output_messages():
         }
     )
 
-    assert response == NerResponse({"APT29": "Group", "Mimikatz": "Tool"})
+    assert response == NerResponse({"APT29": "GROUP", "Mimikatz": "TOOL"})
 
 
 @pytest.mark.asyncio
 async def test_extract_entities_calls_client_and_returns_validated_response():
-    client = StubLLMClient({"output_text": '{"Microsoft":"Organization","Outlook":"Product"}'})
+    client = StubLLMClient({"output_text": '{"Microsoft":"ORG","Outlook":"PRODUCT"}'})
 
     response = await extract_entities(NerRequest(text="Microsoft announced Outlook."), client=client)
 
-    assert response == NerResponse({"Microsoft": "Organization", "Outlook": "Product"})
+    assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
     assert client.calls[0]["input_text"] == "Microsoft announced Outlook."
     assert client.calls[0]["response_format"]["type"] == "json_schema"

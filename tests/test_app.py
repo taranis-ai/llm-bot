@@ -106,7 +106,7 @@ async def test_ner_endpoint(app, monkeypatch):
     async def fake_extract_entities(request_model):
         assert request_model.text == "APT29 used Mimikatz."
         assert request_model.cybersecurity is True
-        return NerResponse({"APT29": "Group", "Mimikatz": "Tool"})
+        return NerResponse({"APT29": "GROUP", "Mimikatz": "TOOL"})
 
     monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
 
@@ -115,7 +115,7 @@ async def test_ner_endpoint(app, monkeypatch):
     body = await response.get_json()
 
     assert response.status_code == 200
-    assert body == {"APT29": "Group", "Mimikatz": "Tool"}
+    assert body == {"APT29": "GROUP", "Mimikatz": "TOOL"}
 
 
 async def test_ner_endpoint_rejects_invalid_payload(app):
@@ -151,7 +151,7 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
     test_client = app.test_client()
     response = await test_client.post(
         "/ner",
-        json={"text": "APT29 used Mimikatz.", "entity_types": ["Group", "AlienType"]},
+        json={"text": "APT29 used Mimikatz.", "entity_types": ["GROUP", "AlienType"]},
     )
     body = await response.get_json()
 
@@ -160,7 +160,7 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
 
 async def test_ner_endpoint_path_is_configurable(monkeypatch):
     async def fake_extract_entities(request_model):
-        return NerResponse({"APT29": "Group"})
+        return NerResponse({"APT29": "GROUP"})
 
     monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
     monkeypatch.setattr("llm_bot.routes.Config.NER_ROUTE_PATH", "/entities")
@@ -173,7 +173,7 @@ async def test_ner_endpoint_path_is_configurable(monkeypatch):
     body = await response.get_json()
 
     assert response.status_code == 200
-    assert body == {"APT29": "Group"}
+    assert body == {"APT29": "GROUP"}
 
 async def test_cluster_endpoint(app, monkeypatch):
     async def fake_cluster_stories(request_model):
