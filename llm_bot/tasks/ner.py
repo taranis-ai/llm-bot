@@ -28,21 +28,6 @@ CYBERSECURITY_ENTITY_TYPES = {
     "INDICATOR",
 }
 ALLOWED_ENTITY_TYPES = GENERAL_ENTITY_TYPES | CYBERSECURITY_ENTITY_TYPES
-LEGACY_ENTITY_TYPE_MAP = {
-    "Person": "PER",
-    "Organization": "ORG",
-    "Location": "GPE",
-    "Product": "PRODUCT",
-    "Event": "EVENT",
-    "Group": "GROUP",
-    "Malware": "MALWARE",
-    "Tool": "TOOL",
-    "Tactic": "TACTIC",
-    "Technique": "TECHNIQUE",
-    "Sector": "SECTOR",
-    "Con": "INDICATOR",
-    "CLICommand/CodeSnippet": "TOOL",
-}
 CYBERSECURITY_EXAMPLES = """
 
 Cybersecurity examples:
@@ -155,17 +140,8 @@ def load_ner_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
-def normalize_entity_types(entity_types: list[str]) -> list[str]:
-    normalized_entity_types: list[str] = []
-    for entity_type in entity_types:
-        normalized_entity_type = LEGACY_ENTITY_TYPE_MAP.get(entity_type, entity_type)
-        if normalized_entity_type not in normalized_entity_types:
-            normalized_entity_types.append(normalized_entity_type)
-    return normalized_entity_types
-
-
 def resolve_entity_types(request: NerRequest) -> list[str]:
-    entity_types = normalize_entity_types(request.entity_types or Config.ner_entity_types)
+    entity_types = request.entity_types or Config.ner_entity_types
     unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
     if unknown_entity_types:
         raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
