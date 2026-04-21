@@ -7,6 +7,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
+from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
@@ -195,24 +196,11 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
         {"role": "user", "content": request.text},
     ]
 
-
-def _strip_markdown_emphasis(value: str) -> str:
-    normalized_value = value.strip()
-    for marker in ("**", "__", "*", "_"):
-        if normalized_value.startswith(marker) and normalized_value.endswith(marker):
-            normalized_value = normalized_value[len(marker) : -len(marker)].strip()
-    return normalized_value
-
-
-def _normalize_parsed_entities(parsed_output: dict[str, Any]) -> dict[str, Any]:
-    return {_strip_markdown_emphasis(entity): entity_type for entity, entity_type in parsed_output.items()}
-
-
 def parse_ner_response(response_data: dict[str, Any]) -> NerResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw NER output: %s", output_text)
     parsed_output = json.loads(output_text)
-    return NerResponse.model_validate(_normalize_parsed_entities(parsed_output))
+    return NerResponse.model_validate(postprocess_entities(parsed_output))
 
 
 def get_ner_response_format() -> dict[str, Any]:
