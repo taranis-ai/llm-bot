@@ -23,7 +23,7 @@ Configure the following values in `.env`:
 
 - `LLM_BASE_URL`
 - `LLM_API_KEY`
-- `LLM_MODEL`
+- `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 
 Optional:
 

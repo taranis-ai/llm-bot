@@ -32,10 +32,11 @@ class LLMClient:
         response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload = {
-            "model": self.model,
             "input": input_text,
             "instructions": instructions,
         }
+        if self.model:
+            payload["model"] = self.model
         if response_format is not None:
             payload["text"] = {"format": response_format}
 

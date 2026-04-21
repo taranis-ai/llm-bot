@@ -5,7 +5,6 @@ from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name,
 from llm_bot.tasks.ner import (
     build_ner_messages,
     extract_entities,
-    normalize_entity_types,
     parse_ner_response,
     resolve_entity_types,
 )
@@ -21,6 +20,14 @@ class StubLLMClient:
         if isinstance(self.response_data, list):
             return self.response_data.pop(0)
         return self.response_data
+
+
+@pytest.fixture(autouse=True)
+def use_current_ner_entity_types(monkeypatch):
+    monkeypatch.setattr(
+        "llm_bot.tasks.ner.Config.NER_ENTITY_TYPES",
+        "PER,ORG,GPE,PRODUCT,EVENT,GROUP,MALWARE,TOOL,TACTIC,TECHNIQUE,SECTOR,INDICATOR",
+    )
 
 
 def test_build_ner_messages_without_cybersecurity():
@@ -94,12 +101,6 @@ def test_resolve_entity_types_rejects_unknown_request_entity_types():
 
     with pytest.raises(ValueError, match="Unsupported entity types requested: AlienType"):
         resolve_entity_types(request)
-
-
-def test_normalize_entity_types_supports_legacy_labels():
-    normalized = normalize_entity_types(["Person", "Organization", "CLICommand/CodeSnippet", "Con", "Tool"])
-
-    assert normalized == ["PER", "ORG", "TOOL", "INDICATOR"]
 
 
 def test_normalize_entity_name_strips_markdown_emphasis():
