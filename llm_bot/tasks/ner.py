@@ -6,7 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
+from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text
 from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
 
@@ -196,21 +196,31 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
         {"role": "user", "content": request.text},
     ]
 
-def parse_ner_response(response_data: dict[str, Any]) -> NerResponse:
+def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list[str]) -> NerResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw NER output: %s", output_text)
     parsed_output = json.loads(output_text)
-    return NerResponse.model_validate(postprocess_entities(parsed_output))
+    response = NerResponse.model_validate(postprocess_entities(parsed_output))
+    invalid_entity_types = sorted({entity_type for entity_type in response.root.values() if entity_type not in allowed_entity_types})
+    if invalid_entity_types:
+        raise InvalidLLMOutputError(
+            f"Response contained unsupported entity types: {', '.join(invalid_entity_types)}. "
+            f"Allowed entity types: {', '.join(allowed_entity_types)}"
+        )
+    return response
 
 
-def get_ner_response_format() -> dict[str, Any]:
+def get_ner_response_format(allowed_entity_types: list[str]) -> dict[str, Any]:
     return {
         "type": "json_schema",
         "name": "ner_response",
         "strict": True,
         "schema": {
             "type": "object",
-            "additionalProperties": {"type": "string"},
+            "additionalProperties": {
+                "type": "string",
+                "enum": allowed_entity_types,
+            },
         },
     }
 
@@ -218,11 +228,12 @@ def get_ner_response_format() -> dict[str, Any]:
 async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_ner_messages(request)
+    allowed_entity_types = resolve_entity_types(request)
     return await create_and_parse_response(
         client=llm_client,
         task_name="NER",
         input_text=user_message["content"],
         instructions=system_message["content"],
-        response_format=get_ner_response_format(),
-        parse_response=parse_ner_response,
+        response_format=get_ner_response_format(allowed_entity_types),
+        parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
     )

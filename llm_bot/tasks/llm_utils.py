@@ -10,6 +10,10 @@ from llm_bot.log import logger
 T = TypeVar("T")
 
 
+class InvalidLLMOutputError(ValueError):
+    pass
+
+
 def get_output_text(response_data: dict[str, Any]) -> str:
     if output_text := response_data.get("output_text"):
         return str(output_text)
@@ -57,7 +61,7 @@ async def create_and_parse_response(
     response_data = await client.create_response(input_text, instructions, response_format)
     try:
         return parse_response(response_data)
-    except (json.JSONDecodeError, ValidationError) as error:
+    except (json.JSONDecodeError, ValidationError, InvalidLLMOutputError) as error:
         invalid_output_text = get_output_text(response_data)
         logger.warning("Invalid %s output, retrying once: %s", task_name, error)
         repair_response_data = await client.create_response(

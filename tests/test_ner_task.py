@@ -132,20 +132,21 @@ def test_postprocess_entities_drops_url_like_products():
 
 
 def test_parse_ner_response_from_output_text():
-    response = parse_ner_response({"output_text": '{"Microsoft":"ORG","Outlook":"PRODUCT"}'})
+    response = parse_ner_response({"output_text": '{"Microsoft":"ORG","Outlook":"PRODUCT"}'}, ["ORG", "PRODUCT"])
 
     assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
 
 
 def test_parse_ner_response_strips_markdown_emphasis_from_entity_names():
-    response = parse_ner_response({"output_text": '{"**Microsoft**":"ORG","_Vienna_":"GPE"}'})
+    response = parse_ner_response({"output_text": '{"**Microsoft**":"ORG","_Vienna_":"GPE"}'}, ["ORG", "GPE"])
 
     assert response == NerResponse({"Microsoft": "ORG", "Vienna": "GPE"})
 
 
 def test_parse_ner_response_drops_url_like_products():
     response = parse_ner_response(
-        {"output_text": '{"https://mail.google.com":"PRODUCT","Wikipedia":"PRODUCT","https://example.org":"ORG"}'}
+        {"output_text": '{"https://mail.google.com":"PRODUCT","Wikipedia":"PRODUCT","https://example.org":"ORG"}'},
+        ["PRODUCT", "ORG"],
     )
 
     assert response == NerResponse({"Wikipedia": "PRODUCT", "https://example.org": "ORG"})
@@ -165,10 +166,16 @@ def test_parse_ner_response_from_output_messages():
                     ],
                 }
             ]
-        }
+        },
+        ["GROUP", "TOOL"],
     )
 
     assert response == NerResponse({"APT29": "GROUP", "Mimikatz": "TOOL"})
+
+
+def test_parse_ner_response_rejects_unsupported_entity_types():
+    with pytest.raises(ValueError, match="Response contained unsupported entity types"):
+        parse_ner_response({"output_text": '{"Wikipedia":"PRODUCT","Foo":"*Omitted*"}'}, ["PRODUCT"])
 
 
 @pytest.mark.asyncio
@@ -180,6 +187,13 @@ async def test_extract_entities_calls_client_and_returns_validated_response():
     assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
     assert client.calls[0]["input_text"] == "Microsoft announced Outlook."
     assert client.calls[0]["response_format"]["type"] == "json_schema"
+    assert set(client.calls[0]["response_format"]["schema"]["additionalProperties"]["enum"]) == {
+        "PER",
+        "ORG",
+        "GPE",
+        "PRODUCT",
+        "EVENT",
+    }
 
 
 @pytest.mark.asyncio
@@ -210,4 +224,19 @@ async def test_extract_entities_retries_once_on_validation_error():
     response = await extract_entities(NerRequest(text="Microsoft announced Outlook."), client=client)
 
     assert response == NerResponse({"Microsoft": "ORG"})
+    assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_retries_once_on_unsupported_entity_type():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"Wikipedia":"PRODUCT","Foo":"*Omitted*"}'},
+            {"output_text": '{"Wikipedia":"PRODUCT"}'},
+        ]
+    )
+
+    response = await extract_entities(NerRequest(text="Wikipedia was mentioned."), client=client)
+
+    assert response == NerResponse({"Wikipedia": "PRODUCT"})
     assert len(client.calls) == 2
