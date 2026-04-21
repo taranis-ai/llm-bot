@@ -6,6 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
+from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summarize.txt"
@@ -33,22 +34,8 @@ def build_summary_messages(request: SummarizeRequest) -> list[dict[str, str]]:
         {"role": "user", "content": truncated_text},
     ]
 
-
-def _get_output_text(response_data: dict[str, Any]) -> str:
-    if output_text := response_data.get("output_text"):
-        return str(output_text)
-
-    for item in response_data.get("output", []):
-        if item.get("type") == "message":
-            for content in item.get("content", []):
-                if content.get("type") in {"output_text", "text"} and content.get("text"):
-                    return str(content["text"])
-
-    raise ValueError("Responses API payload did not contain output text")
-
-
 def parse_summary_response(response_data: dict[str, Any]) -> SummarizeResponse:
-    output_text = _get_output_text(response_data)
+    output_text = get_output_text(response_data)
     logger.debug("Raw summarize output: %s", output_text)
     parsed_output = json.loads(output_text)
     response = SummarizeResponse.model_validate(parsed_output)
@@ -78,9 +65,11 @@ def get_summary_response_format() -> dict[str, Any]:
 async def summarize(request: SummarizeRequest, client: LLMClient | None = None) -> SummarizeResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_summary_messages(request)
-    response_data = await llm_client.create_response(
-        user_message["content"],
-        system_message["content"],
-        get_summary_response_format(),
+    return await create_and_parse_response(
+        client=llm_client,
+        task_name="summary",
+        input_text=user_message["content"],
+        instructions=system_message["content"],
+        response_format=get_summary_response_format(),
+        parse_response=parse_summary_response,
     )
-    return parse_summary_response(response_data)

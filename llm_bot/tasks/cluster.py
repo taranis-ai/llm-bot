@@ -6,6 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import ClusterRequest, ClusterResponse
+from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cluster.txt"
@@ -43,22 +44,8 @@ def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
     ]
 
-
-def _get_output_text(response_data: dict[str, Any]) -> str:
-    if output_text := response_data.get("output_text"):
-        return str(output_text)
-
-    for item in response_data.get("output", []):
-        if item.get("type") == "message":
-            for content in item.get("content", []):
-                if content.get("type") in {"output_text", "text"} and content.get("text"):
-                    return str(content["text"])
-
-    raise ValueError("Responses API payload did not contain output text")
-
-
 def parse_cluster_response(response_data: dict[str, Any]) -> ClusterResponse:
-    output_text = _get_output_text(response_data)
+    output_text = get_output_text(response_data)
     logger.debug("Raw cluster output: %s", output_text)
     parsed_output = json.loads(output_text)
     return ClusterResponse.model_validate(parsed_output)
@@ -100,9 +87,11 @@ def get_cluster_response_format() -> dict[str, Any]:
 async def cluster_stories(request: ClusterRequest, client: LLMClient | None = None) -> ClusterResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_cluster_messages(request)
-    response_data = await llm_client.create_response(
-        user_message["content"],
-        system_message["content"],
-        get_cluster_response_format(),
+    return await create_and_parse_response(
+        client=llm_client,
+        task_name="cluster",
+        input_text=user_message["content"],
+        instructions=system_message["content"],
+        response_format=get_cluster_response_format(),
+        parse_response=parse_cluster_response,
     )
-    return parse_cluster_response(response_data)
