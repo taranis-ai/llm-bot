@@ -21,6 +21,18 @@ General rules:
 - Return valid JSON only.
 - Do not return explanations, comments, notes, or markdown.
 
+Surface form and normalization rules:
+- Extract entities as explicit mentions, not as inferred substrings.
+- Do not split compounds or larger derived expressions into smaller embedded entities.
+- If a named entity appears only inside a compound or expanded form, do not extract the shorter embedded entity.
+- Simple inflectional, possessive, or case-marked forms of a named entity may be normalized to the canonical entity name.
+- Keep normalization conservative. Only normalize when the base entity is clear and unambiguous.
+
+Boundary and normalization examples:
+- "Kubernetes" -> {"Kubernetes": "PRODUCT"}
+- "Kubernetes-Umgebungen" -> do not extract "Kubernetes"
+- "Einsteins" -> {"Einstein": "PER"}
+
 Base label definitions:
 
 PER
