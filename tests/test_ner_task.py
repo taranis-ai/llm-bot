@@ -1,6 +1,7 @@
 import pytest
 
 from llm_bot.schemas import NerRequest, NerResponse
+from llm_bot.tasks.ner_postprocessing import normalize_entity_name, postprocess_entities
 from llm_bot.tasks.ner import (
     build_ner_messages,
     extract_entities,
@@ -37,6 +38,8 @@ def test_build_ner_messages_without_cybersecurity():
     assert "GROUP" not in system_message["content"]
     assert "MALWARE" not in system_message["content"]
     assert "Cybersecurity examples:" not in system_message["content"]
+    assert "Do not split compounds or larger derived expressions into smaller embedded entities." in system_message["content"]
+    assert '"Einsteins" -> {"Einstein": "PER"}' in system_message["content"]
     assert user_message["content"] == "Microsoft announced a new Outlook update."
 
 
@@ -97,6 +100,17 @@ def test_normalize_entity_types_supports_legacy_labels():
     normalized = normalize_entity_types(["Person", "Organization", "CLICommand/CodeSnippet", "Con", "Tool"])
 
     assert normalized == ["PER", "ORG", "TOOL", "INDICATOR"]
+
+
+def test_normalize_entity_name_strips_markdown_emphasis():
+    assert normalize_entity_name(" **Microsoft** ") == "Microsoft"
+    assert normalize_entity_name("_Vienna_") == "Vienna"
+
+
+def test_postprocess_entities_normalizes_entity_names():
+    processed = postprocess_entities({"**Microsoft**": "ORG", "_Vienna_": "GPE"})
+
+    assert processed == {"Microsoft": "ORG", "Vienna": "GPE"}
 
 
 def test_parse_ner_response_from_output_text():
