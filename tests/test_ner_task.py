@@ -105,6 +105,12 @@ def test_parse_ner_response_from_output_text():
     assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
 
 
+def test_parse_ner_response_strips_markdown_emphasis_from_entity_names():
+    response = parse_ner_response({"output_text": '{"**Microsoft**":"ORG","_Vienna_":"GPE"}'})
+
+    assert response == NerResponse({"Microsoft": "ORG", "Vienna": "GPE"})
+
+
 def test_parse_ner_response_from_output_messages():
     response = parse_ner_response(
         {
