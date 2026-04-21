@@ -17,6 +17,8 @@ class StubLLMClient:
 
     async def create_response(self, input_text: str, instructions: str, response_format=None):
         self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
+        if isinstance(self.response_data, list):
+            return self.response_data.pop(0)
         return self.response_data
 
 
@@ -132,3 +134,34 @@ async def test_extract_entities_calls_client_and_returns_validated_response():
     assert response == NerResponse({"Microsoft": "ORG", "Outlook": "PRODUCT"})
     assert client.calls[0]["input_text"] == "Microsoft announced Outlook."
     assert client.calls[0]["response_format"]["type"] == "json_schema"
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_retries_once_on_invalid_json():
+    client = StubLLMClient(
+        [
+            {"output_text": "APT29 GROUP"},
+            {"output_text": '{"APT29":"GROUP","Mimikatz":"TOOL"}'},
+        ]
+    )
+
+    response = await extract_entities(NerRequest(text="APT29 used Mimikatz.", cybersecurity=True), client=client)
+
+    assert response == NerResponse({"APT29": "GROUP", "Mimikatz": "TOOL"})
+    assert len(client.calls) == 2
+    assert "Your previous response was invalid." in client.calls[1]["instructions"]
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_retries_once_on_validation_error():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"Microsoft":["ORG"]}'},
+            {"output_text": '{"Microsoft":"ORG"}'},
+        ]
+    )
+
+    response = await extract_entities(NerRequest(text="Microsoft announced Outlook."), client=client)
+
+    assert response == NerResponse({"Microsoft": "ORG"})
+    assert len(client.calls) == 2

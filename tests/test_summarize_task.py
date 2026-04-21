@@ -11,6 +11,8 @@ class StubLLMClient:
 
     async def create_response(self, input_text: str, instructions: str, response_format=None):
         self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
+        if isinstance(self.response_data, list):
+            return self.response_data.pop(0)
         return self.response_data
 
 
@@ -87,3 +89,34 @@ async def test_summarize_calls_client_and_returns_validated_response():
     assert client.calls[0]["input_text"] == "Story text"
     assert "must not exceed 40 words" in client.calls[0]["instructions"]
     assert client.calls[0]["response_format"]["type"] == "json_schema"
+
+
+@pytest.mark.asyncio
+async def test_summarize_retries_once_on_invalid_json():
+    client = StubLLMClient(
+        [
+            {"output_text": "Short summary"},
+            {"output_text": '{"summary":"Short summary"}'},
+        ]
+    )
+
+    response = await summarize(SummarizeRequest(text="Story text"), client=client)
+
+    assert response == SummarizeResponse(summary="Short summary")
+    assert len(client.calls) == 2
+    assert "Your previous response was invalid." in client.calls[1]["instructions"]
+
+
+@pytest.mark.asyncio
+async def test_summarize_retries_once_on_validation_error():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"summary":""}'},
+            {"output_text": '{"summary":"Recovered summary"}'},
+        ]
+    )
+
+    response = await summarize(SummarizeRequest(text="Story text"), client=client)
+
+    assert response == SummarizeResponse(summary="Recovered summary")
+    assert len(client.calls) == 2
