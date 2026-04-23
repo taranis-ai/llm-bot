@@ -28,6 +28,12 @@ CYBERSECURITY_ENTITY_TYPES = {
     "INDICATOR",
 }
 ALLOWED_ENTITY_TYPES = GENERAL_ENTITY_TYPES | CYBERSECURITY_ENTITY_TYPES
+
+
+class UnsupportedEntityTypesError(ValueError):
+    pass
+
+
 CYBERSECURITY_EXAMPLES = """
 
 Cybersecurity examples:
@@ -144,7 +150,7 @@ def resolve_entity_types(request: NerRequest) -> list[str]:
     entity_types = request.entity_types or Config.ner_entity_types
     unknown_entity_types = sorted(set(entity_types) - ALLOWED_ENTITY_TYPES)
     if unknown_entity_types:
-        raise ValueError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
+        raise UnsupportedEntityTypesError(f"Unsupported entity types requested: {', '.join(unknown_entity_types)}")
     if request.cybersecurity:
         return entity_types
     return [entity_type for entity_type in entity_types if entity_type in GENERAL_ENTITY_TYPES]
@@ -176,7 +182,10 @@ def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list
     output_text = get_output_text(response_data)
     logger.debug("Raw NER output: %s", output_text)
     parsed_output = json.loads(output_text)
-    response = NerResponse.model_validate(postprocess_entities(parsed_output))
+    postprocessed_output = postprocess_entities(parsed_output)
+    logger.debug("Postprocessed NER output: %s", json.dumps(postprocessed_output, ensure_ascii=True, default=str))
+    logger.debug("Allowed NER entity types: %s", ", ".join(allowed_entity_types))
+    response = NerResponse.model_validate(postprocessed_output)
     invalid_entity_types = sorted({entity_type for entity_type in response.root.values() if entity_type not in allowed_entity_types})
     if invalid_entity_types:
         raise InvalidLLMOutputError(
