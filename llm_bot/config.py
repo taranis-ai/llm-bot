@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 120
     LLM_REASONING_PROFILE: str = "none"
     LLM_STRIP_REASONING_OUTPUT: bool = True
+    LLM_PARSE_REASONING_AS_OUTPUT: bool = False
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_MAX_OUTPUT_CHARS: int = 1000

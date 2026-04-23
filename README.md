@@ -31,6 +31,7 @@ Optional:
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none` or `ministral`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
+- `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `SUMMARY_MAX_INPUT_CHARS`
 - `SUMMARY_ROUTE_PATH`
 - `NER_ROUTE_PATH`

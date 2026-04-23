@@ -107,6 +107,20 @@ def test_get_output_text_logs_inline_reasoning(caplog):
     assert "LLM reasoning output: [THINK]I should summarize this.[/THINK]" in caplog.text
 
 
+def test_get_output_text_can_use_reasoning_as_fallback_output(monkeypatch):
+    monkeypatch.setattr("llm_bot.tasks.llm_utils.Config.LLM_PARSE_REASONING_AS_OUTPUT", True)
+    response_data = {
+        "output": [
+            {
+                "type": "reasoning",
+                "content": [{"type": "reasoning_text", "text": 'Thinking... {"summary":"Short summary"}'}],
+            }
+        ]
+    }
+
+    assert get_output_text(response_data) == 'Thinking... {"summary":"Short summary"}'
+
+
 def test_apply_reasoning_profile_adds_ministral_instructions(monkeypatch):
     monkeypatch.setattr("llm_bot.reasoning.Config.LLM_REASONING_PROFILE", "ministral")
 

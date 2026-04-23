@@ -4,6 +4,7 @@ from typing import Any, Callable, TypeVar
 from pydantic import ValidationError
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.reasoning import (
     apply_reasoning_profile,
@@ -87,6 +88,12 @@ def get_output_text(response_data: dict[str, Any]) -> str:
                     output_text = str(content["text"])
                     _log_reasoning_output(response_data, output_text)
                     return strip_reasoning_output(output_text)
+
+    if Config.LLM_PARSE_REASONING_AS_OUTPUT:
+        reasoning_text = extract_structured_reasoning(response_data)
+        if reasoning_text:
+            logger.debug("Using structured reasoning output as fallback output text")
+            return strip_reasoning_output(reasoning_text)
 
     logger.debug("Responses API payload without output text: %s", json.dumps(response_data, ensure_ascii=True, default=str))
     raise MissingOutputTextError("Responses API payload did not contain output text")
