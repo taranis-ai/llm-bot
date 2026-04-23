@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
     LLM_TIMEOUT: int = 120
+    LLM_REASONING_PROFILE: str = "none"
+    LLM_STRIP_REASONING_OUTPUT: bool = True
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_MAX_OUTPUT_CHARS: int = 1000
