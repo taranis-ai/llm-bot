@@ -29,6 +29,8 @@ Optional:
 
 - `API_KEY`: protects incoming requests to `/summarize`, `/ner`, and `/cluster`
 - `LLM_TIMEOUT`
+- `LLM_REASONING_PROFILE`: use `none` or `ministral`
+- `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `SUMMARY_MAX_INPUT_CHARS`
 - `SUMMARY_ROUTE_PATH`
 - `NER_ROUTE_PATH`
