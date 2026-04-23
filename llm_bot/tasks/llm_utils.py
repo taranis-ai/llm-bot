@@ -24,6 +24,46 @@ class MissingOutputTextError(RuntimeError):
     pass
 
 
+def extract_last_json_object(text: str) -> str:
+    end_index = text.rfind("}")
+    if end_index == -1:
+        raise json.JSONDecodeError("No JSON object found", text, 0)
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(end_index, -1, -1):
+        char = text[index]
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = in_string
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == "}":
+            depth += 1
+        elif char == "{":
+            depth -= 1
+            if depth == 0:
+                return text[index : end_index + 1]
+
+    raise json.JSONDecodeError("No balanced JSON object found", text, 0)
+
+
+def loads_json_output(output_text: str) -> Any:
+    try:
+        return json.loads(output_text)
+    except json.JSONDecodeError:
+        extracted_json = extract_last_json_object(output_text)
+        logger.debug("Extracted JSON object from noisy LLM output: %s", extracted_json)
+        return json.loads(extracted_json)
+
+
 def _log_reasoning_output(response_data: dict[str, Any], output_text: str | None = None) -> None:
     reasoning_text = extract_structured_reasoning(response_data)
     if output_text:

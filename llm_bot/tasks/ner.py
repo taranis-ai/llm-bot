@@ -6,7 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
-from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text
+from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
 from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
 
@@ -181,7 +181,7 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
 def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list[str]) -> NerResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw NER output: %s", output_text)
-    parsed_output = json.loads(output_text)
+    parsed_output = loads_json_output(output_text)
     postprocessed_output = postprocess_entities(parsed_output)
     logger.debug("Postprocessed NER output: %s", json.dumps(postprocessed_output, ensure_ascii=True, default=str))
     logger.debug("Allowed NER entity types: %s", ", ".join(allowed_entity_types))

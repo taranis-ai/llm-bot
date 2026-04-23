@@ -6,7 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import ClusterRequest, ClusterResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
+from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cluster.txt"
@@ -47,7 +47,7 @@ def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
 def parse_cluster_response(response_data: dict[str, Any]) -> ClusterResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw cluster output: %s", output_text)
-    parsed_output = json.loads(output_text)
+    parsed_output = loads_json_output(output_text)
     return ClusterResponse.model_validate(parsed_output)
 
 

@@ -179,6 +179,20 @@ def test_parse_ner_response_rejects_unsupported_entity_types():
         parse_ner_response({"output_text": '{"Wikipedia":"PRODUCT","Foo":"*Omitted*"}'}, ["PRODUCT"])
 
 
+def test_parse_ner_response_extracts_final_json_from_noisy_output():
+    response = parse_ner_response(
+        {
+            "output_text": (
+                'Thinking: Chrome Dev is a product. Final plan.{"Chrome Dev":"PRODUCT",'
+                '"Android":"PRODUCT","Google Play":"ORG"}'
+            )
+        },
+        ["ORG", "PRODUCT"],
+    )
+
+    assert response == NerResponse({"Chrome Dev": "PRODUCT", "Android": "PRODUCT", "Google Play": "ORG"})
+
+
 @pytest.mark.asyncio
 async def test_extract_entities_calls_client_and_returns_validated_response():
     client = StubLLMClient({"output_text": '{"Microsoft":"ORG","Outlook":"PRODUCT"}'})

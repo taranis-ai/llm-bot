@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import Any
 
@@ -6,7 +5,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text
+from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summarize.txt"
@@ -37,7 +36,7 @@ def build_summary_messages(request: SummarizeRequest) -> list[dict[str, str]]:
 def parse_summary_response(response_data: dict[str, Any]) -> SummarizeResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw summarize output: %s", output_text)
-    parsed_output = json.loads(output_text)
+    parsed_output = loads_json_output(output_text)
     response = SummarizeResponse.model_validate(parsed_output)
     response.summary = _truncate_text(response.summary, Config.SUMMARY_MAX_OUTPUT_CHARS)
     return response
