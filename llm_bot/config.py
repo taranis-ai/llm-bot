@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     LLM_REASONING_EFFORT: str = ""
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
+    LOOKUP_BASE_URL: str = ""
+    LOOKUP_API_KEY: str = ""
+    LOOKUP_DEFAULT_LANGUAGE: str = "en"
+    LOOKUP_CANDIDATE_LIMIT: int = 5
+    NER_LINKING_ENABLED: bool = False
+    NER_LINKING_MODE: str = "llm"
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_MAX_OUTPUT_CHARS: int = 1000

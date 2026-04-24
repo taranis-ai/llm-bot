@@ -20,10 +20,33 @@ class NerRequest(BaseModel):
     text: str = Field(min_length=1)
     cybersecurity: bool = False
     entity_types: list[str] | None = None
+    link_entities: bool | None = None
+    language: str | None = None
+    linking_mode: str | None = None
 
 
 class NerResponse(RootModel[dict[str, str]]):
     root: dict[str, str]
+
+
+class LinkedEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mention: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    wikidata_qid: str | None = None
+    wikidata_label: str | None = None
+    wikidata_description: str | None = None
+    matched_alias: str | None = None
+    match_type: str | None = None
+    score: float | None = None
+    candidate_count: int | None = Field(default=None, ge=0)
+
+
+class LinkedNerResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entities: list[LinkedEntity]
 
 
 class StoryTag(BaseModel):
