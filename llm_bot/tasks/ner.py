@@ -10,6 +10,7 @@ from llm_bot.schemas import LinkedNerResponse, NerRequest, NerResponse
 from llm_bot.tasks.linking import (
     UnsupportedLinkingModeError,
     build_deterministic_linked_response,
+    build_llm_linked_response,
     is_linking_enabled,
     lookup_entity_candidates,
     resolve_linking_mode,
@@ -234,7 +235,13 @@ async def extract_entities(
         response_format=get_ner_response_format(allowed_entity_types),
         parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
     )
-    if is_linking_enabled(request) and resolve_linking_mode(request) == "deterministic":
-        lookup_results = await lookup_entity_candidates(response, request, client=lookup_client)
+    if not is_linking_enabled(request):
+        return response
+
+    linking_mode = resolve_linking_mode(request)
+    lookup_results = await lookup_entity_candidates(response, request, client=lookup_client)
+    if linking_mode == "deterministic":
         return build_deterministic_linked_response(response, lookup_results)
+    if linking_mode == "llm":
+        return await build_llm_linked_response(response, request, lookup_results, client=llm_client)
     return response
