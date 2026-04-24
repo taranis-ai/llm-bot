@@ -19,7 +19,9 @@ class LLMClient:
         self.api_key = api_key or Config.LLM_API_KEY
         self.model = model or Config.LLM_MODEL
         self.timeout = timeout or Config.LLM_TIMEOUT
-        self.reasoning_effort = reasoning_effort or Config.LLM_REASONING_EFFORT
+        self.reasoning_effort = (
+            Config.LLM_REASONING_EFFORT if reasoning_effort is None else reasoning_effort
+        )
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
