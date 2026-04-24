@@ -80,11 +80,16 @@ paths:
     post:
       summary: Extract named entities from input text
       description: |
-        Accepts input text and returns a flat JSON object that maps entity
-        values to entity types.
+        Accepts input text and extracts named entities.
 
         When `cybersecurity` is enabled, the extraction includes
         cybersecurity-relevant entities in addition to general named entities.
+
+        When linking is disabled, the response is a flat JSON object that maps
+        entity values to entity types.
+
+        When linking is enabled, the response is a structured list of linked
+        entities with optional Wikidata fields.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -103,18 +108,36 @@ paths:
                 value:
                   text: "Microsoft announced that Outlook users in Vienna should install updates immediately."
                   cybersecurity: false
+                  link_entities: false
               cybersecurity:
                 summary: Example cybersecurity-aware NER request
                 value:
                   text: "APT29 used Mimikatz and PowerShell to dump credentials from government systems."
                   cybersecurity: true
+                  link_entities: false
+              deterministicLinking:
+                summary: Example deterministic linking request
+                value:
+                  text: "Apple released a new device."
+                  link_entities: true
+                  language: "en"
+                  linking_mode: "deterministic"
+              llmLinking:
+                summary: Example LLM linking request
+                value:
+                  text: "Apple released a new device."
+                  link_entities: true
+                  language: "en"
+                  linking_mode: "llm"
       responses:
         "200":
           description: Entities extracted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NerResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/NerResponse"
+                  - $ref: "#/components/schemas/LinkedNerResponse"
         "400":
           description: Invalid request payload
           content:
@@ -289,11 +312,78 @@ components:
           description: |
             When true, include cybersecurity-relevant entities in addition to
             general named entities.
+        entity_types:
+          type: array
+          items:
+            type: string
+        link_entities:
+          type: boolean
+          nullable: true
+          description: |
+            When true, resolve extracted entities against the configured lookup
+            service and return linked entities.
+        language:
+          type: string
+          nullable: true
+          description: Optional language code used for entity lookup.
+        linking_mode:
+          type: string
+          nullable: true
+          enum:
+            - deterministic
+            - llm
+          description: |
+            Candidate selection mode when linking is enabled.
     NerResponse:
       type: object
       description: Flat map of entity values to entity types
       additionalProperties:
         type: string
+    LinkedEntity:
+      type: object
+      additionalProperties: false
+      required:
+        - mention
+        - type
+      properties:
+        mention:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          minLength: 1
+        wikidata_qid:
+          type: string
+          nullable: true
+        wikidata_label:
+          type: string
+          nullable: true
+        wikidata_description:
+          type: string
+          nullable: true
+        matched_alias:
+          type: string
+          nullable: true
+        match_type:
+          type: string
+          nullable: true
+        score:
+          type: number
+          nullable: true
+        candidate_count:
+          type: integer
+          minimum: 0
+          nullable: true
+    LinkedNerResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - entities
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinkedEntity"
     StoryTag:
       type: object
       required:

@@ -33,6 +33,12 @@ Optional:
 - `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
+- `LOOKUP_BASE_URL`
+- `LOOKUP_API_KEY`
+- `LOOKUP_DEFAULT_LANGUAGE`
+- `LOOKUP_CANDIDATE_LIMIT`
+- `NER_LINKING_ENABLED`
+- `NER_LINKING_MODE`: use `deterministic` or `llm`
 - `SUMMARY_MAX_INPUT_CHARS`
 - `SUMMARY_ROUTE_PATH`
 - `NER_ROUTE_PATH`
@@ -134,17 +140,62 @@ Request body:
 ```json
 {
   "text": "APT29 used Mimikatz and PowerShell to dump credentials.",
-  "cybersecurity": true
+  "cybersecurity": true,
+  "link_entities": false,
+  "language": "en",
+  "linking_mode": "llm"
 }
 ```
 
-Response body:
+Plain response body when linking is off:
 
 ```json
 {
-  "APT29": "Group",
-  "Mimikatz": "Tool",
-  "PowerShell": "CLICommand/CodeSnippet"
+  "APT29": "GROUP",
+  "Mimikatz": "TOOL",
+  "PowerShell": "PRODUCT"
+}
+```
+
+Linked response body when linking is on:
+
+```json
+{
+  "entities": [
+    {
+      "mention": "Apple",
+      "type": "ORG",
+      "wikidata_qid": "Q312",
+      "wikidata_label": "Apple Inc.",
+      "wikidata_description": "American technology company",
+      "matched_alias": "Apple",
+      "match_type": "alias",
+      "score": 0.98,
+      "candidate_count": 5
+    }
+  ]
+}
+```
+
+Deterministic linking example:
+
+```json
+{
+  "text": "Apple released a new device.",
+  "link_entities": true,
+  "language": "en",
+  "linking_mode": "deterministic"
+}
+```
+
+LLM linking example:
+
+```json
+{
+  "text": "Apple released a new device.",
+  "link_entities": true,
+  "language": "en",
+  "linking_mode": "llm"
 }
 ```
 
