@@ -1,5 +1,7 @@
 from llm_bot.schemas import ClusterIds, ClusterResponse, NerResponse, SummarizeResponse
 from llm_bot.app import create_app
+from llm_bot.tasks.llm_utils import MissingOutputTextError
+from llm_bot.tasks.ner import UnsupportedEntityTypesError
 
 
 async def test_health_endpoint(app):
@@ -144,7 +146,7 @@ async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
 
 async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
     async def failing_extract_entities(request_model):
-        raise ValueError("Unsupported entity types requested: AlienType")
+        raise UnsupportedEntityTypesError("Unsupported entity types requested: AlienType")
 
     monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
 
@@ -157,6 +159,20 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
 
     assert response.status_code == 400
     assert body == {"error": "Unsupported entity types requested: AlienType"}
+
+
+async def test_ner_endpoint_returns_upstream_error_for_missing_output_text(app, monkeypatch):
+    async def failing_extract_entities(request_model):
+        raise MissingOutputTextError("Responses API payload did not contain output text")
+
+    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post("/ner", json={"text": "APT29 used Mimikatz."})
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to extract entities"}
 
 async def test_ner_endpoint_path_is_configurable(monkeypatch):
     async def fake_extract_entities(request_model):

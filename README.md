@@ -29,6 +29,10 @@ Optional:
 
 - `API_KEY`: protects incoming requests to `/summarize`, `/ner`, and `/cluster`
 - `LLM_TIMEOUT`
+- `LLM_REASONING_PROFILE`: use `none` or `ministral`
+- `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
+- `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
+- `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `SUMMARY_MAX_INPUT_CHARS`
 - `SUMMARY_ROUTE_PATH`
 - `NER_ROUTE_PATH`
