@@ -49,6 +49,29 @@ class LinkedNerResponse(BaseModel):
     entities: list[LinkedEntity]
 
 
+class LookupCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    qid: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    description: str | None = None
+    matched_alias: str | None = None
+    match_type: str | None = None
+    language: str = Field(min_length=1)
+    score: float
+    is_label: bool
+    type_tags: list[str]
+
+
+class LookupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1)
+    language: str = Field(min_length=1)
+    limit: int = Field(ge=1, le=100)
+    candidates: list[LookupCandidate]
+
+
 class StoryTag(BaseModel):
     model_config = ConfigDict(extra="allow")
 
