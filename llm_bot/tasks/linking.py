@@ -1,6 +1,6 @@
 from llm_bot.config import Config
 from llm_bot.lookup_client import LookupClient
-from llm_bot.schemas import LookupResponse, NerRequest, NerResponse
+from llm_bot.schemas import LinkedEntity, LinkedNerResponse, LookupCandidate, LookupResponse, NerRequest, NerResponse
 
 
 ALLOWED_LINKING_MODES = {"llm", "deterministic"}
@@ -45,3 +45,33 @@ async def lookup_entity_candidates(
             continue
         lookup_results[mention] = await lookup_client.lookup(mention, language, limit)
     return lookup_results
+
+
+def select_deterministic_candidate(lookup_response: LookupResponse) -> LookupCandidate | None:
+    if not lookup_response.candidates:
+        return None
+    return lookup_response.candidates[0]
+
+
+def build_deterministic_linked_response(
+    response: NerResponse,
+    lookup_results: dict[str, LookupResponse],
+) -> LinkedNerResponse:
+    entities: list[LinkedEntity] = []
+    for mention, entity_type in response.root.items():
+        lookup_response = lookup_results.get(mention)
+        candidate = select_deterministic_candidate(lookup_response) if lookup_response else None
+        entities.append(
+            LinkedEntity(
+                mention=mention,
+                type=entity_type,
+                wikidata_qid=candidate.qid if candidate else None,
+                wikidata_label=candidate.label if candidate else None,
+                wikidata_description=candidate.description if candidate else None,
+                matched_alias=candidate.matched_alias if candidate else None,
+                match_type=candidate.match_type if candidate else None,
+                score=candidate.score if candidate else None,
+                candidate_count=len(lookup_response.candidates) if lookup_response else 0,
+            )
+        )
+    return LinkedNerResponse(entities=entities)
