@@ -13,11 +13,13 @@ class LLMClient:
         api_key: str | None = None,
         model: str | None = None,
         timeout: int | None = None,
+        reasoning_effort: str | None = None,
     ):
         self.base_url = (base_url or Config.LLM_BASE_URL).rstrip("/")
         self.api_key = api_key or Config.LLM_API_KEY
         self.model = model or Config.LLM_MODEL
         self.timeout = timeout or Config.LLM_TIMEOUT
+        self.reasoning_effort = reasoning_effort or Config.LLM_REASONING_EFFORT
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -37,6 +39,8 @@ class LLMClient:
         }
         if self.model:
             payload["model"] = self.model
+        if self.reasoning_effort:
+            payload["reasoning"] = {"effort": self.reasoning_effort}
         if response_format is not None:
             payload["text"] = {"format": response_format}
 

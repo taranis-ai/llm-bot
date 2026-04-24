@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = ""
     LLM_TIMEOUT: int = 120
     LLM_REASONING_PROFILE: str = "none"
+    LLM_REASONING_EFFORT: str = ""
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
 
