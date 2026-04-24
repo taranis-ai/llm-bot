@@ -27,9 +27,11 @@ class LinkingDecisionMap(BaseModel):
 def is_linking_enabled(request: NerRequest) -> bool:
     if not Config.LOOKUP_BASE_URL:
         return False
+    if not Config.NER_LINKING_ENABLED:
+        return False
     if request.link_entities is not None:
         return request.link_entities
-    return Config.NER_LINKING_ENABLED
+    return True
 
 
 def resolve_lookup_language(request: NerRequest) -> str:

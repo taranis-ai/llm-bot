@@ -270,6 +270,8 @@ async def test_extract_entities_retries_once_on_unsupported_entity_type():
 @pytest.mark.asyncio
 async def test_extract_entities_returns_linked_response_in_deterministic_mode(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", True)
     client = StubLLMClient({"output_text": '{"Apple":"ORG","GitHub":"PRODUCT"}'})
     lookup_client = StubLookupClient(
         {
@@ -329,6 +331,8 @@ async def test_extract_entities_returns_linked_response_in_deterministic_mode(mo
 @pytest.mark.asyncio
 async def test_extract_entities_returns_linked_response_in_llm_mode(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", True)
     client = StubLLMClient(
         [
             {"output_text": '{"Apple":"ORG"}'},
