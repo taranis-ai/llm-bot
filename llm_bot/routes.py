@@ -9,6 +9,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, SummarizeRequest, ClusterRequest
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
+from llm_bot.tasks.linking import UnsupportedLinkingModeError
 from llm_bot.tasks.summarize import summarize
 from llm_bot.tasks.cluster import cluster_stories
 
@@ -100,7 +101,7 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to extract entities",
             request_model_factory=NerRequest.model_validate,
             task=extract_entities,
-            client_error_exceptions=(UnsupportedEntityTypesError,),
+            client_error_exceptions=(UnsupportedEntityTypesError, UnsupportedLinkingModeError),
         )
 
     @api.post(Config.CLUSTER_ROUTE_PATH)

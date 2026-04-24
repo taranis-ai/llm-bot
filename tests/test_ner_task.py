@@ -1,6 +1,6 @@
 import pytest
 
-from llm_bot.schemas import NerRequest, NerResponse
+from llm_bot.schemas import LinkedNerResponse, LookupResponse, NerRequest, NerResponse
 from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
 from llm_bot.tasks.ner import (
     build_ner_messages,
@@ -20,6 +20,16 @@ class StubLLMClient:
         if isinstance(self.response_data, list):
             return self.response_data.pop(0)
         return self.response_data
+
+
+class StubLookupClient:
+    def __init__(self, responses_by_query):
+        self.responses_by_query = responses_by_query
+        self.calls = []
+
+    async def lookup(self, query: str, language: str, limit: int) -> LookupResponse:
+        self.calls.append({"query": query, "language": language, "limit": limit})
+        return self.responses_by_query[query]
 
 
 @pytest.fixture(autouse=True)
@@ -255,3 +265,62 @@ async def test_extract_entities_retries_once_on_unsupported_entity_type():
 
     assert response == NerResponse({"Wikipedia": "PRODUCT"})
     assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_returns_linked_response_in_deterministic_mode(monkeypatch):
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    client = StubLLMClient({"output_text": '{"Apple":"ORG","GitHub":"PRODUCT"}'})
+    lookup_client = StubLookupClient(
+        {
+            "Apple": LookupResponse.model_validate(
+                {
+                    "query": "Apple",
+                    "language": "en",
+                    "limit": 3,
+                    "candidates": [
+                        {
+                            "qid": "Q312",
+                            "label": "Apple Inc.",
+                            "description": "American technology company",
+                            "matched_alias": "Apple",
+                            "match_type": "alias",
+                            "language": "en",
+                            "score": 0.98,
+                            "is_label": True,
+                            "type_tags": ["organization", "company"],
+                        }
+                    ],
+                }
+            ),
+            "GitHub": LookupResponse.model_validate(
+                {
+                    "query": "GitHub",
+                    "language": "en",
+                    "limit": 3,
+                    "candidates": [],
+                }
+            ),
+        }
+    )
+
+    response = await extract_entities(
+        NerRequest(
+            text="Apple published on GitHub.",
+            link_entities=True,
+            linking_mode="deterministic",
+            language="en",
+        ),
+        client=client,
+        lookup_client=lookup_client,
+    )
+
+    assert isinstance(response, LinkedNerResponse)
+    assert response.entities[0].mention == "Apple"
+    assert response.entities[0].wikidata_qid == "Q312"
+    assert response.entities[1].mention == "GitHub"
+    assert response.entities[1].wikidata_qid is None
+    assert lookup_client.calls == [
+        {"query": "Apple", "language": "en", "limit": 3},
+        {"query": "GitHub", "language": "en", "limit": 3},
+    ]

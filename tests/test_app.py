@@ -1,6 +1,7 @@
-from llm_bot.schemas import ClusterIds, ClusterResponse, NerResponse, SummarizeResponse
+from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SummarizeResponse
 from llm_bot.app import create_app
 from llm_bot.tasks.llm_utils import MissingOutputTextError
+from llm_bot.tasks.linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
 
 
@@ -120,6 +121,53 @@ async def test_ner_endpoint(app, monkeypatch):
     assert body == {"APT29": "GROUP", "Mimikatz": "TOOL"}
 
 
+async def test_ner_endpoint_returns_linked_response_in_deterministic_mode(app, monkeypatch):
+    async def fake_extract_entities(request_model):
+        assert request_model.link_entities is True
+        assert request_model.linking_mode == "deterministic"
+        return LinkedNerResponse(
+            entities=[
+                {
+                    "mention": "Apple",
+                    "type": "ORG",
+                    "wikidata_qid": "Q312",
+                    "wikidata_label": "Apple Inc.",
+                    "wikidata_description": "American technology company",
+                    "matched_alias": "Apple",
+                    "match_type": "alias",
+                    "score": 0.98,
+                    "candidate_count": 1,
+                }
+            ]
+        )
+
+    monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/ner",
+        json={"text": "Apple released a new device.", "link_entities": True, "linking_mode": "deterministic"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {
+        "entities": [
+            {
+                "mention": "Apple",
+                "type": "ORG",
+                "wikidata_qid": "Q312",
+                "wikidata_label": "Apple Inc.",
+                "wikidata_description": "American technology company",
+                "matched_alias": "Apple",
+                "match_type": "alias",
+                "score": 0.98,
+                "candidate_count": 1,
+            }
+        ]
+    }
+
+
 async def test_ner_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
 
@@ -159,6 +207,25 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
 
     assert response.status_code == 400
     assert body == {"error": "Unsupported entity types requested: AlienType"}
+
+
+async def test_ner_endpoint_rejects_invalid_linking_mode(app, monkeypatch):
+    async def failing_extract_entities(request_model):
+        raise UnsupportedLinkingModeError(
+            "Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm"
+        )
+
+    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/ner",
+        json={"text": "Apple released a new device.", "link_entities": True, "linking_mode": "magic"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm"}
 
 
 async def test_ner_endpoint_returns_upstream_error_for_missing_output_text(app, monkeypatch):

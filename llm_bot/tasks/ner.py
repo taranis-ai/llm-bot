@@ -4,8 +4,16 @@ from typing import Any
 
 from llm_bot.client import LLMClient
 from llm_bot.config import Config
+from llm_bot.lookup_client import LookupClient
 from llm_bot.log import logger
-from llm_bot.schemas import NerRequest, NerResponse
+from llm_bot.schemas import LinkedNerResponse, NerRequest, NerResponse
+from llm_bot.tasks.linking import (
+    UnsupportedLinkingModeError,
+    build_deterministic_linked_response,
+    is_linking_enabled,
+    lookup_entity_candidates,
+    resolve_linking_mode,
+)
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
 from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
@@ -210,11 +218,15 @@ def get_ner_response_format(allowed_entity_types: list[str]) -> dict[str, Any]:
     }
 
 
-async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
+async def extract_entities(
+    request: NerRequest,
+    client: LLMClient | None = None,
+    lookup_client: LookupClient | None = None,
+) -> NerResponse | LinkedNerResponse:
     llm_client = client or LLMClient()
     system_message, user_message = build_ner_messages(request)
     allowed_entity_types = resolve_entity_types(request)
-    return await create_and_parse_response(
+    response = await create_and_parse_response(
         client=llm_client,
         task_name="NER",
         input_text=user_message["content"],
@@ -222,3 +234,7 @@ async def extract_entities(request: NerRequest, client: LLMClient | None = None)
         response_format=get_ner_response_format(allowed_entity_types),
         parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
     )
+    if is_linking_enabled(request) and resolve_linking_mode(request) == "deterministic":
+        lookup_results = await lookup_entity_candidates(response, request, client=lookup_client)
+        return build_deterministic_linked_response(response, lookup_results)
+    return response
