@@ -50,9 +50,17 @@ def test_is_linking_enabled_uses_request_override():
 
 def test_is_linking_enabled_falls_back_to_config(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", True)
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
     request = NerRequest(text="Apple released a new device.")
 
     assert is_linking_enabled(request) is True
+
+
+def test_is_linking_disabled_when_lookup_base_url_is_missing(monkeypatch):
+    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "")
+    request = NerRequest(text="Apple released a new device.", link_entities=True)
+
+    assert is_linking_enabled(request) is False
 
 
 def test_resolve_lookup_language_uses_request_language():
