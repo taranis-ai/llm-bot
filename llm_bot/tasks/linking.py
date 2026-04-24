@@ -104,8 +104,15 @@ def build_linking_instructions() -> str:
         "- You must choose only from the provided candidates.\n"
         "- Use the full source text and the entity type for disambiguation.\n"
         "- If none of the candidates fit confidently for a mention, return null for that mention.\n"
+        '- Each value must be either one Wikidata QID string like "Q2283" or the JSON value null.\n'
+        '- Never combine a QID with null in one string.\n'
+        '- Never use separators such as "|", "/", ",", or the word "or" inside a value.\n'
         "- Return valid JSON only.\n\n"
-        'Output format:\nReturn exactly one JSON object in the form {"decisions": {"mention": "<candidate qid>|null"}}.'
+        "Valid example:\n"
+        '{"decisions": {"Apple": "Q312", "Outlook": null}}\n\n'
+        "Invalid example:\n"
+        '{"decisions": {"Apple": "Q312|null"}}\n\n'
+        'Output format:\nReturn exactly one JSON object in the form {"decisions": {"mention": "<candidate qid>"}} or {"decisions": {"mention": null}}.'
     )
 
 
@@ -142,7 +149,17 @@ def get_linking_response_format() -> dict[str, Any]:
             "properties": {
                 "decisions": {
                     "type": "object",
-                    "additionalProperties": {"type": ["string", "null"]},
+                    "additionalProperties": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "pattern": "^Q[1-9][0-9]*$",
+                            },
+                            {
+                                "type": "null",
+                            },
+                        ]
+                    },
                 },
             },
             "required": ["decisions"],

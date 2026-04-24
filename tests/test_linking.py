@@ -3,6 +3,7 @@ import pytest
 from llm_bot.schemas import LookupResponse, NerRequest, NerResponse
 from llm_bot.tasks.linking import (
     build_llm_linked_response,
+    get_linking_response_format,
     build_deterministic_linked_response,
     is_linking_enabled,
     lookup_entity_candidates,
@@ -200,6 +201,13 @@ def test_build_deterministic_linked_response_uses_top_candidate_and_preserves_un
 def test_parse_linking_decision_map_rejects_qid_outside_candidate_set():
     with pytest.raises(ValueError, match="Response selected unsupported Wikidata QID for Apple: Q999"):
         parse_linking_decision_map({"output_text": '{"decisions":{"Apple":"Q999"}}'}, {"Apple": {"Q312"}})
+
+
+def test_get_linking_response_format_restricts_qid_pattern():
+    schema = get_linking_response_format()["schema"]["properties"]["decisions"]["additionalProperties"]
+
+    assert schema["anyOf"][0]["pattern"] == "^Q[1-9][0-9]*$"
+    assert schema["anyOf"][1]["type"] == "null"
 
 
 @pytest.mark.asyncio
