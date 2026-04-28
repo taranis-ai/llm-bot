@@ -49,6 +49,22 @@ class LinkedNerResponse(BaseModel):
     entities: list[LinkedEntity]
 
 
+class LinkRequestEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mention: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+
+
+class LinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    entities: list[LinkRequestEntity] = Field(min_length=1)
+    language: str | None = None
+    linking_mode: str | None = None
+
+
 class LookupCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
