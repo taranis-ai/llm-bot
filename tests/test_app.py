@@ -168,6 +168,83 @@ async def test_ner_endpoint_returns_linked_response_in_deterministic_mode(app, m
     }
 
 
+async def test_link_endpoint_returns_linked_response(app, monkeypatch):
+    async def fake_link_entities(request_model):
+        assert request_model.text == "Apple announced a new device in Cupertino."
+        assert request_model.linking_mode == "deterministic"
+        return LinkedNerResponse(
+            entities=[
+                {
+                    "mention": "Apple",
+                    "type": "ORG",
+                    "wikidata_qid": "Q312",
+                    "wikidata_label": "Apple Inc.",
+                    "wikidata_description": "American technology company",
+                    "matched_alias": "Apple",
+                    "match_type": "alias",
+                    "score": 0.98,
+                    "candidate_count": 1,
+                },
+                {
+                    "mention": "Cupertino",
+                    "type": "GPE",
+                    "wikidata_qid": "Q189471",
+                    "wikidata_label": "Cupertino",
+                    "wikidata_description": "city in California",
+                    "matched_alias": "Cupertino",
+                    "match_type": "label",
+                    "score": 0.97,
+                    "candidate_count": 1,
+                },
+            ]
+        )
+
+    monkeypatch.setattr("llm_bot.routes.link_entities", fake_link_entities)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/link",
+        json={
+            "text": "Apple announced a new device in Cupertino.",
+            "language": "en",
+            "linking_mode": "deterministic",
+            "entities": [
+                {"mention": "Apple", "type": "ORG"},
+                {"mention": "Cupertino", "type": "GPE"},
+            ],
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {
+        "entities": [
+            {
+                "mention": "Apple",
+                "type": "ORG",
+                "wikidata_qid": "Q312",
+                "wikidata_label": "Apple Inc.",
+                "wikidata_description": "American technology company",
+                "matched_alias": "Apple",
+                "match_type": "alias",
+                "score": 0.98,
+                "candidate_count": 1,
+            },
+            {
+                "mention": "Cupertino",
+                "type": "GPE",
+                "wikidata_qid": "Q189471",
+                "wikidata_label": "Cupertino",
+                "wikidata_description": "city in California",
+                "matched_alias": "Cupertino",
+                "match_type": "label",
+                "score": 0.97,
+                "candidate_count": 1,
+            },
+        ]
+    }
+
+
 async def test_ner_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
 
@@ -226,6 +303,16 @@ async def test_ner_endpoint_rejects_invalid_linking_mode(app, monkeypatch):
 
     assert response.status_code == 400
     assert body == {"error": "Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm"}
+
+
+async def test_link_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/link", json={"text": "Apple announced a new device."})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid link request payload"}
 
 
 async def test_ner_endpoint_returns_upstream_error_for_missing_output_text(app, monkeypatch):
