@@ -205,6 +205,51 @@ If `API_KEY` is configured, send it as:
 Authorization: Bearer <API_KEY>
 ```
 
+### `POST /link`
+
+Request body:
+
+```json
+{
+  "text": "Apple announced new Mac hardware during its developer event in Cupertino.",
+  "language": "en",
+  "linking_mode": "llm",
+  "entities": [
+    { "mention": "Apple", "type": "ORG" },
+    { "mention": "Cupertino", "type": "GPE" },
+    { "mention": "Mac", "type": "PRODUCT" }
+  ]
+}
+```
+
+Response body:
+
+```json
+{
+  "entities": [
+    {
+      "mention": "Apple",
+      "type": "ORG",
+      "wikidata_qid": "Q312",
+      "wikidata_label": "Apple Inc.",
+      "wikidata_description": "American technology company",
+      "matched_alias": "Apple",
+      "match_type": "alias",
+      "score": 0.98,
+      "candidate_count": 5
+    }
+  ]
+}
+```
+
+This endpoint performs linking only. It does not run NER first.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
 ### `GET /health`
 
 Returns:

@@ -163,6 +163,85 @@ paths:
               example:
                 error: "Failed to extract entities"
 
+  /link:
+    post:
+      summary: Link known entities to Wikidata candidates
+      description: |
+        Accepts source text plus a list of known entities and resolves them
+        against the configured lookup service.
+
+        This endpoint performs linking only. It does not run NER first.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: linkEntities
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkRequest"
+            examples:
+              deterministic:
+                summary: Example deterministic linking request
+                value:
+                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  language: "en"
+                  linking_mode: "deterministic"
+                  entities:
+                    - mention: "Apple"
+                      type: "ORG"
+                    - mention: "Cupertino"
+                      type: "GPE"
+                    - mention: "Mac"
+                      type: "PRODUCT"
+              llm:
+                summary: Example LLM linking request
+                value:
+                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  language: "en"
+                  linking_mode: "llm"
+                  entities:
+                    - mention: "Apple"
+                      type: "ORG"
+                    - mention: "Cupertino"
+                      type: "GPE"
+                    - mention: "Mac"
+                      type: "PRODUCT"
+      responses:
+        "200":
+          description: Entities linked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedNerResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid link request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Lookup or disambiguation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to link entities"
+
   /cluster:
     post:
       summary: Cluster stories into event groups
@@ -384,6 +463,43 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LinkedEntity"
+    LinkRequestEntity:
+      type: object
+      additionalProperties: false
+      required:
+        - mention
+        - type
+      properties:
+        mention:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          minLength: 1
+    LinkRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+        - entities
+      properties:
+        text:
+          type: string
+          minLength: 1
+        language:
+          type: string
+          nullable: true
+        linking_mode:
+          type: string
+          nullable: true
+          enum:
+            - deterministic
+            - llm
+        entities:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/LinkRequestEntity"
     StoryTag:
       type: object
       required:
