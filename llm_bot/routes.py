@@ -7,8 +7,9 @@ from quart import Blueprint, request
 
 from llm_bot.config import Config
 from llm_bot.log import logger
-from llm_bot.schemas import LinkRequest, NerRequest, SummarizeRequest, ClusterRequest
+from llm_bot.schemas import ClusterRequest, LinkRequest, NerLinkRequest, NerRequest, SummarizeRequest
 from llm_bot.tasks.link import link_entities
+from llm_bot.tasks.ner_link import extract_and_link
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
 from llm_bot.tasks.linking import UnsupportedLinkingModeError
 from llm_bot.tasks.summarize import summarize
@@ -102,6 +103,18 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to extract entities",
             request_model_factory=NerRequest.model_validate,
             task=extract_entities,
+            client_error_exceptions=(UnsupportedEntityTypesError,),
+        )
+
+    @api.post("/ner-link")
+    @api_key_required
+    async def ner_link_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="NER link",
+            validation_error_message="Invalid NER link request payload",
+            processing_error_message="Failed to extract and link entities",
+            request_model_factory=NerLinkRequest.model_validate,
+            task=extract_and_link,
             client_error_exceptions=(UnsupportedEntityTypesError, UnsupportedLinkingModeError),
         )
 
