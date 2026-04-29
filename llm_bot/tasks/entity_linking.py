@@ -7,7 +7,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.lookup_client import LookupClient
 from llm_bot.log import logger
-from llm_bot.schemas import LinkedEntity, LinkedNerResponse, LookupCandidate, LookupResponse, NerRequest, NerResponse
+from llm_bot.schemas import LinkRequest, LinkedEntity, LinkedNerResponse, LookupCandidate, LookupResponse, NerLinkRequest, NerResponse
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
 
 
@@ -24,21 +24,11 @@ class LinkingDecisionMap(BaseModel):
     decisions: dict[str, str | None]
 
 
-def is_linking_enabled(request: NerRequest) -> bool:
-    if not Config.LOOKUP_BASE_URL:
-        return False
-    if not Config.NER_LINKING_ENABLED:
-        return False
-    if request.link_entities is not None:
-        return request.link_entities
-    return True
-
-
-def resolve_lookup_language(request: NerRequest) -> str:
+def resolve_lookup_language(request: LinkRequest | NerLinkRequest) -> str:
     return request.language or Config.LOOKUP_DEFAULT_LANGUAGE
 
 
-def resolve_linking_mode(request: NerRequest) -> str:
+def resolve_linking_mode(request: LinkRequest | NerLinkRequest) -> str:
     linking_mode = request.linking_mode or Config.NER_LINKING_MODE
     if linking_mode not in ALLOWED_LINKING_MODES:
         raise UnsupportedLinkingModeError(
@@ -50,7 +40,7 @@ def resolve_linking_mode(request: NerRequest) -> str:
 
 async def lookup_entity_candidates(
     response: NerResponse,
-    request: NerRequest,
+    request: LinkRequest | NerLinkRequest,
     client: LookupClient | None = None,
 ) -> dict[str, LookupResponse]:
     lookup_client = client or LookupClient()
@@ -223,7 +213,7 @@ async def select_llm_candidates(
 
 async def build_llm_linked_response(
     response: NerResponse,
-    request: NerRequest,
+    request: LinkRequest | NerLinkRequest,
     lookup_results: dict[str, LookupResponse],
     client: LLMClient,
 ) -> LinkedNerResponse:
