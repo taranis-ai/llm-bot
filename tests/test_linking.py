@@ -1,11 +1,10 @@
 import pytest
 
-from llm_bot.schemas import LookupResponse, NerRequest, NerResponse
+from llm_bot.schemas import LinkRequest, LookupResponse, NerLinkRequest, NerResponse
 from llm_bot.tasks.linking import (
     build_llm_linked_response,
     get_linking_response_format,
     build_deterministic_linked_response,
-    is_linking_enabled,
     lookup_entity_candidates,
     parse_linking_decision_map,
     resolve_linking_mode,
@@ -42,59 +41,38 @@ class StubLLMClient:
             return self.response_data.pop(0)
         return self.response_data
 
-
-def test_is_linking_enabled_uses_request_override_when_config_allows(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", True)
-    request = NerRequest(text="Apple released a new device.", link_entities=True)
-
-    assert is_linking_enabled(request) is True
-
-
-def test_is_linking_enabled_falls_back_to_config(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", True)
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
-    request = NerRequest(text="Apple released a new device.")
-
-    assert is_linking_enabled(request) is True
-
-
-def test_is_linking_disabled_when_lookup_base_url_is_missing(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "")
-    request = NerRequest(text="Apple released a new device.", link_entities=True)
-
-    assert is_linking_enabled(request) is False
-
-
-def test_is_linking_disabled_when_linking_is_globally_disabled(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_BASE_URL", "https://example.invalid")
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.NER_LINKING_ENABLED", False)
-    request = NerRequest(text="Apple released a new device.", link_entities=True)
-
-    assert is_linking_enabled(request) is False
-
-
 def test_resolve_lookup_language_uses_request_language():
-    request = NerRequest(text="Apple released a new device.", language="de")
+    request = LinkRequest.model_validate(
+        {
+            "text": "Apple released a new device.",
+            "language": "de",
+            "entities": [{"mention": "Apple", "type": "ORG"}],
+        }
+    )
 
     assert resolve_lookup_language(request) == "de"
 
 
 def test_resolve_lookup_language_falls_back_to_config(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_DEFAULT_LANGUAGE", "fr")
-    request = NerRequest(text="Apple released a new device.")
+    request = LinkRequest.model_validate(
+        {
+            "text": "Apple released a new device.",
+            "entities": [{"mention": "Apple", "type": "ORG"}],
+        }
+    )
 
     assert resolve_lookup_language(request) == "fr"
 
 
 def test_resolve_linking_mode_uses_request_override():
-    request = NerRequest(text="Apple released a new device.", linking_mode="deterministic")
+    request = NerLinkRequest(text="Apple released a new device.", linking_mode="deterministic")
 
     assert resolve_linking_mode(request) == "deterministic"
 
 
 def test_resolve_linking_mode_rejects_unknown_mode():
-    request = NerRequest(text="Apple released a new device.", linking_mode="magic")
+    request = NerLinkRequest(text="Apple released a new device.", linking_mode="magic")
 
     with pytest.raises(ValueError, match="Unsupported linking mode requested: magic"):
         resolve_linking_mode(request)
@@ -105,7 +83,7 @@ async def test_lookup_entity_candidates_uses_deduplicated_mentions(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
     client = StubLookupClient()
     response = NerResponse({"Apple": "ORG", "GitHub": "PRODUCT"})
-    request = NerRequest(text="Apple published GitHub content.", language="en")
+    request = NerLinkRequest(text="Apple published GitHub content.", language="en")
 
     lookup_results = await lookup_entity_candidates(response, request, client=client)
 
@@ -273,7 +251,7 @@ async def test_select_llm_candidates_chooses_valid_candidates():
 async def test_build_llm_linked_response_falls_back_to_unresolved_on_invalid_qid():
     client = StubLLMClient({"output_text": '{"decisions":{"Apple":"Q999"}}'})
     ner_response = NerResponse({"Apple": "ORG"})
-    request = NerRequest(text="Apple announced a new device.")
+    request = NerLinkRequest(text="Apple announced a new device.")
     lookup_results = {
         "Apple": LookupResponse.model_validate(
             {

@@ -1,18 +1,16 @@
-from llm_bot.schemas import LinkedNerResponse, NerRequest
+from llm_bot.schemas import LinkedNerResponse, NerLinkRequest
 
 
-def test_ner_request_accepts_linking_fields():
-    request = NerRequest.model_validate(
+def test_ner_link_request_accepts_linking_fields():
+    request = NerLinkRequest.model_validate(
         {
             "text": "Apple released a new device.",
-            "link_entities": True,
             "language": "en",
             "linking_mode": "llm",
         }
     )
 
     assert request.text == "Apple released a new device."
-    assert request.link_entities is True
     assert request.language == "en"
     assert request.linking_mode == "llm"
 

@@ -121,9 +121,8 @@ async def test_ner_endpoint(app, monkeypatch):
     assert body == {"APT29": "GROUP", "Mimikatz": "TOOL"}
 
 
-async def test_ner_endpoint_returns_linked_response_in_deterministic_mode(app, monkeypatch):
-    async def fake_extract_entities(request_model):
-        assert request_model.link_entities is True
+async def test_ner_link_endpoint_returns_linked_response_in_deterministic_mode(app, monkeypatch):
+    async def fake_extract_and_link(request_model):
         assert request_model.linking_mode == "deterministic"
         return LinkedNerResponse(
             entities=[
@@ -141,12 +140,12 @@ async def test_ner_endpoint_returns_linked_response_in_deterministic_mode(app, m
             ]
         )
 
-    monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
+    monkeypatch.setattr("llm_bot.routes.extract_and_link", fake_extract_and_link)
 
     test_client = app.test_client()
     response = await test_client.post(
-        "/ner",
-        json={"text": "Apple released a new device.", "link_entities": True, "linking_mode": "deterministic"},
+        "/ner-link",
+        json={"text": "Apple released a new device.", "linking_mode": "deterministic"},
     )
     body = await response.get_json()
 
@@ -248,7 +247,7 @@ async def test_link_endpoint_returns_linked_response(app, monkeypatch):
 async def test_ner_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
 
-    response = await test_client.post("/ner", json={"cybersecurity": True})
+    response = await test_client.post("/ner", json={"cybersecurity": True, "linking_mode": "deterministic"})
     body = await response.get_json()
 
     assert response.status_code == 400
@@ -286,18 +285,18 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
     assert body == {"error": "Unsupported entity types requested: AlienType"}
 
 
-async def test_ner_endpoint_rejects_invalid_linking_mode(app, monkeypatch):
-    async def failing_extract_entities(request_model):
+async def test_ner_link_endpoint_rejects_invalid_linking_mode(app, monkeypatch):
+    async def failing_extract_and_link(request_model):
         raise UnsupportedLinkingModeError(
             "Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm"
         )
 
-    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
+    monkeypatch.setattr("llm_bot.routes.extract_and_link", failing_extract_and_link)
 
     test_client = app.test_client()
     response = await test_client.post(
-        "/ner",
-        json={"text": "Apple released a new device.", "link_entities": True, "linking_mode": "magic"},
+        "/ner-link",
+        json={"text": "Apple released a new device.", "linking_mode": "magic"},
     )
     body = await response.get_json()
 
@@ -327,6 +326,16 @@ async def test_ner_endpoint_returns_upstream_error_for_missing_output_text(app, 
 
     assert response.status_code == 502
     assert body == {"error": "Failed to extract entities"}
+
+
+async def test_ner_link_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/ner-link", json={"cybersecurity": True})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid NER link request payload"}
 
 async def test_ner_endpoint_path_is_configurable(monkeypatch):
     async def fake_extract_entities(request_model):
