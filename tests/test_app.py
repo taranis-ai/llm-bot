@@ -1,7 +1,7 @@
 from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SummarizeResponse
 from llm_bot.app import create_app
 from llm_bot.tasks.llm_utils import MissingOutputTextError
-from llm_bot.tasks.linking import UnsupportedLinkingModeError
+from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
 
 

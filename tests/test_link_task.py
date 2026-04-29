@@ -1,7 +1,7 @@
 import pytest
 
 from llm_bot.schemas import LinkRequest, LinkedNerResponse, LookupResponse
-from llm_bot.tasks.link import build_linking_ner_response, link_entities
+from llm_bot.tasks.link_task import build_linking_ner_response, link_entities
 
 
 class StubLLMClient:
@@ -44,7 +44,7 @@ def test_build_linking_ner_response_converts_entities_to_map():
 
 @pytest.mark.asyncio
 async def test_link_entities_returns_linked_response_in_deterministic_mode(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    monkeypatch.setattr("llm_bot.tasks.entity_linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
     lookup_client = StubLookupClient(
         {
             "Apple": LookupResponse.model_validate(
@@ -112,7 +112,7 @@ async def test_link_entities_returns_linked_response_in_deterministic_mode(monke
 
 @pytest.mark.asyncio
 async def test_link_entities_returns_linked_response_in_llm_mode(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    monkeypatch.setattr("llm_bot.tasks.entity_linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
     client = StubLLMClient({"output_text": '{"decisions":{"Apple":"Q312","Cupertino":"Q189471"}}'})
     lookup_client = StubLookupClient(
         {

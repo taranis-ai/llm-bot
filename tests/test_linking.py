@@ -1,7 +1,7 @@
 import pytest
 
 from llm_bot.schemas import LinkRequest, LookupResponse, NerLinkRequest, NerResponse
-from llm_bot.tasks.linking import (
+from llm_bot.tasks.entity_linking import (
     build_llm_linked_response,
     get_linking_response_format,
     build_deterministic_linked_response,
@@ -54,7 +54,7 @@ def test_resolve_lookup_language_uses_request_language():
 
 
 def test_resolve_lookup_language_falls_back_to_config(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_DEFAULT_LANGUAGE", "fr")
+    monkeypatch.setattr("llm_bot.tasks.entity_linking.Config.LOOKUP_DEFAULT_LANGUAGE", "fr")
     request = LinkRequest.model_validate(
         {
             "text": "Apple released a new device.",
@@ -80,7 +80,7 @@ def test_resolve_linking_mode_rejects_unknown_mode():
 
 @pytest.mark.asyncio
 async def test_lookup_entity_candidates_uses_deduplicated_mentions(monkeypatch):
-    monkeypatch.setattr("llm_bot.tasks.linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
+    monkeypatch.setattr("llm_bot.tasks.entity_linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)
     client = StubLookupClient()
     response = NerResponse({"Apple": "ORG", "GitHub": "PRODUCT"})
     request = NerLinkRequest(text="Apple published GitHub content.", language="en")

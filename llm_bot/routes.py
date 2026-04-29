@@ -8,10 +8,10 @@ from quart import Blueprint, request
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import ClusterRequest, LinkRequest, NerLinkRequest, NerRequest, SummarizeRequest
-from llm_bot.tasks.link import link_entities
+from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner_link import extract_and_link
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
-from llm_bot.tasks.linking import UnsupportedLinkingModeError
+from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.summarize import summarize
 from llm_bot.tasks.cluster import cluster_stories
 

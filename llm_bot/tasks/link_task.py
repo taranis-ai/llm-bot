@@ -1,7 +1,7 @@
 from llm_bot.client import LLMClient
 from llm_bot.lookup_client import LookupClient
 from llm_bot.schemas import LinkRequest, LinkedNerResponse, NerResponse
-from llm_bot.tasks.linking import (
+from llm_bot.tasks.entity_linking import (
     build_deterministic_linked_response,
     build_llm_linked_response,
     lookup_entity_candidates,
