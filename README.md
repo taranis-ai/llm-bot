@@ -140,14 +140,11 @@ Request body:
 ```json
 {
   "text": "APT29 used Mimikatz and PowerShell to dump credentials.",
-  "cybersecurity": true,
-  "link_entities": false,
-  "language": "en",
-  "linking_mode": "llm"
+  "cybersecurity": true
 }
 ```
 
-Plain response body when linking is off:
+Response body:
 
 ```json
 {
@@ -157,7 +154,28 @@ Plain response body when linking is off:
 }
 ```
 
-Linked response body when linking is on:
+This endpoint performs NER only. It does not run entity linking.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /ner-link`
+
+Request body:
+
+```json
+{
+  "text": "Apple announced new Mac hardware during its developer event in Cupertino.",
+  "language": "en",
+  "linking_mode": "llm",
+  "cybersecurity": false
+}
+```
+
+Response body:
 
 ```json
 {
@@ -177,25 +195,15 @@ Linked response body when linking is on:
 }
 ```
 
-Deterministic linking example:
+This endpoint performs NER first and then links the extracted entities.
+
+Deterministic example:
 
 ```json
 {
   "text": "Apple released a new device.",
-  "link_entities": true,
   "language": "en",
   "linking_mode": "deterministic"
-}
-```
-
-LLM linking example:
-
-```json
-{
-  "text": "Apple released a new device.",
-  "link_entities": true,
-  "language": "en",
-  "linking_mode": "llm"
 }
 ```
 

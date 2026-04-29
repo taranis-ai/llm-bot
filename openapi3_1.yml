@@ -85,11 +85,7 @@ paths:
         When `cybersecurity` is enabled, the extraction includes
         cybersecurity-relevant entities in addition to general named entities.
 
-        When linking is disabled, the response is a flat JSON object that maps
-        entity values to entity types.
-
-        When linking is enabled, the response is a structured list of linked
-        entities with optional Wikidata fields.
+        This endpoint performs extraction only. It does not run entity linking.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -108,36 +104,18 @@ paths:
                 value:
                   text: "Microsoft announced that Outlook users in Vienna should install updates immediately."
                   cybersecurity: false
-                  link_entities: false
               cybersecurity:
                 summary: Example cybersecurity-aware NER request
                 value:
                   text: "APT29 used Mimikatz and PowerShell to dump credentials from government systems."
                   cybersecurity: true
-                  link_entities: false
-              deterministicLinking:
-                summary: Example deterministic linking request
-                value:
-                  text: "Apple released a new device."
-                  link_entities: true
-                  language: "en"
-                  linking_mode: "deterministic"
-              llmLinking:
-                summary: Example LLM linking request
-                value:
-                  text: "Apple released a new device."
-                  link_entities: true
-                  language: "en"
-                  linking_mode: "llm"
       responses:
         "200":
           description: Entities extracted successfully
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/NerResponse"
-                  - $ref: "#/components/schemas/LinkedNerResponse"
+                $ref: "#/components/schemas/NerResponse"
         "400":
           description: Invalid request payload
           content:
@@ -162,6 +140,72 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to extract entities"
+
+  /ner-link:
+    post:
+      summary: Extract and link named entities from input text
+      description: |
+        Accepts input text, extracts named entities, and resolves them against
+        the configured lookup service.
+
+        This endpoint combines NER and linking in one call and returns the
+        structured linked-entity response.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: extractAndLinkEntities
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NerLinkRequest"
+            examples:
+              deterministic:
+                summary: Example deterministic NER and linking request
+                value:
+                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  language: "en"
+                  linking_mode: "deterministic"
+              llm:
+                summary: Example LLM NER and linking request
+                value:
+                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  language: "en"
+                  linking_mode: "llm"
+      responses:
+        "200":
+          description: Entities extracted and linked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedNerResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid NER link request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream NER, lookup, or disambiguation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to extract and link entities"
 
   /link:
     post:
@@ -395,12 +439,23 @@ components:
           type: array
           items:
             type: string
-        link_entities:
+    NerLinkRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to analyze and link
+        cybersecurity:
           type: boolean
-          nullable: true
-          description: |
-            When true, resolve extracted entities against the configured lookup
-            service and return linked entities.
+          default: false
+        entity_types:
+          type: array
+          items:
+            type: string
         language:
           type: string
           nullable: true
