@@ -20,7 +20,14 @@ class NerRequest(BaseModel):
     text: str = Field(min_length=1)
     cybersecurity: bool = False
     entity_types: list[str] | None = None
-    link_entities: bool | None = None
+
+
+class NerLinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    cybersecurity: bool = False
+    entity_types: list[str] | None = None
     language: str | None = None
     linking_mode: str | None = None
 
