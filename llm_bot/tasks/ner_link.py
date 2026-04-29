@@ -1,7 +1,7 @@
 from llm_bot.client import LLMClient
 from llm_bot.lookup_client import LookupClient
 from llm_bot.schemas import LinkRequest, LinkedNerResponse, NerLinkRequest, NerRequest
-from llm_bot.tasks.link import link_entities
+from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import extract_entities
 
 
