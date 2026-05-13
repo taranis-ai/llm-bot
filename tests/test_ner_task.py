@@ -1,6 +1,6 @@
 import pytest
 
-from llm_bot.schemas import NerRequest, NerResponse
+from llm_bot.schemas import LookupResponse, NerRequest, NerResponse
 from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
 from llm_bot.tasks.ner import (
     build_ner_messages,
@@ -20,6 +20,16 @@ class StubLLMClient:
         if isinstance(self.response_data, list):
             return self.response_data.pop(0)
         return self.response_data
+
+
+class StubLookupClient:
+    def __init__(self, responses_by_query):
+        self.responses_by_query = responses_by_query
+        self.calls = []
+
+    async def lookup(self, query: str, language: str, limit: int) -> LookupResponse:
+        self.calls.append({"query": query, "language": language, "limit": limit})
+        return self.responses_by_query[query]
 
 
 @pytest.fixture(autouse=True)
@@ -255,3 +265,4 @@ async def test_extract_entities_retries_once_on_unsupported_entity_type():
 
     assert response == NerResponse({"Wikipedia": "PRODUCT"})
     assert len(client.calls) == 2
+

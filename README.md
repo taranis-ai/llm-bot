@@ -33,6 +33,12 @@ Optional:
 - `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
+- `LOOKUP_BASE_URL`
+- `LOOKUP_API_KEY`
+- `LOOKUP_DEFAULT_LANGUAGE`
+- `LOOKUP_CANDIDATE_LIMIT`
+- `NER_LINKING_ENABLED`
+- `NER_LINKING_MODE`: use `deterministic` or `llm`
 - `SUMMARY_MAX_INPUT_CHARS`
 - `SUMMARY_ROUTE_PATH`
 - `NER_ROUTE_PATH`
@@ -142,11 +148,109 @@ Response body:
 
 ```json
 {
-  "APT29": "Group",
-  "Mimikatz": "Tool",
-  "PowerShell": "CLICommand/CodeSnippet"
+  "APT29": "GROUP",
+  "Mimikatz": "TOOL",
+  "PowerShell": "PRODUCT"
 }
 ```
+
+This endpoint performs NER only. It does not run entity linking.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /ner-link`
+
+Request body:
+
+```json
+{
+  "text": "Apple announced new Mac hardware during its developer event in Cupertino.",
+  "language": "en",
+  "linking_mode": "llm",
+  "cybersecurity": false
+}
+```
+
+Response body:
+
+```json
+{
+  "entities": [
+    {
+      "mention": "Apple",
+      "type": "ORG",
+      "wikidata_qid": "Q312",
+      "wikidata_label": "Apple Inc.",
+      "wikidata_description": "American technology company",
+      "matched_alias": "Apple",
+      "match_type": "alias",
+      "score": 0.98,
+      "candidate_count": 5
+    }
+  ]
+}
+```
+
+This endpoint performs NER first and then links the extracted entities.
+
+Deterministic example:
+
+```json
+{
+  "text": "Apple released a new device.",
+  "language": "en",
+  "linking_mode": "deterministic"
+}
+```
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /link`
+
+Request body:
+
+```json
+{
+  "text": "Apple announced new Mac hardware during its developer event in Cupertino.",
+  "language": "en",
+  "linking_mode": "llm",
+  "entities": [
+    { "mention": "Apple", "type": "ORG" },
+    { "mention": "Cupertino", "type": "GPE" },
+    { "mention": "Mac", "type": "PRODUCT" }
+  ]
+}
+```
+
+Response body:
+
+```json
+{
+  "entities": [
+    {
+      "mention": "Apple",
+      "type": "ORG",
+      "wikidata_qid": "Q312",
+      "wikidata_label": "Apple Inc.",
+      "wikidata_description": "American technology company",
+      "matched_alias": "Apple",
+      "match_type": "alias",
+      "score": 0.98,
+      "candidate_count": 5
+    }
+  ]
+}
+```
+
+This endpoint performs linking only. It does not run NER first.
 
 If `API_KEY` is configured, send it as:
 

@@ -22,8 +22,77 @@ class NerRequest(BaseModel):
     entity_types: list[str] | None = None
 
 
+class NerLinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    cybersecurity: bool = False
+    entity_types: list[str] | None = None
+    language: str | None = None
+    linking_mode: str | None = None
+
+
 class NerResponse(RootModel[dict[str, str]]):
     root: dict[str, str]
+
+
+class LinkedEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mention: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    wikidata_qid: str | None = None
+    wikidata_label: str | None = None
+    wikidata_description: str | None = None
+    matched_alias: str | None = None
+    match_type: str | None = None
+    score: float | None = None
+    candidate_count: int | None = Field(default=None, ge=0)
+
+
+class LinkedNerResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entities: list[LinkedEntity]
+
+
+class LinkRequestEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mention: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+
+
+class LinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    entities: list[LinkRequestEntity] = Field(min_length=1)
+    language: str | None = None
+    linking_mode: str | None = None
+
+
+class LookupCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    qid: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    description: str | None = None
+    matched_alias: str | None = None
+    match_type: str | None = None
+    language: str = Field(min_length=1)
+    score: float
+    is_label: bool
+    type_tags: list[str]
+
+
+class LookupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1)
+    language: str = Field(min_length=1)
+    limit: int = Field(ge=1, le=100)
+    candidates: list[LookupCandidate]
 
 
 class StoryTag(BaseModel):
