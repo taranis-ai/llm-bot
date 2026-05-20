@@ -2,44 +2,17 @@ import pytest
 
 from llm_bot.schemas import LinkRequest, LookupResponse, NerLinkRequest, NerResponse
 from llm_bot.tasks.entity_linking import (
+    build_deterministic_linked_response,
     build_llm_linked_response,
     get_linking_response_format,
-    build_deterministic_linked_response,
     lookup_entity_candidates,
     parse_linking_decision_map,
     resolve_linking_mode,
     resolve_lookup_language,
-    select_llm_candidates,
     select_deterministic_candidate,
+    select_llm_candidates,
 )
-
-
-class StubLookupClient:
-    def __init__(self):
-        self.calls = []
-
-    async def lookup(self, query: str, language: str, limit: int) -> LookupResponse:
-        self.calls.append({"query": query, "language": language, "limit": limit})
-        return LookupResponse.model_validate(
-            {
-                "query": query,
-                "language": language,
-                "limit": limit,
-                "candidates": [],
-            }
-        )
-
-
-class StubLLMClient:
-    def __init__(self, response_data):
-        self.response_data = response_data
-        self.calls = []
-
-    async def create_response(self, input_text: str, instructions: str, response_format=None):
-        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
-        if isinstance(self.response_data, list):
-            return self.response_data.pop(0)
-        return self.response_data
+from tests.test_helpers import StubLLMClient, StubLookupClient
 
 def test_resolve_lookup_language_uses_request_language():
     request = LinkRequest.model_validate(

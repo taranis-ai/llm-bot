@@ -1,22 +1,10 @@
 import pytest
 
-from llm_bot.schemas import SummarizeRequest, SummarizeResponse
 from llm_bot.reasoning import apply_reasoning_profile, extract_structured_reasoning, strip_reasoning_output
+from llm_bot.schemas import SummarizeRequest, SummarizeResponse
 from llm_bot.tasks.llm_utils import get_output_text
 from llm_bot.tasks.summarize import build_summary_messages, parse_summary_response, summarize
-
-
-class StubLLMClient:
-    def __init__(self, response_data):
-        self.response_data = response_data
-        self.calls = []
-
-    async def create_response(self, input_text: str, instructions: str, response_format=None):
-        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
-        if isinstance(self.response_data, list):
-            return self.response_data.pop(0)
-        return self.response_data
-
+from tests.test_helpers import StubLLMClient
 
 def test_build_summary_messages_without_max_words():
     request = SummarizeRequest(text="Example story text")

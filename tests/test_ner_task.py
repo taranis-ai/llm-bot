@@ -1,36 +1,14 @@
 import pytest
 
-from llm_bot.schemas import LookupResponse, NerRequest, NerResponse
-from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
+from llm_bot.schemas import NerRequest, NerResponse
 from llm_bot.tasks.ner import (
     build_ner_messages,
     extract_entities,
     parse_ner_response,
     resolve_entity_types,
 )
-
-
-class StubLLMClient:
-    def __init__(self, response_data):
-        self.response_data = response_data
-        self.calls = []
-
-    async def create_response(self, input_text: str, instructions: str, response_format=None):
-        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
-        if isinstance(self.response_data, list):
-            return self.response_data.pop(0)
-        return self.response_data
-
-
-class StubLookupClient:
-    def __init__(self, responses_by_query):
-        self.responses_by_query = responses_by_query
-        self.calls = []
-
-    async def lookup(self, query: str, language: str, limit: int) -> LookupResponse:
-        self.calls.append({"query": query, "language": language, "limit": limit})
-        return self.responses_by_query[query]
-
+from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
+from tests.test_helpers import StubLLMClient
 
 @pytest.fixture(autouse=True)
 def use_current_ner_entity_types(monkeypatch):
