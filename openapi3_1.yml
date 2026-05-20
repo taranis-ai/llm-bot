@@ -4,8 +4,9 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes summarization, clustering, and named entity
-    recognition routes backed by an OpenAI-compatible Responses API.
+    The current implementation exposes sentiment analysis, summarization,
+    clustering, named entity recognition, and entity linking routes backed by
+    an OpenAI-compatible Responses API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -21,6 +22,70 @@ servers:
     description: Container server
 
 paths:
+  /sentiment:
+    post:
+      summary: Analyze sentiment for input text
+      description: |
+        Accepts input text and returns a high-level sentiment label with a
+        confidence score.
+
+        When `include_emotions` is true, the response also includes zero or
+        more Plutchik emotions that are compatible with the predicted
+        sentiment.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: analyzeSentiment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SentimentRequest"
+            examples:
+              basic:
+                summary: Example sentiment request
+                value:
+                  text: "The launch was a success."
+              withEmotions:
+                summary: Example sentiment request with emotions
+                value:
+                  text: "The breach left customers angry and alarmed."
+                  include_emotions: true
+      responses:
+        "200":
+          description: Sentiment analyzed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid sentiment request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to analyze sentiment"
+
   /summarize:
     post:
       summary: Summarize input text
@@ -395,6 +460,61 @@ components:
       scheme: bearer
       bearerFormat: API key
   schemas:
+    SentimentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to analyze for sentiment
+        include_emotions:
+          type: boolean
+          default: false
+          description: |
+            When true, include zero or more Plutchik emotions in the response.
+    SentimentResult:
+      type: object
+      additionalProperties: false
+      required:
+        - label
+        - score
+      properties:
+        label:
+          type: string
+          enum:
+            - positive
+            - negative
+            - neutral
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+        emotions:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - anger
+              - fear
+              - sadness
+              - disgust
+              - surprise
+              - anticipation
+              - trust
+              - joy
+    SentimentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - sentiment
+      properties:
+        sentiment:
+          $ref: "#/components/schemas/SentimentResult"
     SummarizeRequest:
       type: object
       additionalProperties: false
