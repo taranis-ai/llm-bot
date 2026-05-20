@@ -2,8 +2,9 @@
 
 LLM-backed bot service.
 
-The current implementation exposes summary, named entity recognition, and
-clustering endpoints backed by an OpenAI-compatible Responses API.
+The current implementation exposes sentiment analysis, summary, named entity
+recognition, linking, and clustering endpoints backed by an OpenAI-compatible
+Responses API.
 
 ## Requirements
 
@@ -27,7 +28,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/summarize`, `/ner`, and `/cluster`
+- `API_KEY`: protects incoming requests to `/sentiment`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none` or `ministral`
 - `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
@@ -53,6 +54,51 @@ uv run granian --interface asgi app:app --port 5500
 
 Canonical paths are documented below. The service also accepts the same
 routes with a trailing slash.
+
+### `POST /sentiment`
+
+Sentiment analysis endpoint.
+
+Request body:
+
+```json
+{
+  "text": "The launch was a success.",
+  "include_emotions": true
+}
+```
+
+Response body without emotions:
+
+```json
+{
+  "sentiment": {
+    "label": "positive",
+    "score": 0.88
+  }
+}
+```
+
+Response body with emotions:
+
+```json
+{
+  "sentiment": {
+    "label": "negative",
+    "score": 0.91,
+    "emotions": ["anger", "fear"]
+  }
+}
+```
+
+When `include_emotions` is `false` or omitted, the response must not contain an
+`emotions` field.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
 
 ### `POST /summarize`
 

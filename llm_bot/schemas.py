@@ -1,4 +1,45 @@
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from enum import StrEnum
+
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+
+
+class EmotionLabel(StrEnum):
+    JOY = "joy"
+    TRUST = "trust"
+    FEAR = "fear"
+    SURPRISE = "surprise"
+    SADNESS = "sadness"
+    DISGUST = "disgust"
+    ANGER = "anger"
+    ANTICIPATION = "anticipation"
+
+
+class SentimentLabel(StrEnum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    NEUTRAL = "neutral"
+
+
+PLUTCHIK_8: tuple[EmotionLabel, ...] = tuple(EmotionLabel)
+
+_ALLOWED_SENTIMENTS_BY_EMOTION: dict[EmotionLabel, set[SentimentLabel]] = {
+    EmotionLabel.JOY: {SentimentLabel.POSITIVE},
+    EmotionLabel.TRUST: {SentimentLabel.POSITIVE},
+    EmotionLabel.FEAR: {SentimentLabel.NEGATIVE},
+    EmotionLabel.SURPRISE: {
+        SentimentLabel.POSITIVE,
+        SentimentLabel.NEUTRAL,
+        SentimentLabel.NEGATIVE,
+    },
+    EmotionLabel.SADNESS: {SentimentLabel.NEGATIVE},
+    EmotionLabel.DISGUST: {SentimentLabel.NEGATIVE},
+    EmotionLabel.ANGER: {SentimentLabel.NEGATIVE},
+    EmotionLabel.ANTICIPATION: {
+        SentimentLabel.POSITIVE,
+        SentimentLabel.NEUTRAL,
+        SentimentLabel.NEGATIVE,
+    },
+}
 
 
 class SummarizeRequest(BaseModel):
@@ -12,6 +53,52 @@ class SummarizeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     summary: str = Field(min_length=1)
+
+
+class SentimentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    include_emotions: bool = False
+
+
+class SentimentResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: SentimentLabel
+    score: float = Field(ge=0, le=1)
+    emotions: list[EmotionLabel] | None = None
+
+    @model_validator(mode="after")
+    def validate_emotions(self) -> "SentimentResult":
+        if self.emotions is None:
+            return self
+
+        if len(self.emotions) != len(set(self.emotions)):
+            raise ValueError("Emotions must not contain duplicates")
+
+        invalid_emotions = [
+            emotion
+            for emotion in self.emotions
+            if self.label not in _ALLOWED_SENTIMENTS_BY_EMOTION[emotion]
+        ]
+        if invalid_emotions:
+            invalid_names = ", ".join(emotion.value for emotion in invalid_emotions)
+            raise ValueError(
+                f"Emotions not allowed for sentiment {self.label.value}: {invalid_names}"
+            )
+
+        return self
+
+
+class SentimentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sentiment: SentimentResult
+
+    def model_dump(self, *args, **kwargs):
+        kwargs.setdefault("exclude_none", True)
+        return super().model_dump(*args, **kwargs)
 
 
 class NerRequest(BaseModel):
