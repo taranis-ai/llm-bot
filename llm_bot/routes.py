@@ -7,13 +7,21 @@ from quart import Blueprint, request
 
 from llm_bot.config import Config
 from llm_bot.log import logger
-from llm_bot.schemas import ClusterRequest, LinkRequest, NerLinkRequest, NerRequest, SummarizeRequest
-from llm_bot.tasks.link_task import link_entities
-from llm_bot.tasks.ner_link import extract_and_link
-from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
-from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
-from llm_bot.tasks.summarize import summarize
+from llm_bot.schemas import (
+    ClusterRequest,
+    LinkRequest,
+    NerLinkRequest,
+    NerRequest,
+    SentimentRequest,
+    SummarizeRequest,
+)
 from llm_bot.tasks.cluster import cluster_stories
+from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
+from llm_bot.tasks.link_task import link_entities
+from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
+from llm_bot.tasks.ner_link import extract_and_link
+from llm_bot.tasks.sentiment import analyze_sentiment
+from llm_bot.tasks.summarize import summarize
 
 
 def api_key_required(view_func):
@@ -80,8 +88,19 @@ def create_api_blueprint() -> Blueprint:
             "llm_timeout": Config.LLM_TIMEOUT,
             "summary_route_path": Config.SUMMARY_ROUTE_PATH,
             "ner_route_path": Config.NER_ROUTE_PATH,
-            "cluster_route_path": Config.CLUSTER_ROUTE_PATH
+            "cluster_route_path": Config.CLUSTER_ROUTE_PATH,
         }, 200
+
+    @api.post("/sentiment")
+    @api_key_required
+    async def sentiment_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Sentiment",
+            validation_error_message="Invalid sentiment request payload",
+            processing_error_message="Failed to analyze sentiment",
+            request_model_factory=SentimentRequest.model_validate,
+            task=analyze_sentiment,
+        )
 
     @api.post(Config.SUMMARY_ROUTE_PATH)
     @api_key_required
