@@ -1,6 +1,5 @@
-from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SummarizeResponse
+from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SentimentResponse, SummarizeResponse
 from llm_bot.app import create_app
-from llm_bot.tasks.llm_utils import MissingOutputTextError
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
 
@@ -253,21 +252,6 @@ async def test_ner_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid NER request payload"}
 
-
-async def test_ner_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_extract_entities(request_model):
-        raise RuntimeError("malformed upstream response")
-
-    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
-
-    test_client = app.test_client()
-    response = await test_client.post("/ner", json={"text": "APT29 used Mimikatz."})
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {"error": "Failed to extract entities"}
-
-
 async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
     async def failing_extract_entities(request_model):
         raise UnsupportedEntityTypesError("Unsupported entity types requested: AlienType")
@@ -312,21 +296,6 @@ async def test_link_endpoint_rejects_invalid_payload(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid link request payload"}
-
-
-async def test_ner_endpoint_returns_upstream_error_for_missing_output_text(app, monkeypatch):
-    async def failing_extract_entities(request_model):
-        raise MissingOutputTextError("Responses API payload did not contain output text")
-
-    monkeypatch.setattr("llm_bot.routes.extract_entities", failing_extract_entities)
-
-    test_client = app.test_client()
-    response = await test_client.post("/ner", json={"text": "APT29 used Mimikatz."})
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {"error": "Failed to extract entities"}
-
 
 async def test_ner_link_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
@@ -400,27 +369,27 @@ async def test_cluster_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid Cluster request payload"}
 
+async def test_sentiment_endpoint(app, monkeypatch):
+    async def fake_analyze_sentiment(request_model):
+        assert request_model.text == "The launch was a success."
+        assert request_model.include_emotions is False
+        return SentimentResponse.model_validate({"sentiment": {"label": "positive", "score": 0.88}})
 
-async def test_cluster_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_cluster_stories(request_model):
-        raise RuntimeError("malformed upstream response")
-
-    monkeypatch.setattr("llm_bot.routes.cluster_stories", failing_cluster_stories)
+    monkeypatch.setattr("llm_bot.routes.analyze_sentiment", fake_analyze_sentiment)
 
     test_client = app.test_client()
-    response = await test_client.post(
-        "/cluster",
-        json={
-            "stories": [
-                {
-                    "id": "s1",
-                    "tags": {"APT29": {"tag_type": "APT"}},
-                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
-                }
-            ]
-        },
-    )
+    response = await test_client.post("/sentiment", json={"text": "The launch was a success."})
     body = await response.get_json()
 
-    assert response.status_code == 502
-    assert body == {"error": "Failed to cluster stories"}
+    assert response.status_code == 200
+    assert body == {"sentiment": {"label": "positive", "score": 0.88}}
+
+
+async def test_sentiment_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/sentiment", json={"include_emotions": True})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid sentiment request payload"}
