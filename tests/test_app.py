@@ -14,18 +14,23 @@ async def test_health_endpoint(app):
     assert body == {"status": "ok"}
 
 
-async def test_info_endpoint(app):
-    test_client = app.test_client()
+async def test_info_endpoint(app, monkeypatch):
+    monkeypatch.setattr("llm_bot.routes.Config.LLM_REASONING_PROFILE", "gemma")
+    monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
+    monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
 
+    test_client = app.test_client()
     response = await test_client.get("/info")
     body = await response.get_json()
 
     assert response.status_code == 200
     assert body["package_name"] == "llm_bot"
-    assert "llm_base_url" in body
-    assert "llm_model" in body
-    assert body["summary_route_path"] == "/summarize"
-    assert body["ner_route_path"] == "/ner"
+    assert body["reasoning_profiles"]["gemma"]["description"] == "Prefixes the system prompt with <|think|>"
+    assert body["linking_modes"] == ["deterministic", "llm"]
+    assert body["endpoints"]["sentiment"] == "/sentiment"
+    assert body["current"]["llm_reasoning_profile"] == "gemma"
+    assert body["current"]["lookup_base_url_configured"] is True
+    assert body["current"]["ner_linking_enabled"] is True
 
 
 async def test_summarize_endpoint(app, monkeypatch):
