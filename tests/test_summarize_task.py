@@ -95,6 +95,16 @@ def test_get_output_text_logs_inline_reasoning(caplog):
     assert "LLM reasoning output: [THINK]I should summarize this.[/THINK]" in caplog.text
 
 
+def test_get_output_text_logs_gemma_inline_reasoning(caplog):
+    response_data = {"output_text": '<|channel>thought\nI should summarize this.<channel|>{"summary":"Short summary"}'}
+
+    with caplog.at_level("DEBUG", logger="llm_bot"):
+        output_text = get_output_text(response_data)
+
+    assert output_text == '{"summary":"Short summary"}'
+    assert "LLM reasoning output: <|channel>thought" in caplog.text
+
+
 def test_get_output_text_can_use_reasoning_as_fallback_output(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.llm_utils.Config.LLM_PARSE_REASONING_AS_OUTPUT", True)
     response_data = {
@@ -118,6 +128,15 @@ def test_apply_reasoning_profile_adds_ministral_instructions(monkeypatch):
     assert "[THINK]" in instructions
     assert "Return JSON only." in instructions
     assert "final response after [/THINK] must be valid JSON only" in instructions
+
+
+def test_apply_reasoning_profile_adds_gemma_think_token(monkeypatch):
+    monkeypatch.setattr("llm_bot.reasoning.Config.LLM_REASONING_PROFILE", "gemma")
+
+    instructions = apply_reasoning_profile("Return JSON only.")
+
+    assert instructions.startswith("<|think|>\n")
+    assert "Return JSON only." in instructions
 
 
 def test_parse_summary_response_truncates_summary(monkeypatch):
@@ -169,6 +188,17 @@ async def test_summarize_applies_reasoning_profile(monkeypatch):
 
     assert response == SummarizeResponse(summary="Short summary")
     assert "# HOW YOU SHOULD THINK AND ANSWER" in client.calls[0]["instructions"]
+
+
+@pytest.mark.asyncio
+async def test_summarize_applies_gemma_reasoning_profile(monkeypatch):
+    monkeypatch.setattr("llm_bot.reasoning.Config.LLM_REASONING_PROFILE", "gemma")
+    client = StubLLMClient({"output_text": '<|channel>thought\ndraft<channel|>{"summary":"Short summary"}'})
+
+    response = await summarize(SummarizeRequest(text="Story text"), client=client)
+
+    assert response == SummarizeResponse(summary="Short summary")
+    assert client.calls[0]["instructions"].startswith("<|think|>\n")
 
 
 @pytest.mark.asyncio

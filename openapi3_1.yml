@@ -447,7 +447,7 @@ paths:
       operationId: serviceInfo
       responses:
         "200":
-          description: Service configuration overview
+          description: Discoverable service information and active non-secret config
           content:
             application/json:
               schema:
@@ -515,6 +515,39 @@ components:
       properties:
         sentiment:
           $ref: "#/components/schemas/SentimentResult"
+    InfoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - package_name
+        - reasoning_profiles
+        - linking_modes
+        - endpoints
+        - current
+      properties:
+        package_name:
+          type: string
+        reasoning_profiles:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required:
+              - description
+            properties:
+              description:
+                type: string
+        linking_modes:
+          type: array
+          items:
+            type: string
+        endpoints:
+          type: object
+          additionalProperties:
+            type: string
+        current:
+          type: object
+          additionalProperties: true
     SummarizeRequest:
       type: object
       additionalProperties: false
@@ -756,29 +789,6 @@ components:
         message:
           type: string
           minLength: 1
-    InfoResponse:
-      type: object
-      additionalProperties: false
-      required:
-        - package_name
-        - llm_base_url
-        - llm_model
-        - llm_timeout
-        - summary_route_path
-        - ner_route_path
-      properties:
-        package_name:
-          type: string
-        llm_base_url:
-          type: string
-        llm_model:
-          type: string
-        llm_timeout:
-          type: integer
-        summary_route_path:
-          type: string
-        ner_route_path:
-          type: string
     Error:
       type: object
       additionalProperties: false

@@ -72,6 +72,40 @@ async def _handle_model_request(
     return response_model.model_dump(), 200
 
 
+def build_info_response() -> dict[str, object]:
+    return {
+        "package_name": Config.PACKAGE_NAME,
+        "reasoning_profiles": {
+            "none": {"description": "No special reasoning prompt handling"},
+            "ministral": {"description": "Adds [THINK]...[/THINK] reasoning instructions"},
+            "gemma": {"description": "Prefixes the system prompt with <|think|>"},
+        },
+        "linking_modes": ["deterministic", "llm"],
+        "endpoints": {
+            "sentiment": "/sentiment",
+            "summarize": Config.SUMMARY_ROUTE_PATH,
+            "ner": Config.NER_ROUTE_PATH,
+            "ner_link": "/ner-link",
+            "link": "/link",
+            "cluster": Config.CLUSTER_ROUTE_PATH,
+        },
+        "current": {
+            "llm_base_url": Config.LLM_BASE_URL,
+            "llm_model": Config.LLM_MODEL,
+            "llm_timeout": Config.LLM_TIMEOUT,
+            "llm_reasoning_profile": Config.LLM_REASONING_PROFILE,
+            "llm_reasoning_effort": Config.LLM_REASONING_EFFORT,
+            "llm_strip_reasoning_output": Config.LLM_STRIP_REASONING_OUTPUT,
+            "llm_parse_reasoning_as_output": Config.LLM_PARSE_REASONING_AS_OUTPUT,
+            "lookup_base_url_configured": bool(Config.LOOKUP_BASE_URL),
+            "lookup_default_language": Config.LOOKUP_DEFAULT_LANGUAGE,
+            "lookup_candidate_limit": Config.LOOKUP_CANDIDATE_LIMIT,
+            "ner_linking_enabled": Config.NER_LINKING_ENABLED,
+            "ner_linking_mode": Config.NER_LINKING_MODE,
+        },
+    }
+
+
 def create_api_blueprint() -> Blueprint:
     api = Blueprint("api", __name__)
 
@@ -80,16 +114,8 @@ def create_api_blueprint() -> Blueprint:
         return {"status": "ok"}, 200
 
     @api.get("/info")
-    async def info() -> tuple[dict[str, str | int], int]:
-        return {
-            "package_name": Config.PACKAGE_NAME,
-            "llm_base_url": Config.LLM_BASE_URL,
-            "llm_model": Config.LLM_MODEL,
-            "llm_timeout": Config.LLM_TIMEOUT,
-            "summary_route_path": Config.SUMMARY_ROUTE_PATH,
-            "ner_route_path": Config.NER_ROUTE_PATH,
-            "cluster_route_path": Config.CLUSTER_ROUTE_PATH,
-        }, 200
+    async def info() -> tuple[dict[str, object], int]:
+        return build_info_response(), 200
 
     @api.post("/sentiment")
     @api_key_required
