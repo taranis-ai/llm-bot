@@ -1,4 +1,4 @@
-from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SentimentResponse, SummarizeResponse
+from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SentimentResponse, SummarizeResponse, TitleResponse
 from llm_bot.app import create_app
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
@@ -28,10 +28,38 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["reasoning_profiles"]["gemma"]["description"] == "Prefixes the system prompt with <|think|>"
     assert body["linking_modes"] == ["deterministic", "llm"]
     assert body["endpoints"]["sentiment"] == "/sentiment"
+    assert body["endpoints"]["title"] == "/title"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
 
+
+
+
+async def test_title_endpoint(app, monkeypatch):
+    async def fake_generate_title(request_model):
+        assert request_model.text == "Story text"
+        assert request_model.max_chars == 55
+        return TitleResponse(title="Concise story title")
+
+    monkeypatch.setattr("llm_bot.routes.generate_title", fake_generate_title)
+
+    test_client = app.test_client()
+    response = await test_client.post("/title", json={"text": "Story text", "max_chars": 55})
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"title": "Concise story title"}
+
+
+async def test_title_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/title", json={})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid title request payload"}
 
 async def test_summarize_endpoint(app, monkeypatch):
     async def fake_summarize(request_model):
