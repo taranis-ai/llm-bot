@@ -7,6 +7,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import ClusterRequest, ClusterResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.task_utils import truncate_text
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cluster.txt"
@@ -14,12 +15,6 @@ PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cluster.txt"
 
 def load_cluster_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8").strip()
-
-
-def _truncate_text(text: str, max_chars: int) -> str:
-    if len(text) <= max_chars:
-        return text
-    return text[: max_chars - 1].rstrip() + "…"
 
 
 def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
@@ -33,7 +28,7 @@ def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
                 "id": story.id,
                 "tags": tags,
                 "title": first_news_item.title,
-                "summary_text": _truncate_text(summary_text, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY),
+                "summary_text": truncate_text(summary_text, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY),
                 "language": first_news_item.language,
             }
         )
