@@ -55,6 +55,19 @@ class SummarizeResponse(BaseModel):
     summary: str = Field(min_length=1)
 
 
+class TitleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    max_chars: int = Field(default=100, ge=1)
+
+
+class TitleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1)
+
+
 class SentimentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
