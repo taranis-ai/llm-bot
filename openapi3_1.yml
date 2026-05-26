@@ -4,7 +4,7 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes sentiment analysis, summarization,
+    The current implementation exposes sentiment analysis, title generation, summarization,
     clustering, named entity recognition, and entity linking routes backed by
     an OpenAI-compatible Responses API.
 
@@ -85,6 +85,64 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to analyze sentiment"
+
+
+  /title:
+    post:
+      summary: Generate a concise story title from input text
+      description: |
+        Accepts input text and returns a concise title in the same language.
+
+        The model is instructed to stay within the request `max_chars` field, which defaults to 100 when omitted. The service does not truncate longer model outputs.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: generateTitle
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TitleRequest"
+            examples:
+              basic:
+                summary: Example title request
+                value:
+                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  max_chars: 100
+      responses:
+        "200":
+          description: Title generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid title request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to generate title"
 
   /summarize:
     post:
@@ -232,12 +290,14 @@ paths:
                 summary: Example deterministic NER and linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  max_chars: 100
                   language: "en"
                   linking_mode: "deterministic"
               llm:
                 summary: Example LLM NER and linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  max_chars: 100
                   language: "en"
                   linking_mode: "llm"
       responses:
@@ -297,6 +357,7 @@ paths:
                 summary: Example deterministic linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  max_chars: 100
                   language: "en"
                   linking_mode: "deterministic"
                   entities:
@@ -310,6 +371,7 @@ paths:
                 summary: Example LLM linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  max_chars: 100
                   language: "en"
                   linking_mode: "llm"
                   entities:
@@ -548,6 +610,34 @@ components:
         current:
           type: object
           additionalProperties: true
+
+    TitleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to convert into a concise story title
+        max_chars:
+          type: integer
+          minimum: 1
+          default: 100
+          description: Maximum allowed length of the generated title
+
+    TitleResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Generated title text. The model is instructed to stay within max_chars, but the service does not truncate longer outputs.
+
     SummarizeRequest:
       type: object
       additionalProperties: false

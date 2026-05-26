@@ -2,7 +2,7 @@
 
 LLM-backed bot service.
 
-The current implementation exposes sentiment analysis, summary, named entity
+The current implementation exposes sentiment analysis, title generation, summary, named entity
 recognition, linking, and clustering endpoints backed by an OpenAI-compatible
 Responses API.
 
@@ -28,7 +28,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/sentiment`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
+- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
@@ -94,6 +94,33 @@ Response body with emotions:
 
 When `include_emotions` is `false` or omitted, the response must not contain an
 `emotions` field.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /title`
+
+Request body:
+
+```json
+{
+  "text": "Text to title",
+  "max_chars": 100
+}
+```
+
+Response body:
+
+```json
+{
+  "title": "Concise story title"
+}
+```
+
+The model is instructed to keep the title within `max_chars` characters. If omitted, `max_chars` defaults to `100`. The service does not truncate longer model outputs.
 
 If `API_KEY` is configured, send it as:
 
