@@ -1,7 +1,7 @@
 import pytest
 
 from llm_bot.schemas import TitleRequest, TitleResponse
-from llm_bot.tasks.title import build_title_messages, generate_title, parse_title_response
+from llm_bot.tasks.title import build_title_messages, generate_title
 from tests.test_helpers import StubLLMClient
 
 
