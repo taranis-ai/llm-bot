@@ -2,8 +2,13 @@ import json
 from typing import Any
 
 from niquests import AsyncSession
+from niquests.exceptions import HTTPError
 
 from llm_bot.config import Config
+
+
+class UpstreamLLMError(RuntimeError):
+    pass
 
 
 class LLMClient:
@@ -29,6 +34,28 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
+    def _extract_error_message(self, response_text: str) -> str:
+        try:
+            payload = json.loads(response_text)
+        except json.JSONDecodeError:
+            return response_text
+
+        if isinstance(payload, dict):
+            error_value = payload.get("error")
+            if isinstance(error_value, dict):
+                for key in ("message", "detail", "error"):
+                    value = error_value.get(key)
+                    if value:
+                        return str(value)
+            if isinstance(error_value, str) and error_value:
+                return error_value
+            for key in ("message", "detail", "error"):
+                value = payload.get(key)
+                if value:
+                    return str(value)
+
+        return response_text
+
     async def create_response(
         self,
         input_text: str,
@@ -48,5 +75,9 @@ class LLMClient:
 
         async with AsyncSession(base_url=self.base_url, headers=self._headers()) as session:
             response = await session.post("/responses", json=payload, timeout=self.timeout)
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except HTTPError as exc:
+                error_message = self._extract_error_message(response.text)
+                raise UpstreamLLMError(error_message) from exc
             return json.loads(response.text)

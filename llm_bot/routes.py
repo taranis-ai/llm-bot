@@ -5,6 +5,7 @@ from typing import Awaitable, Callable
 from pydantic import ValidationError
 from quart import Blueprint, request
 
+from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import (
@@ -66,6 +67,9 @@ async def _handle_model_request(
     except client_error_exceptions as exc:
         logger.warning("%s client error: %s", log_prefix, exc)
         return {"error": str(exc)}, 400
+    except UpstreamLLMError as exc:
+        logger.error("%s upstream error: %s", log_prefix, exc)
+        return {"error": f"{processing_error_message}: {exc}"}, 502
     except Exception:
         logger.exception(processing_error_message)
         return {"error": processing_error_message}, 502
