@@ -25,6 +25,15 @@ class MissingOutputTextError(RuntimeError):
     pass
 
 
+def _log_response_payload(task_name: str, response_data: dict[str, Any], *, attempt: str = "initial") -> None:
+    logger.debug(
+        "LLM %s response payload (%s): %s",
+        task_name,
+        attempt,
+        json.dumps(response_data, ensure_ascii=True, default=str),
+    )
+
+
 def extract_last_json_object(text: str) -> str:
     end_index = text.rfind("}")
     if end_index == -1:
@@ -132,6 +141,7 @@ async def create_and_parse_response(
 ) -> T:
     instructions = apply_reasoning_profile(instructions)
     response_data = await client.create_response(input_text, instructions, response_format)
+    _log_response_payload(task_name, response_data)
     try:
         return parse_response(response_data)
     except (json.JSONDecodeError, ValidationError, InvalidLLMOutputError) as error:
@@ -142,4 +152,5 @@ async def create_and_parse_response(
             _build_repair_instructions(instructions, error),
             response_format,
         )
+        _log_response_payload(task_name, repair_response_data, attempt="repair")
         return parse_response(repair_response_data)

@@ -202,7 +202,7 @@ async def test_summarize_applies_gemma_reasoning_profile(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_summarize_retries_once_on_invalid_json():
+async def test_summarize_retries_once_on_invalid_json(caplog):
     client = StubLLMClient(
         [
             {"output_text": "Short summary"},
@@ -210,11 +210,15 @@ async def test_summarize_retries_once_on_invalid_json():
         ]
     )
 
-    response = await summarize(SummarizeRequest(text="Story text"), client=client)
+    with caplog.at_level("DEBUG", logger="llm_bot"):
+        response = await summarize(SummarizeRequest(text="Story text"), client=client)
 
     assert response == SummarizeResponse(summary="Short summary")
     assert len(client.calls) == 2
     assert "Your previous response was invalid." in client.calls[1]["instructions"]
+    assert 'LLM summary response payload (initial): {"output_text": "Short summary"}' in caplog.text
+    assert 'LLM summary response payload (repair):' in caplog.text
+    assert '\"summary\":\"Short summary\"' in caplog.text
 
 
 @pytest.mark.asyncio
