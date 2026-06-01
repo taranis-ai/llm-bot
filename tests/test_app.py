@@ -1,3 +1,4 @@
+from llm_bot.client import UpstreamLLMError
 from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SentimentResponse, SummarizeResponse, TitleResponse
 from llm_bot.app import create_app
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
@@ -125,7 +126,7 @@ async def test_summarize_endpoint_rejects_invalid_payload(app):
 
 async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
     async def failing_summarize(request_model):
-        raise ValueError("malformed upstream response")
+        raise UpstreamLLMError("Unsupported parameter: text.format")
 
     monkeypatch.setattr("llm_bot.routes.summarize", failing_summarize)
 
@@ -134,7 +135,7 @@ async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
     body = await response.get_json()
 
     assert response.status_code == 502
-    assert body == {"error": "Failed to generate summary"}
+    assert body == {"error": "Failed to generate summary: Unsupported parameter: text.format"}
 
 
 async def test_ner_endpoint(app, monkeypatch):
