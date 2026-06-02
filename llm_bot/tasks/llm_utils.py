@@ -134,13 +134,13 @@ async def create_and_parse_response(
     *,
     client: LLMClient,
     task_name: str,
-    input_text: str,
-    instructions: str,
+    user_input: str,
+    system_input: str,
     response_format: dict[str, Any] | None,
     parse_response: Callable[[dict[str, Any]], T],
 ) -> T:
-    instructions = apply_reasoning_profile(instructions)
-    response_data = await client.create_response(input_text, instructions, response_format)
+    system_input = apply_reasoning_profile(system_input)
+    response_data = await client.create_response(system_input, user_input, response_format)
     _log_response_payload(task_name, response_data)
     try:
         return parse_response(response_data)
@@ -148,8 +148,8 @@ async def create_and_parse_response(
         invalid_output_text = get_output_text(response_data)
         logger.warning("Invalid %s output, retrying once: %s", task_name, error)
         repair_response_data = await client.create_response(
-            _build_repair_input(input_text, invalid_output_text, error),
-            _build_repair_instructions(instructions, error),
+            _build_repair_instructions(system_input, error),
+            _build_repair_input(user_input, invalid_output_text, error),
             response_format,
         )
         _log_response_payload(task_name, repair_response_data, attempt="repair")

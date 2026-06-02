@@ -28,8 +28,8 @@ async def test_generate_title_calls_client_and_returns_validated_response():
     response = await generate_title(TitleRequest(text="Story text", max_chars=55), client=client)
 
     assert response == TitleResponse(title="Short title")
-    assert client.calls[0]["input_text"] == "Story text"
-    assert "must not exceed 55 characters" in client.calls[0]["instructions"]
+    assert client.calls[0]["user_input"] == "Story text"
+    assert "must not exceed 55 characters" in client.calls[0]["system_input"]
     assert client.calls[0]["response_format"]["type"] == "json_schema"
 
 
@@ -44,4 +44,4 @@ async def test_generate_title_retries_once_on_invalid_json():
 
     assert response == TitleResponse(title="Short title")
     assert len(client.calls) == 2
-    assert "Your previous response was invalid." in client.calls[1]["instructions"]
+    assert "Your previous response was invalid." in client.calls[1]["system_input"]

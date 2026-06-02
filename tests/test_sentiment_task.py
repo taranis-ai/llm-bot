@@ -70,7 +70,7 @@ async def test_analyze_sentiment_calls_client_without_emotions():
     response = await analyze_sentiment(SentimentRequest(text="The launch was a success."), client=client)
 
     assert response == SentimentResponse.model_validate({"sentiment": {"label": "positive", "score": 0.88}})
-    assert client.calls[0]["input_text"] == "The launch was a success."
+    assert client.calls[0]["user_input"] == "The launch was a success."
     assert client.calls[0]["response_format"]["type"] == "json_schema"
     assert "emotions" not in client.calls[0]["response_format"]["schema"]["properties"]["sentiment"]["properties"]
 
@@ -105,4 +105,4 @@ async def test_analyze_sentiment_retries_once_on_invalid_output():
 
     assert response == SentimentResponse.model_validate({"sentiment": {"label": "positive", "score": 0.72}})
     assert len(client.calls) == 2
-    assert "Your previous response was invalid." in client.calls[1]["instructions"]
+    assert "Your previous response was invalid." in client.calls[1]["system_input"]

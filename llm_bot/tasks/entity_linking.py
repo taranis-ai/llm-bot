@@ -193,8 +193,8 @@ async def select_llm_candidates(
     decision_map = await create_and_parse_response(
         client=client,
         task_name="entity linking",
-        input_text=build_linking_input(source_text, response, lookup_results),
-        instructions=build_linking_instructions(),
+        user_input=build_linking_input(source_text, response, lookup_results),
+        system_input=build_linking_instructions(),
         response_format=get_linking_response_format(),
         parse_response=lambda response_data: parse_linking_decision_map(response_data, allowed_qids_by_mention),
     )

@@ -217,8 +217,8 @@ async def extract_entities(request: NerRequest, client: LLMClient | None = None)
     return await create_and_parse_response(
         client=llm_client,
         task_name="NER",
-        input_text=user_message["content"],
-        instructions=system_message["content"],
+        user_input=user_message["content"],
+        system_input=system_message["content"],
         response_format=get_ner_response_format(allowed_entity_types),
         parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
     )

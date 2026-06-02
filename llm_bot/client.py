@@ -58,13 +58,15 @@ class LLMClient:
 
     async def create_response(
         self,
-        input_text: str,
-        instructions: str,
+        system_input: str,
+        user_input: str,
         response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload = {
-            "input": input_text,
-            "instructions": instructions,
+            "input": [
+                {"role": "system", "content": system_input},
+                {"role": "user", "content": user_input},
+            ],
         }
         if self.model:
             payload["model"] = self.model

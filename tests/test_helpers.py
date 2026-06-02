@@ -6,8 +6,14 @@ class StubLLMClient:
         self.response_data = response_data
         self.calls = []
 
-    async def create_response(self, input_text: str, instructions: str, response_format=None):
-        self.calls.append({"input_text": input_text, "instructions": instructions, "response_format": response_format})
+    async def create_response(self, system_input: str, user_input: str, response_format=None):
+        self.calls.append(
+            {
+                "system_input": system_input,
+                "user_input": user_input,
+                "response_format": response_format,
+            }
+        )
         if isinstance(self.response_data, list):
             return self.response_data.pop(0)
         return self.response_data

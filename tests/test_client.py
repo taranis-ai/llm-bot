@@ -54,13 +54,15 @@ async def test_create_response_includes_reasoning_effort(monkeypatch):
         reasoning_effort="high",
     )
 
-    response = await client.create_response("Story text", "Return JSON only.")
+    response = await client.create_response("Return JSON only.", "Story text")
 
     assert response == {"ok": True}
     assert session.path == "/responses"
     assert session.timeout == 30
-    assert session.json["input"] == "Story text"
-    assert session.json["instructions"] == "Return JSON only."
+    assert session.json["input"] == [
+        {"role": "system", "content": "Return JSON only."},
+        {"role": "user", "content": "Story text"},
+    ]
     assert session.json["model"] == "test-model"
     assert session.json["reasoning"] == {"effort": "high"}
 
@@ -84,7 +86,7 @@ async def test_create_response_omits_reasoning_effort_when_unset(monkeypatch):
         reasoning_effort="",
     )
 
-    await client.create_response("Story text", "Return JSON only.")
+    await client.create_response("Return JSON only.", "Story text")
 
     assert "reasoning" not in session.json
 
@@ -115,7 +117,7 @@ async def test_create_response_extracts_nested_upstream_error_message(monkeypatc
     )
 
     with pytest.raises(UpstreamLLMError, match="Unsupported parameter: text.format"):
-        await client.create_response("Story text", "Return JSON only.")
+        await client.create_response("Return JSON only.", "Story text")
 
 
 @pytest.mark.asyncio
@@ -144,4 +146,4 @@ async def test_create_response_falls_back_to_raw_upstream_error_text(monkeypatch
     )
 
     with pytest.raises(UpstreamLLMError, match="provider exploded"):
-        await client.create_response("Story text", "Return JSON only.")
+        await client.create_response("Return JSON only.", "Story text")

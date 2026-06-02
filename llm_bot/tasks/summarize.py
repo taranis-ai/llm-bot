@@ -62,8 +62,8 @@ async def summarize(request: SummarizeRequest, client: LLMClient | None = None) 
     return await create_and_parse_response(
         client=llm_client,
         task_name="summary",
-        input_text=user_message["content"],
-        instructions=system_message["content"],
+        user_input=user_message["content"],
+        system_input=system_message["content"],
         response_format=get_summary_response_format(),
         parse_response=parse_summary_response,
     )

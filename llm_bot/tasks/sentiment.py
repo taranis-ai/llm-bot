@@ -120,8 +120,8 @@ async def analyze_sentiment(
     return await create_and_parse_response(
         client=llm_client,
         task_name="sentiment",
-        input_text=user_message["content"],
-        instructions=system_message["content"],
+        user_input=user_message["content"],
+        system_input=system_message["content"],
         response_format=get_sentiment_response_format(request.include_emotions),
         parse_response=lambda response_data: parse_sentiment_response(response_data, request.include_emotions),
     )

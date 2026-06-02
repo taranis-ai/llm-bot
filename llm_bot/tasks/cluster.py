@@ -85,8 +85,8 @@ async def cluster_stories(request: ClusterRequest, client: LLMClient | None = No
     return await create_and_parse_response(
         client=llm_client,
         task_name="cluster",
-        input_text=user_message["content"],
-        instructions=system_message["content"],
+        user_input=user_message["content"],
+        system_input=system_message["content"],
         response_format=get_cluster_response_format(),
         parse_response=parse_cluster_response,
     )

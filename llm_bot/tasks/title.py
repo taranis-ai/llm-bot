@@ -59,8 +59,8 @@ async def generate_title(request: TitleRequest, client: LLMClient | None = None)
     return await create_and_parse_response(
         client=llm_client,
         task_name="title",
-        input_text=user_message["content"],
-        instructions=system_message["content"],
+        user_input=user_message["content"],
+        system_input=system_message["content"],
         response_format=get_title_response_format(),
         parse_response=lambda response_data: parse_title_response(response_data),
     )

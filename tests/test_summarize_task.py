@@ -174,8 +174,8 @@ async def test_summarize_calls_client_and_returns_validated_response():
     response = await summarize(SummarizeRequest(text="Story text", max_words=40), client=client)
 
     assert response == SummarizeResponse(summary="Short summary")
-    assert client.calls[0]["input_text"] == "Story text"
-    assert "must not exceed 40 words" in client.calls[0]["instructions"]
+    assert client.calls[0]["user_input"] == "Story text"
+    assert "must not exceed 40 words" in client.calls[0]["system_input"]
     assert client.calls[0]["response_format"]["type"] == "json_schema"
 
 
@@ -187,7 +187,7 @@ async def test_summarize_applies_reasoning_profile(monkeypatch):
     response = await summarize(SummarizeRequest(text="Story text"), client=client)
 
     assert response == SummarizeResponse(summary="Short summary")
-    assert "# HOW YOU SHOULD THINK AND ANSWER" in client.calls[0]["instructions"]
+    assert "# HOW YOU SHOULD THINK AND ANSWER" in client.calls[0]["system_input"]
 
 
 @pytest.mark.asyncio
@@ -198,7 +198,7 @@ async def test_summarize_applies_gemma_reasoning_profile(monkeypatch):
     response = await summarize(SummarizeRequest(text="Story text"), client=client)
 
     assert response == SummarizeResponse(summary="Short summary")
-    assert client.calls[0]["instructions"].startswith("<|think|>\n")
+    assert client.calls[0]["system_input"].startswith("<|think|>\n")
 
 
 @pytest.mark.asyncio
@@ -215,7 +215,7 @@ async def test_summarize_retries_once_on_invalid_json(caplog):
 
     assert response == SummarizeResponse(summary="Short summary")
     assert len(client.calls) == 2
-    assert "Your previous response was invalid." in client.calls[1]["instructions"]
+    assert "Your previous response was invalid." in client.calls[1]["system_input"]
     assert 'LLM summary response payload (initial): {"output_text": "Short summary"}' in caplog.text
     assert 'LLM summary response payload (repair):' in caplog.text
     assert '\"summary\":\"Short summary\"' in caplog.text
