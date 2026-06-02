@@ -4,7 +4,7 @@ LLM-backed bot service.
 
 The current implementation exposes sentiment analysis, title generation, summary, named entity
 recognition, linking, and clustering endpoints backed by an OpenAI-compatible
-Responses API.
+Responses API or Chat Completions API.
 
 ## Requirements
 
@@ -25,6 +25,7 @@ Configure the following values in `.env`:
 - `LLM_BASE_URL`
 - `LLM_API_KEY`
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
+- `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
 Optional:
 
@@ -55,6 +56,11 @@ uv run granian --interface asgi app:app --port 5500
 
 Canonical paths are documented below. The service also accepts the same
 routes with a trailing slash.
+
+Upstream LLM transport:
+- `LLM_API_MODE=responses` sends requests to `/responses`
+- `LLM_API_MODE=chat_completions` sends requests to `/chat/completions`
+- structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
 
 ### `POST /sentiment`
 

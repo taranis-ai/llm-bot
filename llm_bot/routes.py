@@ -99,6 +99,7 @@ def build_info_response() -> dict[str, object]:
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,
             "llm_model": Config.LLM_MODEL,
+            "llm_api_mode": Config.LLM_API_MODE,
             "llm_timeout": Config.LLM_TIMEOUT,
             "llm_reasoning_profile": Config.LLM_REASONING_PROFILE,
             "llm_reasoning_effort": Config.LLM_REASONING_EFFORT,

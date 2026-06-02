@@ -50,6 +50,7 @@ async def test_create_response_includes_reasoning_effort(monkeypatch):
         base_url="https://example.invalid/v1",
         api_key="test-key",
         model="test-model",
+        api_mode="responses",
         timeout=30,
         reasoning_effort="high",
     )
@@ -82,6 +83,7 @@ async def test_create_response_omits_reasoning_effort_when_unset(monkeypatch):
         base_url="https://example.invalid/v1",
         api_key="test-key",
         model="test-model",
+        api_mode="responses",
         timeout=30,
         reasoning_effort="",
     )
@@ -112,6 +114,7 @@ async def test_create_response_extracts_nested_upstream_error_message(monkeypatc
         base_url="https://example.invalid/v1",
         api_key="test-key",
         model="test-model",
+        api_mode="responses",
         timeout=30,
         reasoning_effort="",
     )
@@ -141,9 +144,62 @@ async def test_create_response_falls_back_to_raw_upstream_error_text(monkeypatch
         base_url="https://example.invalid/v1",
         api_key="test-key",
         model="test-model",
+        api_mode="responses",
         timeout=30,
         reasoning_effort="",
     )
 
     with pytest.raises(UpstreamLLMError, match="provider exploded"):
         await client.create_response("Return JSON only.", "Story text")
+
+
+@pytest.mark.asyncio
+async def test_create_response_uses_chat_completions_payload(monkeypatch):
+    session = FakeSession(
+        response=FakeResponse(
+            text='{"choices":[{"message":{"content":"{\\"summary\\":\\"Short summary\\"}"}}]}'
+        )
+    )
+
+    def fake_async_session(*, base_url=None, headers=None):
+        session.base_url = base_url
+        session.headers = headers
+        return session
+
+    monkeypatch.setattr("llm_bot.client.AsyncSession", fake_async_session)
+
+    client = LLMClient(
+        base_url="https://example.invalid/v1",
+        api_key="test-key",
+        model="test-model",
+        api_mode="chat_completions",
+        timeout=30,
+        reasoning_effort="high",
+    )
+
+    response = await client.create_response(
+        "Return JSON only.",
+        "Story text",
+        {
+            "type": "json_schema",
+            "name": "summary_response",
+            "strict": True,
+            "schema": {"type": "object"},
+        },
+    )
+
+    assert response == {"output_text": '{"summary":"Short summary"}'}
+    assert session.path == "/chat/completions"
+    assert session.json["messages"] == [
+        {"role": "system", "content": "Return JSON only."},
+        {"role": "user", "content": "Story text"},
+    ]
+    assert "reasoning" not in session.json
+    assert session.json["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "summary_response",
+            "strict": True,
+            "schema": {"type": "object"},
+        },
+    }

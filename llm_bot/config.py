@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = ""
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
+    LLM_API_MODE: str = "responses"
     LLM_TIMEOUT: int = 120
     LLM_REASONING_PROFILE: str = "none"
     LLM_REASONING_EFFORT: str = ""
