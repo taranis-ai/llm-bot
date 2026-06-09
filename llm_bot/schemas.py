@@ -42,11 +42,28 @@ _ALLOWED_SENTIMENTS_BY_EMOTION: dict[EmotionLabel, set[SentimentLabel]] = {
 }
 
 
+class StoryInputNewsItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = ""
+    content: str = ""
+
+
 class SummarizeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field(min_length=1)
+    text: str | None = Field(default=None, min_length=1)
+    news_items: list[StoryInputNewsItem] | None = None
     max_words: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_story_input(self) -> "SummarizeRequest":
+        if self.text:
+            return self
+        if self.news_items:
+            if any(item.title or item.content for item in self.news_items):
+                return self
+        raise ValueError("Either text or news_items with at least one non-empty item must be provided")
 
 
 class SummarizeResponse(BaseModel):
@@ -58,8 +75,18 @@ class SummarizeResponse(BaseModel):
 class TitleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field(min_length=1)
+    text: str | None = Field(default=None, min_length=1)
+    news_items: list[StoryInputNewsItem] | None = None
     max_chars: int = Field(default=100, ge=1)
+
+    @model_validator(mode="after")
+    def validate_story_input(self) -> "TitleRequest":
+        if self.text:
+            return self
+        if self.news_items:
+            if any(item.title or item.content for item in self.news_items):
+                return self
+        raise ValueError("Either text or news_items with at least one non-empty item must be provided")
 
 
 class TitleResponse(BaseModel):
