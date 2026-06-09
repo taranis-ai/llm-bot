@@ -4,9 +4,13 @@ Return JSON only, with this exact shape:
 {"title": "<title>"}
 
 Requirements:
+- The input may contain one or more structured News item blocks or plain text.
+- A structured News item contains a Title field and a Content field.
+- Produce one combined story-level title for all News Items, even when they treat different events.
+- Use both the Title and Content fields when they add useful context.
 - Write a concise factual title for the provided text.
 - Write the title in the same language as the input text.
-- Focus on the main event, actor, or impact.
+- Focus on the main shared event, actor, or impact, if there is one.
 - Do not invent facts.
 - Do not include markdown.
 - Do not include any keys other than "title".
