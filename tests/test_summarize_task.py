@@ -17,6 +17,28 @@ def test_build_summary_messages_without_max_words():
     assert user_message["content"] == "Example story text"
 
 
+def test_build_summary_messages_formats_news_items():
+    request = SummarizeRequest(
+        news_items=[
+            {"title": "First title", "content": "First content"},
+            {"title": "Second title", "content": "Second content"},
+        ]
+    )
+
+    _, user_message = build_summary_messages(request)
+
+    assert user_message["content"] == (
+        "News item 1\n"
+        "Title: First title\n"
+        "Content:\n"
+        "First content\n\n"
+        "News item 2\n"
+        "Title: Second title\n"
+        "Content:\n"
+        "Second content"
+    )
+
+
 def test_build_summary_messages_with_max_words():
     request = SummarizeRequest(text="Example story text", max_words=80)
 
@@ -177,6 +199,33 @@ async def test_summarize_calls_client_and_returns_validated_response():
     assert client.calls[0]["user_input"] == "Story text"
     assert "must not exceed 40 words" in client.calls[0]["system_input"]
     assert client.calls[0]["response_format"]["type"] == "json_schema"
+
+
+@pytest.mark.asyncio
+async def test_summarize_formats_news_items_for_client():
+    client = StubLLMClient({"output_text": '{"summary":"Short summary"}'})
+
+    response = await summarize(
+        SummarizeRequest(
+            news_items=[
+                {"title": "First title", "content": "First content"},
+                {"title": "Second title", "content": "Second content"},
+            ]
+        ),
+        client=client,
+    )
+
+    assert response == SummarizeResponse(summary="Short summary")
+    assert client.calls[0]["user_input"] == (
+        "News item 1\n"
+        "Title: First title\n"
+        "Content:\n"
+        "First content\n\n"
+        "News item 2\n"
+        "Title: Second title\n"
+        "Content:\n"
+        "Second content"
+    )
 
 
 @pytest.mark.asyncio
