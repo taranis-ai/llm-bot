@@ -13,6 +13,28 @@ def test_build_title_messages():
     assert user_message["content"] == "Story text"
 
 
+def test_build_title_messages_formats_news_items():
+    request = TitleRequest(
+        news_items=[
+            {"title": "First title", "content": "First content"},
+            {"title": "Second title", "content": "Second content"},
+        ]
+    )
+
+    _, user_message = build_title_messages(request)
+
+    assert user_message["content"] == (
+        "News item 1\n"
+        "Title: First title\n"
+        "Content:\n"
+        "First content\n\n"
+        "News item 2\n"
+        "Title: Second title\n"
+        "Content:\n"
+        "Second content"
+    )
+
+
 def test_build_title_messages_truncates_input_text(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.title.Config.SUMMARY_MAX_INPUT_CHARS", 12)
 
@@ -31,6 +53,33 @@ async def test_generate_title_calls_client_and_returns_validated_response():
     assert client.calls[0]["user_input"] == "Story text"
     assert "must not exceed 55 characters" in client.calls[0]["system_input"]
     assert client.calls[0]["response_format"]["type"] == "json_schema"
+
+
+@pytest.mark.asyncio
+async def test_generate_title_formats_news_items_for_client():
+    client = StubLLMClient({"output_text": '{"title":"Short title"}'})
+
+    response = await generate_title(
+        TitleRequest(
+            news_items=[
+                {"title": "First title", "content": "First content"},
+                {"title": "Second title", "content": "Second content"},
+            ]
+        ),
+        client=client,
+    )
+
+    assert response == TitleResponse(title="Short title")
+    assert client.calls[0]["user_input"] == (
+        "News item 1\n"
+        "Title: First title\n"
+        "Content:\n"
+        "First content\n\n"
+        "News item 2\n"
+        "Title: Second title\n"
+        "Content:\n"
+        "Second content"
+    )
 
 
 @pytest.mark.asyncio

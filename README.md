@@ -140,7 +140,12 @@ Request body:
 
 ```json
 {
-  "text": "Text to summarize",
+  "news_items": [
+    {
+      "title": "Story title",
+      "content": "Text to summarize"
+    }
+  ],
   "max_words": 80
 }
 ```

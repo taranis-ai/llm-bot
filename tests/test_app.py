@@ -39,14 +39,18 @@ async def test_info_endpoint(app, monkeypatch):
 
 async def test_title_endpoint(app, monkeypatch):
     async def fake_generate_title(request_model):
-        assert request_model.text == "Story text"
+        assert request_model.news_items[0].title == "Story title"
+        assert request_model.news_items[0].content == "Story text"
         assert request_model.max_chars == 55
         return TitleResponse(title="Concise story title")
 
     monkeypatch.setattr("llm_bot.routes.generate_title", fake_generate_title)
 
     test_client = app.test_client()
-    response = await test_client.post("/title", json={"text": "Story text", "max_chars": 55})
+    response = await test_client.post(
+        "/title",
+        json={"news_items": [{"title": "Story title", "content": "Story text"}], "max_chars": 55},
+    )
     body = await response.get_json()
 
     assert response.status_code == 200
@@ -64,14 +68,18 @@ async def test_title_endpoint_rejects_invalid_payload(app):
 
 async def test_summarize_endpoint(app, monkeypatch):
     async def fake_summarize(request_model):
-        assert request_model.text == "Story text"
+        assert request_model.news_items[0].title == "Story title"
+        assert request_model.news_items[0].content == "Story text"
         assert request_model.max_words == 25
         return SummarizeResponse(summary="Condensed summary")
 
     monkeypatch.setattr("llm_bot.routes.summarize", fake_summarize)
 
     test_client = app.test_client()
-    response = await test_client.post("/summarize", json={"text": "Story text", "max_words": 25})
+    response = await test_client.post(
+        "/summarize",
+        json={"news_items": [{"title": "Story title", "content": "Story text"}], "max_words": 25},
+    )
     body = await response.get_json()
 
     assert response.status_code == 200
@@ -88,7 +96,10 @@ async def test_summarize_endpoint_rejects_missing_api_key(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "secret")
 
     test_client = app.test_client()
-    response = await test_client.post("/summarize", json={"text": "Story text"})
+    response = await test_client.post(
+        "/summarize",
+        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
+    )
     body = await response.get_json()
 
     assert response.status_code == 401
@@ -105,7 +116,7 @@ async def test_summarize_endpoint_accepts_valid_api_key(app, monkeypatch):
     test_client = app.test_client()
     response = await test_client.post(
         "/summarize",
-        json={"text": "Story text"},
+        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
         headers={"Authorization": "Bearer secret"},
     )
     body = await response.get_json()
@@ -131,7 +142,10 @@ async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.summarize", failing_summarize)
 
     test_client = app.test_client()
-    response = await test_client.post("/summarize", json={"text": "Story text"})
+    response = await test_client.post(
+        "/summarize",
+        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
+    )
     body = await response.get_json()
 
     assert response.status_code == 502
