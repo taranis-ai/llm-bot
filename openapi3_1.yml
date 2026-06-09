@@ -146,9 +146,9 @@ paths:
 
   /summarize:
     post:
-      summary: Summarize input text
+      summary: Summarize input stories
       description: |
-        Accepts input text and returns a summarized version.
+        Accepts story news items and returns a summarized version.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -165,7 +165,9 @@ paths:
               basic:
                 summary: Example summarize request
                 value:
-                  text: "This is the input text to summarize."
+                  news_items:
+                    - title: "Story title"
+                      content: "This is the input text to summarize."
                   max_words: 80
       responses:
         "200":
