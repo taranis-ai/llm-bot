@@ -16,6 +16,7 @@ from llm_bot.schemas import (
     SentimentRequest,
     SummarizeRequest,
     TitleRequest,
+    TranslateRequest,
 )
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
@@ -25,6 +26,7 @@ from llm_bot.tasks.ner_link import extract_and_link
 from llm_bot.tasks.sentiment import analyze_sentiment
 from llm_bot.tasks.summarize import summarize
 from llm_bot.tasks.title import generate_title
+from llm_bot.tasks.translate import translate_text
 
 
 def api_key_required(view_func):
@@ -91,6 +93,7 @@ def build_info_response() -> dict[str, object]:
             "sentiment": "/sentiment",
             "summarize": Config.SUMMARY_ROUTE_PATH,
             "title": "/title",
+            "translate": "/translate",
             "ner": Config.NER_ROUTE_PATH,
             "ner_link": "/ner-link",
             "link": "/link",
@@ -145,6 +148,17 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to generate title",
             request_model_factory=TitleRequest.model_validate,
             task=generate_title,
+        )
+
+    @api.post("/translate")
+    @api_key_required
+    async def translate_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Translate",
+            validation_error_message="Invalid translate request payload",
+            processing_error_message="Failed to translate text",
+            request_model_factory=TranslateRequest.model_validate,
+            task=translate_text,
         )
 
     @api.post(Config.SUMMARY_ROUTE_PATH)
