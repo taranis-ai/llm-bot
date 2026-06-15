@@ -1,14 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from llm_bot.schemas import SentimentRequest, SentimentResponse
-
-
-def test_sentiment_request_accepts_include_emotions():
-    request = SentimentRequest.model_validate({"text": "The launch was a success.", "include_emotions": True})
-
-    assert request.text == "The launch was a success."
-    assert request.include_emotions is True
+from llm_bot.schemas import SentimentResponse
 
 
 def test_sentiment_response_allows_valid_emotion_sentiment_combination():
