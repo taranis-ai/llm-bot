@@ -1,5 +1,14 @@
 from llm_bot.client import UpstreamLLMError
-from llm_bot.schemas import ClusterIds, ClusterResponse, LinkedNerResponse, NerResponse, SentimentResponse, SummarizeResponse, TitleResponse
+from llm_bot.schemas import (
+    ClusterIds,
+    ClusterResponse,
+    LinkedNerResponse,
+    NerResponse,
+    SentimentResponse,
+    SummarizeResponse,
+    TitleResponse,
+    TranslateResponse,
+)
 from llm_bot.app import create_app
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
@@ -30,6 +39,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["linking_modes"] == ["deterministic", "llm"]
     assert body["endpoints"]["sentiment"] == "/sentiment"
     assert body["endpoints"]["title"] == "/title"
+    assert body["endpoints"]["translate"] == "/translate"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
@@ -65,6 +75,90 @@ async def test_title_endpoint_rejects_invalid_payload(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid title request payload"}
+
+
+async def test_translate_endpoint(app, monkeypatch):
+    async def fake_translate_text(request_model):
+        assert request_model.text == "Guten Morgen"
+        assert request_model.target_language == "en"
+        assert request_model.source_language == "de"
+        return TranslateResponse(translation="Good morning")
+
+    monkeypatch.setattr("llm_bot.routes.translate_text", fake_translate_text)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/translate",
+        json={"text": "Guten Morgen", "target_language": "en", "source_language": "de"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"translation": "Good morning"}
+
+
+async def test_translate_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/translate", json={"text": "Bonjour"})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid translate request payload"}
+
+
+async def test_translate_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_translate_text(request_model):
+        raise UpstreamLLMError("Unsupported parameter: text.format")
+
+    monkeypatch.setattr("llm_bot.routes.translate_text", failing_translate_text)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/translate",
+        json={"text": "Guten Morgen", "target_language": "en"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to translate text: Unsupported parameter: text.format"}
+
+
+async def test_translate_endpoint_rejects_missing_api_key(app, monkeypatch):
+    async def fake_translate_text(request_model):
+        return TranslateResponse(translation="Good morning")
+
+    monkeypatch.setattr("llm_bot.routes.translate_text", fake_translate_text)
+    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "secret")
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/translate",
+        json={"text": "Guten Morgen", "target_language": "en"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 401
+    assert body == {"error": "Unauthorized"}
+
+
+async def test_translate_endpoint_accepts_valid_api_key(app, monkeypatch):
+    async def fake_translate_text(request_model):
+        return TranslateResponse(translation="Good morning")
+
+    monkeypatch.setattr("llm_bot.routes.translate_text", fake_translate_text)
+    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "secret")
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/translate",
+        json={"text": "Guten Morgen", "target_language": "en"},
+        headers={"Authorization": "Bearer secret"},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"translation": "Good morning"}
 
 async def test_summarize_endpoint(app, monkeypatch):
     async def fake_summarize(request_model):
