@@ -1,38 +1,90 @@
-from llm_bot.schemas import LinkedNerResponse, NerLinkRequest
+import pytest
+from pydantic import ValidationError
+
+from llm_bot.schemas import SummarizeRequest, TitleRequest
 
 
-def test_ner_link_request_accepts_linking_fields():
-    request = NerLinkRequest.model_validate(
+def test_summarize_request_accepts_text_input():
+    request = SummarizeRequest.model_validate({"text": "Story text"})
+
+    assert request.text == "Story text"
+    assert request.news_items is None
+
+
+def test_summarize_request_accepts_non_empty_news_items():
+    request = SummarizeRequest.model_validate(
         {
-            "text": "Apple released a new device.",
-            "language": "en",
-            "linking_mode": "llm",
-        }
-    )
-
-    assert request.text == "Apple released a new device."
-    assert request.language == "en"
-    assert request.linking_mode == "llm"
-
-
-def test_linked_ner_response_validates_entity_list():
-    response = LinkedNerResponse.model_validate(
-        {
-            "entities": [
-                {
-                    "mention": "Apple",
-                    "type": "ORG",
-                    "wikidata_qid": "Q312",
-                    "wikidata_label": "Apple Inc.",
-                    "wikidata_description": "American technology company",
-                    "matched_alias": "Apple",
-                    "match_type": "alias",
-                    "score": 0.98,
-                    "candidate_count": 5,
-                }
+            "news_items": [
+                {"title": "Story title", "content": ""},
+                {"title": "", "content": "Story text"},
             ]
         }
     )
 
-    assert response.entities[0].mention == "Apple"
-    assert response.entities[0].wikidata_qid == "Q312"
+    assert len(request.news_items) == 2
+
+
+def test_summarize_request_rejects_missing_story_input():
+    with pytest.raises(
+        ValidationError,
+        match="Either text or news_items with at least one non-empty item must be provided",
+    ):
+        SummarizeRequest.model_validate({})
+
+
+def test_summarize_request_rejects_only_empty_news_items():
+    with pytest.raises(
+        ValidationError,
+        match="Either text or news_items with at least one non-empty item must be provided",
+    ):
+        SummarizeRequest.model_validate(
+            {
+                "news_items": [
+                    {"title": "", "content": ""},
+                    {"title": "", "content": ""},
+                ]
+            }
+        )
+
+
+def test_title_request_accepts_text_input():
+    request = TitleRequest.model_validate({"text": "Story text"})
+
+    assert request.text == "Story text"
+    assert request.max_chars == 100
+
+
+def test_title_request_accepts_non_empty_news_items():
+    request = TitleRequest.model_validate(
+        {
+            "news_items": [
+                {"title": "Story title", "content": ""},
+                {"title": "", "content": "Story text"},
+            ]
+        }
+    )
+
+    assert len(request.news_items) == 2
+
+
+def test_title_request_rejects_missing_story_input():
+    with pytest.raises(
+        ValidationError,
+        match="Either text or news_items with at least one non-empty item must be provided",
+    ):
+        TitleRequest.model_validate({})
+
+
+def test_title_request_rejects_only_empty_news_items():
+    with pytest.raises(
+        ValidationError,
+        match="Either text or news_items with at least one non-empty item must be provided",
+    ):
+        TitleRequest.model_validate(
+            {
+                "news_items": [
+                    {"title": "", "content": ""},
+                    {"title": "", "content": ""},
+                ]
+            }
+        )
