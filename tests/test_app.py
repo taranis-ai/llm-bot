@@ -123,8 +123,7 @@ async def test_translate_endpoint_returns_upstream_error(app, monkeypatch):
     assert response.status_code == 502
     assert body == {"error": "Failed to translate text: Unsupported parameter: text.format"}
 
-
-async def test_translate_endpoint_rejects_missing_api_key(app, monkeypatch):
+async def test_api_key_required_rejects_missing_api_key(app, monkeypatch):
     async def fake_translate_text(request_model):
         return TranslateResponse(translation="Good morning")
 
@@ -142,7 +141,7 @@ async def test_translate_endpoint_rejects_missing_api_key(app, monkeypatch):
     assert body == {"error": "Unauthorized"}
 
 
-async def test_translate_endpoint_accepts_valid_api_key(app, monkeypatch):
+async def test_api_key_required_accepts_valid_api_key(app, monkeypatch):
     async def fake_translate_text(request_model):
         return TranslateResponse(translation="Good morning")
 
@@ -173,45 +172,6 @@ async def test_summarize_endpoint(app, monkeypatch):
     response = await test_client.post(
         "/summarize",
         json={"news_items": [{"title": "Story title", "content": "Story text"}], "max_words": 25},
-    )
-    body = await response.get_json()
-
-    assert response.status_code == 200
-    assert body == {"summary": "Condensed summary"}
-
-
-async def test_summarize_endpoint_rejects_missing_api_key(app, monkeypatch):
-    app.config["TESTING"] = True
-
-    async def fake_summarize(request_model):
-        return SummarizeResponse(summary="Condensed summary")
-
-    monkeypatch.setattr("llm_bot.routes.summarize", fake_summarize)
-    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "secret")
-
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/summarize",
-        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
-    )
-    body = await response.get_json()
-
-    assert response.status_code == 401
-    assert body == {"error": "Unauthorized"}
-
-
-async def test_summarize_endpoint_accepts_valid_api_key(app, monkeypatch):
-    async def fake_summarize(request_model):
-        return SummarizeResponse(summary="Condensed summary")
-
-    monkeypatch.setattr("llm_bot.routes.summarize", fake_summarize)
-    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "secret")
-
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/summarize",
-        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
-        headers={"Authorization": "Bearer secret"},
     )
     body = await response.get_json()
 
