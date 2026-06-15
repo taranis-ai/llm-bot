@@ -3,7 +3,7 @@
 LLM-backed bot service.
 
 The current implementation exposes sentiment analysis, title generation, summary, named entity
-recognition, linking, and clustering endpoints backed by an OpenAI-compatible
+recognition, translation, linking, and clustering endpoints backed by an OpenAI-compatible
 Responses API or Chat Completions API.
 
 ## Requirements
@@ -29,7 +29,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
+- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
@@ -127,6 +127,34 @@ Response body:
 ```
 
 The model is instructed to keep the title within `max_chars` characters. If omitted, `max_chars` defaults to `100`. The service does not truncate longer model outputs.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /translate`
+
+Request body:
+
+```json
+{
+  "text": "Guten Morgen",
+  "target_language": "en",
+  "source_language": "de"
+}
+```
+
+Response body:
+
+```json
+{
+  "translation": "Good morning"
+}
+```
+
+`source_language` is optional. When omitted, the model is instructed to detect the source language from the input. `target_language` is required.
 
 If `API_KEY` is configured, send it as:
 
