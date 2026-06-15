@@ -95,6 +95,20 @@ class TitleResponse(BaseModel):
     title: str = Field(min_length=1)
 
 
+class TranslateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+    target_language: str = Field(min_length=1)
+    source_language: str | None = None
+
+
+class TranslateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    translation: str = Field(min_length=1)
+
+
 class SentimentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
