@@ -211,7 +211,10 @@ def get_ner_response_format(allowed_entity_types: list[str]) -> dict[str, Any]:
 
 
 async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
-    llm_client = client or LLMClient()
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
     system_message, user_message = build_ner_messages(request)
     allowed_entity_types = resolve_entity_types(request)
     return await create_and_parse_response(

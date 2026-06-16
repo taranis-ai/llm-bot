@@ -32,7 +32,6 @@ Optional:
 - `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
-- `LLM_REASONING_EFFORT`: optionally send an explicit reasoning effort such as `low`, `medium`, or `high` in the upstream `/responses` payload
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `gemma` reasoning is enabled by prefixing the system prompt with `<|think|>` and the service strips Gemma thought-channel output before parsing when output stripping is enabled
@@ -61,6 +60,8 @@ Upstream LLM transport:
 - `LLM_API_MODE=responses` sends requests to `/responses`
 - `LLM_API_MODE=chat_completions` sends requests to `/chat/completions`
 - structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
+- LLM-backed request payloads may include an optional `reasoning_effort` field. The service forwards it upstream as `reasoning.effort` in `responses` mode and `reasoning_effort` in `chat_completions` mode.
+- LLM-backed request payloads may include an optional `thinking_budget_tokens` field, which the service forwards upstream unchanged as a provider-specific extension. This is intended for servers such as `llama.cpp`; other OpenAI-compatible servers may reject it.
 
 ### `POST /sentiment`
 
@@ -71,7 +72,8 @@ Request body:
 ```json
 {
   "text": "The launch was a success.",
-  "include_emotions": true
+  "include_emotions": true,
+  "thinking_budget_tokens": 256
 }
 ```
 

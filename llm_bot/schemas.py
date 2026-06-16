@@ -49,8 +49,14 @@ class StoryInputNewsItem(BaseModel):
     content: str = ""
 
 
-class SummarizeRequest(BaseModel):
+class LLMRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+    reasoning_effort: str | None = Field(default=None, min_length=1)
+    thinking_budget_tokens: int | None = Field(default=None, ge=0)
+
+
+class SummarizeRequest(LLMRequest):
 
     text: str | None = Field(default=None, min_length=1)
     news_items: list[StoryInputNewsItem] | None = None
@@ -72,8 +78,7 @@ class SummarizeResponse(BaseModel):
     summary: str = Field(min_length=1)
 
 
-class TitleRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class TitleRequest(LLMRequest):
 
     text: str | None = Field(default=None, min_length=1)
     news_items: list[StoryInputNewsItem] | None = None
@@ -95,8 +100,7 @@ class TitleResponse(BaseModel):
     title: str = Field(min_length=1)
 
 
-class TranslateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class TranslateRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     target_language: str = Field(min_length=1)
@@ -109,8 +113,7 @@ class TranslateResponse(BaseModel):
     translation: str = Field(min_length=1)
 
 
-class SentimentRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class SentimentRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     include_emotions: bool = False
@@ -155,16 +158,14 @@ class SentimentResponse(BaseModel):
         return super().model_dump(*args, **kwargs)
 
 
-class NerRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class NerRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     cybersecurity: bool = False
     entity_types: list[str] | None = None
 
 
-class NerLinkRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class NerLinkRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     cybersecurity: bool = False
@@ -204,8 +205,7 @@ class LinkRequestEntity(BaseModel):
     type: str = Field(min_length=1)
 
 
-class LinkRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class LinkRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     entities: list[LinkRequestEntity] = Field(min_length=1)
@@ -259,8 +259,7 @@ class StoryClusterItem(BaseModel):
     news_items: list[StoryNewsItem] = Field(min_length=1)
 
 
-class ClusterRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ClusterRequest(LLMRequest):
 
     stories: list[StoryClusterItem] = Field(min_length=1)
 

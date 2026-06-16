@@ -65,7 +65,10 @@ async def translate_text(
     request: TranslateRequest,
     client: LLMClient | None = None,
 ) -> TranslateResponse:
-    llm_client = client or LLMClient()
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
     system_message, user_message = build_translate_messages(request)
     return await create_and_parse_response(
         client=llm_client,

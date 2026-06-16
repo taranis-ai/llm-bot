@@ -20,15 +20,15 @@ class LLMClient:
         api_mode: str | None = None,
         timeout: int | None = None,
         reasoning_effort: str | None = None,
+        thinking_budget_tokens: int | None = None,
     ):
         self.base_url = (base_url or Config.LLM_BASE_URL).rstrip("/")
         self.api_key = api_key or Config.LLM_API_KEY
         self.model = model or Config.LLM_MODEL
         self.api_mode = api_mode or Config.LLM_API_MODE
         self.timeout = timeout or Config.LLM_TIMEOUT
-        self.reasoning_effort = (
-            Config.LLM_REASONING_EFFORT if reasoning_effort is None else reasoning_effort
-        )
+        self.reasoning_effort = reasoning_effort
+        self.thinking_budget_tokens = thinking_budget_tokens
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -74,6 +74,8 @@ class LLMClient:
             payload["model"] = self.model
         if self.reasoning_effort:
             payload["reasoning"] = {"effort": self.reasoning_effort}
+        if self.thinking_budget_tokens is not None:
+            payload["thinking_budget_tokens"] = self.thinking_budget_tokens
         if response_format is not None:
             payload["text"] = {"format": response_format}
         return payload
@@ -92,6 +94,10 @@ class LLMClient:
         }
         if self.model:
             payload["model"] = self.model
+        if self.reasoning_effort:
+            payload["reasoning_effort"] = self.reasoning_effort
+        if self.thinking_budget_tokens is not None:
+            payload["thinking_budget_tokens"] = self.thinking_budget_tokens
         if response_format is not None and response_format.get("type") == "json_schema":
             payload["response_format"] = {
                 "type": "json_schema",
