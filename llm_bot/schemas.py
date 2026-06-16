@@ -52,6 +52,7 @@ class StoryInputNewsItem(BaseModel):
 class LLMRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    reasoning_effort: str | None = Field(default=None, min_length=1)
     thinking_budget_tokens: int | None = Field(default=None, ge=0)
 
 

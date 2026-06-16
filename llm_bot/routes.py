@@ -105,7 +105,6 @@ def build_info_response() -> dict[str, object]:
             "llm_api_mode": Config.LLM_API_MODE,
             "llm_timeout": Config.LLM_TIMEOUT,
             "llm_reasoning_profile": Config.LLM_REASONING_PROFILE,
-            "llm_reasoning_effort": Config.LLM_REASONING_EFFORT,
             "llm_strip_reasoning_output": Config.LLM_STRIP_REASONING_OUTPUT,
             "llm_parse_reasoning_as_output": Config.LLM_PARSE_REASONING_AS_OUTPUT,
             "lookup_base_url_configured": bool(Config.LOOKUP_BASE_URL),

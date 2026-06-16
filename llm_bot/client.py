@@ -27,9 +27,7 @@ class LLMClient:
         self.model = model or Config.LLM_MODEL
         self.api_mode = api_mode or Config.LLM_API_MODE
         self.timeout = timeout or Config.LLM_TIMEOUT
-        self.reasoning_effort = (
-            Config.LLM_REASONING_EFFORT if reasoning_effort is None else reasoning_effort
-        )
+        self.reasoning_effort = reasoning_effort
         self.thinking_budget_tokens = thinking_budget_tokens
 
     def _headers(self) -> dict[str, str]:

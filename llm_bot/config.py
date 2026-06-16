@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     LLM_API_MODE: str = "responses"
     LLM_TIMEOUT: int = 120
     LLM_REASONING_PROFILE: str = "none"
-    LLM_REASONING_EFFORT: str = ""
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
     LOOKUP_BASE_URL: str = ""
