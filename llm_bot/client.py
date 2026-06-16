@@ -96,6 +96,8 @@ class LLMClient:
         }
         if self.model:
             payload["model"] = self.model
+        if self.reasoning_effort:
+            payload["reasoning_effort"] = self.reasoning_effort
         if self.thinking_budget_tokens is not None:
             payload["thinking_budget_tokens"] = self.thinking_budget_tokens
         if response_format is not None and response_format.get("type") == "json_schema":
