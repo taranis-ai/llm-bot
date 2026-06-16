@@ -61,6 +61,7 @@ Upstream LLM transport:
 - `LLM_API_MODE=responses` sends requests to `/responses`
 - `LLM_API_MODE=chat_completions` sends requests to `/chat/completions`
 - structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
+- LLM-backed request payloads may include an optional `thinking_budget_tokens` field, which the service forwards upstream unchanged as a provider-specific extension. This is intended for servers such as `llama.cpp`; other OpenAI-compatible servers may reject it.
 
 ### `POST /sentiment`
 
@@ -71,7 +72,8 @@ Request body:
 ```json
 {
   "text": "The launch was a success.",
-  "include_emotions": true
+  "include_emotions": true,
+  "thinking_budget_tokens": 256
 }
 ```
 

@@ -69,6 +69,33 @@ async def test_create_response_includes_reasoning_effort(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_response_includes_thinking_budget_tokens(monkeypatch):
+    session = FakeSession()
+
+    def fake_async_session(*, base_url=None, headers=None):
+        session.base_url = base_url
+        session.headers = headers
+        return session
+
+    monkeypatch.setattr("llm_bot.client.AsyncSession", fake_async_session)
+
+    client = LLMClient(
+        base_url="https://example.invalid/v1",
+        api_key="test-key",
+        model="test-model",
+        api_mode="responses",
+        timeout=30,
+        reasoning_effort="high",
+        thinking_budget_tokens=512,
+    )
+
+    await client.create_response("Return JSON only.", "Story text")
+
+    assert session.json["reasoning"] == {"effort": "high"}
+    assert session.json["thinking_budget_tokens"] == 512
+
+
+@pytest.mark.asyncio
 async def test_create_response_omits_reasoning_effort_when_unset(monkeypatch):
     session = FakeSession()
 
@@ -91,6 +118,7 @@ async def test_create_response_omits_reasoning_effort_when_unset(monkeypatch):
     await client.create_response("Return JSON only.", "Story text")
 
     assert "reasoning" not in session.json
+    assert "thinking_budget_tokens" not in session.json
 
 
 @pytest.mark.asyncio
@@ -175,6 +203,7 @@ async def test_create_response_uses_chat_completions_payload(monkeypatch):
         api_mode="chat_completions",
         timeout=30,
         reasoning_effort="high",
+        thinking_budget_tokens=256,
     )
 
     response = await client.create_response(
@@ -195,6 +224,7 @@ async def test_create_response_uses_chat_completions_payload(monkeypatch):
         {"role": "user", "content": "Story text"},
     ]
     assert "reasoning" not in session.json
+    assert session.json["thinking_budget_tokens"] == 256
     assert session.json["response_format"] == {
         "type": "json_schema",
         "json_schema": {
