@@ -54,6 +54,7 @@ paths:
                 value:
                   text: "The breach left customers angry and alarmed."
                   include_emotions: true
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -113,6 +114,7 @@ paths:
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
                   max_chars: 100
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -174,6 +176,7 @@ paths:
                   text: "Guten Morgen"
                   source_language: "de"
                   target_language: "en"
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
               autodetectSource:
                 summary: Example translation request with automatic source detection
@@ -237,6 +240,7 @@ paths:
                     - title: "Story title"
                       content: "This is the input text to summarize."
                   max_words: 80
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -303,6 +307,7 @@ paths:
                 value:
                   text: "APT29 used Mimikatz and PowerShell to dump credentials from government systems."
                   cybersecurity: true
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -372,6 +377,7 @@ paths:
                   max_chars: 100
                   language: "en"
                   linking_mode: "llm"
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -447,6 +453,7 @@ paths:
                   max_chars: 100
                   language: "en"
                   linking_mode: "llm"
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
                   entities:
                     - mention: "Apple"
@@ -526,6 +533,7 @@ paths:
                         - title: "Microsoft users targeted in Vienna"
                           content: "Users in Vienna were targeted in an APT29 campaign."
                           language: "en"
+                  reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
         "200":
@@ -597,6 +605,14 @@ components:
       scheme: bearer
       bearerFormat: API key
   schemas:
+    ReasoningEffort:
+      type: string
+      nullable: true
+      minLength: 1
+      description: |
+        Optional reasoning effort for the upstream model request. The service
+        forwards this as `reasoning.effort` in `responses` mode and as
+        `reasoning_effort` in `chat_completions` mode.
     ThinkingBudgetTokens:
       type: integer
       minimum: 0
@@ -620,6 +636,8 @@ components:
           default: false
           description: |
             When true, include zero or more Plutchik emotions in the response.
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
     SentimentResult:
@@ -711,6 +729,8 @@ components:
           minimum: 1
           default: 100
           description: Maximum allowed length of the generated title
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
 
@@ -745,6 +765,8 @@ components:
           nullable: true
           minLength: 1
           description: Optional source language code. When omitted, the model is instructed to detect it.
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
 
@@ -773,6 +795,8 @@ components:
           type: integer
           minimum: 1
           description: Optional maximum number of words in the summary
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
     SummarizeResponse:
@@ -805,6 +829,8 @@ components:
           type: array
           items:
             type: string
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
     NerLinkRequest:
@@ -836,6 +862,8 @@ components:
             - llm
           description: |
             Candidate selection mode when linking is enabled.
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
     NerResponse:
@@ -920,6 +948,8 @@ components:
           enum:
             - deterministic
             - llm
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
         entities:
@@ -983,6 +1013,8 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/StoryClusterItem"
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
     ClusterIds:
