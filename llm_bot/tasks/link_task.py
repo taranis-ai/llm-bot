@@ -18,7 +18,10 @@ async def link_entities(
     client: LLMClient | None = None,
     lookup_client: LookupClient | None = None,
 ) -> LinkedNerResponse:
-    llm_client = client or LLMClient(thinking_budget_tokens=request.thinking_budget_tokens)
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
     linking_mode = resolve_linking_mode(request)
     ner_response = build_linking_ner_response(request)
     lookup_results = await lookup_entity_candidates(ner_response, request, client=lookup_client)

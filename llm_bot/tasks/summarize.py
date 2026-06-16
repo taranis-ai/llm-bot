@@ -57,7 +57,10 @@ def get_summary_response_format() -> dict[str, Any]:
 
 
 async def summarize(request: SummarizeRequest, client: LLMClient | None = None) -> SummarizeResponse:
-    llm_client = client or LLMClient(thinking_budget_tokens=request.thinking_budget_tokens)
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
     system_message, user_message = build_summary_messages(request)
     return await create_and_parse_response(
         client=llm_client,
