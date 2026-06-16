@@ -10,12 +10,13 @@ async def extract_and_link(
     client: LLMClient | None = None,
     lookup_client: LookupClient | None = None,
 ) -> LinkedNerResponse:
-    llm_client = client or LLMClient()
+    llm_client = client or LLMClient(thinking_budget_tokens=request.thinking_budget_tokens)
     ner_response = await extract_entities(
         NerRequest(
             text=request.text,
             cybersecurity=request.cybersecurity,
             entity_types=request.entity_types,
+            thinking_budget_tokens=request.thinking_budget_tokens,
         ),
         client=llm_client,
     )
@@ -23,6 +24,7 @@ async def extract_and_link(
         text=request.text,
         language=request.language,
         linking_mode=request.linking_mode,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         entities=[
             {"mention": mention, "type": entity_type}
             for mention, entity_type in ner_response.root.items()

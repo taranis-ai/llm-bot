@@ -54,7 +54,7 @@ def get_title_response_format() -> dict[str, Any]:
 
 
 async def generate_title(request: TitleRequest, client: LLMClient | None = None) -> TitleResponse:
-    llm_client = client or LLMClient()
+    llm_client = client or LLMClient(thinking_budget_tokens=request.thinking_budget_tokens)
     system_message, user_message = build_title_messages(request)
     return await create_and_parse_response(
         client=llm_client,
