@@ -82,3 +82,30 @@ async def test_translate_text_applies_reasoning_profile(monkeypatch):
 
     assert response == TranslateResponse(translation="Good morning")
     assert "# HOW YOU SHOULD THINK AND ANSWER" in client.calls[0]["system_input"]
+
+
+@pytest.mark.asyncio
+async def test_translate_text_passes_request_reasoning_controls_to_llm_client(monkeypatch):
+    captured = {}
+
+    class FakeLLMClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def create_response(self, system_input: str, user_input: str, response_format=None):
+            return {"output_text": '{"translation":"Good morning"}'}
+
+    monkeypatch.setattr("llm_bot.tasks.translate.LLMClient", FakeLLMClient)
+
+    response = await translate_text(
+        TranslateRequest(
+            text="Guten Morgen",
+            target_language="en",
+            reasoning_effort="high",
+            thinking_budget_tokens=256,
+        )
+    )
+
+    assert response == TranslateResponse(translation="Good morning")
+    assert captured["reasoning_effort"] == "high"
+    assert captured["thinking_budget_tokens"] == 256

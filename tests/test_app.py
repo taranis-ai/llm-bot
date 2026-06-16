@@ -41,6 +41,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
+    assert "llm_reasoning_effort" not in body["current"]
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
 
@@ -52,6 +53,7 @@ async def test_title_endpoint(app, monkeypatch):
         assert request_model.news_items[0].title == "Story title"
         assert request_model.news_items[0].content == "Story text"
         assert request_model.max_chars == 55
+        assert request_model.reasoning_effort == "high"
         assert request_model.thinking_budget_tokens == 128
         return TitleResponse(title="Concise story title")
 
@@ -63,6 +65,7 @@ async def test_title_endpoint(app, monkeypatch):
         json={
             "news_items": [{"title": "Story title", "content": "Story text"}],
             "max_chars": 55,
+            "reasoning_effort": "high",
             "thinking_budget_tokens": 128,
         },
     )

@@ -223,6 +223,7 @@ async def test_create_response_uses_chat_completions_payload(monkeypatch):
         {"role": "system", "content": "Return JSON only."},
         {"role": "user", "content": "Story text"},
     ]
+    assert session.json["reasoning_effort"] == "high"
     assert "reasoning" not in session.json
     assert session.json["thinking_budget_tokens"] == 256
     assert session.json["response_format"] == {
