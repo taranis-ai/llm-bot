@@ -4,8 +4,8 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes sentiment analysis, title generation, summarization,
-    clustering, named entity recognition, and entity linking routes backed by
+    The current implementation exposes sentiment analysis, title generation, translation,
+    summarization, clustering, named entity recognition, and entity linking routes backed by
     an OpenAI-compatible Responses API.
 
     Canonical paths are documented without a trailing slash. The service
@@ -143,6 +143,71 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to generate title"
+
+  /translate:
+    post:
+      summary: Translate input text into a target language
+      description: |
+        Accepts plain text and returns a faithful translation into the requested
+        target language.
+
+        When `source_language` is omitted, the model is instructed to detect
+        the source language from the input text.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: translateText
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslateRequest"
+            examples:
+              explicitSource:
+                summary: Example translation request with explicit source language
+                value:
+                  text: "Guten Morgen"
+                  source_language: "de"
+                  target_language: "en"
+              autodetectSource:
+                summary: Example translation request with automatic source detection
+                value:
+                  text: "Bonjour"
+                  target_language: "en"
+      responses:
+        "200":
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranslateResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid translate request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to translate text"
 
   /summarize:
     post:
@@ -639,6 +704,38 @@ components:
           type: string
           minLength: 1
           description: Generated title text. The model is instructed to stay within max_chars, but the service does not truncate longer outputs.
+
+    TranslateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+        - target_language
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to translate
+        target_language:
+          type: string
+          minLength: 1
+          description: Target language code for the translation output
+        source_language:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Optional source language code. When omitted, the model is instructed to detect it.
+
+    TranslateResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - translation
+      properties:
+        translation:
+          type: string
+          minLength: 1
+          description: Faithful translated text in the requested target language
 
     SummarizeRequest:
       type: object
