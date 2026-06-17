@@ -5,7 +5,7 @@ from typing import Any
 from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
-from llm_bot.schemas import ClusterRequest, ClusterResponse
+from llm_bot.schemas import ClusterRequest, ClusterResponse, StoryClusterItem, StoryTag
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 from llm_bot.tasks.task_utils import truncate_text
 
@@ -17,23 +17,35 @@ def load_cluster_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
-def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
-    compact_stories: list[dict[str, Any]] = []
-    for story in request.stories:
-        first_news_item = story.news_items[0]
-        tags = list(story.tags.keys())[: Config.CLUSTER_MAX_TAGS_PER_STORY]
-        summary_text = first_news_item.review or first_news_item.content
-        compact_stories.append(
-            {
-                "id": story.id,
-                "tags": tags,
-                "title": first_news_item.title,
-                "summary_text": truncate_text(summary_text, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY),
-                "language": first_news_item.language,
-            }
-        )
+def serialize_story_tags(tags: dict[str, StoryTag]) -> dict[str, str]:
+    serialized_tags = {
+        name: tag.tag_type
+        for name, tag in sorted(tags.items(), key=lambda item: (item[0], item[1].tag_type))
+    }
+    return serialized_tags
 
-    user_payload = {"stories": compact_stories}
+
+def build_story_content(story: StoryClusterItem) -> str:
+    content_parts = [
+        truncate_text(news_item.content, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY)
+        for news_item in story.news_items
+    ]
+    return "\n\n".join(content_parts)
+
+
+def build_compact_story(story: StoryClusterItem) -> dict[str, object]:
+    source_languages = sorted({news_item.language for news_item in story.news_items if news_item.language})
+    return {
+        "id": story.id,
+        "title": getattr(story, "title", "") or story.news_items[0].title,
+        "tags": serialize_story_tags(story.tags),
+        "source_languages": source_languages,
+        "content": build_story_content(story),
+    }
+
+
+def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
+    user_payload = {"stories": [build_compact_story(story) for story in request.stories]}
     return [
         {"role": "system", "content": load_cluster_prompt()},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
