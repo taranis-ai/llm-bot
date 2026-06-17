@@ -42,8 +42,6 @@ Optional:
 - `NER_LINKING_ENABLED`
 - `NER_LINKING_MODE`: use `deterministic` or `llm`
 - `SUMMARY_MAX_INPUT_CHARS`
-- `SUMMARY_ROUTE_PATH`
-- `NER_ROUTE_PATH`
 
 ## Run
 

@@ -962,6 +962,8 @@ components:
       required:
         - tag_type
       properties:
+        name:
+          type: string
         tag_type:
           type: string
       additionalProperties: true
