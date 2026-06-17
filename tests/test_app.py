@@ -9,7 +9,6 @@ from llm_bot.schemas import (
     TitleResponse,
     TranslateResponse,
 )
-from llm_bot.app import create_app
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
 
