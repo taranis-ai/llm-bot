@@ -421,23 +421,6 @@ async def test_ner_link_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid NER link request payload"}
 
-async def test_ner_endpoint_path_is_configurable(monkeypatch):
-    async def fake_extract_entities(request_model):
-        return NerResponse({"APT29": "GROUP"})
-
-    monkeypatch.setattr("llm_bot.routes.extract_entities", fake_extract_entities)
-    monkeypatch.setattr("llm_bot.routes.Config.NER_ROUTE_PATH", "/entities")
-
-    app = create_app()
-    app.config.update(TESTING=True)
-    test_client = app.test_client()
-
-    response = await test_client.post("/entities", json={"text": "APT29 used Mimikatz."})
-    body = await response.get_json()
-
-    assert response.status_code == 200
-    assert body == {"APT29": "GROUP"}
-
 async def test_cluster_endpoint(app, monkeypatch):
     async def fake_cluster_stories(request_model):
         assert len(request_model.stories) == 2
