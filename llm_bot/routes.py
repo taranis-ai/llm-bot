@@ -91,13 +91,13 @@ def build_info_response() -> dict[str, object]:
         "linking_modes": ["deterministic", "llm"],
         "endpoints": {
             "sentiment": "/sentiment",
-            "summarize": Config.SUMMARY_ROUTE_PATH,
+            "summarize": "/summarize",
             "title": "/title",
             "translate": "/translate",
-            "ner": Config.NER_ROUTE_PATH,
+            "ner": "/ner",
             "ner_link": "/ner-link",
             "link": "/link",
-            "cluster": Config.CLUSTER_ROUTE_PATH,
+            "cluster": "/cluster",
         },
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,
@@ -160,7 +160,7 @@ def create_api_blueprint() -> Blueprint:
             task=translate_text,
         )
 
-    @api.post(Config.SUMMARY_ROUTE_PATH)
+    @api.post("/summarize")
     @api_key_required
     async def summarize_view() -> tuple[dict[str, str], int]:
         return await _handle_model_request(
@@ -171,7 +171,7 @@ def create_api_blueprint() -> Blueprint:
             task=summarize,
         )
 
-    @api.post(Config.NER_ROUTE_PATH)
+    @api.post("/ner")
     @api_key_required
     async def ner_view() -> tuple[dict[str, str], int]:
         return await _handle_model_request(
@@ -207,7 +207,7 @@ def create_api_blueprint() -> Blueprint:
             client_error_exceptions=(UnsupportedLinkingModeError,),
         )
 
-    @api.post(Config.CLUSTER_ROUTE_PATH)
+    @api.post("/cluster")
     @api_key_required
     async def cluster_view() -> tuple[dict[str, str], int]:
         return await _handle_model_request(
