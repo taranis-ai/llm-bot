@@ -26,14 +26,10 @@ class Settings(BaseSettings):
 
     SUMMARY_MAX_INPUT_CHARS: int = 50000
     SUMMARY_MAX_OUTPUT_CHARS: int = 1000
-    SUMMARY_ROUTE_PATH: str = "/summarize"
-    NER_ROUTE_PATH: str = "/ner"
     NER_ENTITY_TYPES: str = (
         "PER,ORG,GPE,PRODUCT,EVENT,GROUP,MALWARE,TOOL,TACTIC,TECHNIQUE,SECTOR,INDICATOR"
     )
-    CLUSTER_ROUTE_PATH: str = "/cluster"
     CLUSTER_MAX_CONTENT_CHARS_PER_STORY: int = 800
-    CLUSTER_MAX_TAGS_PER_STORY: int = 10
 
     @property
     def ner_entity_types(self) -> list[str]:
