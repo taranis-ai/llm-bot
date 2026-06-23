@@ -6,8 +6,10 @@ Return JSON only with this exact shape:
 {"cluster_ids": {"event_clusters": [["story-id-1", "story-id-2"], ["story-id-3"]]}, "message": "<message>"}
 
 Requirements:
-- Group stories that describe the same event or incident into the same cluster.
+- Group stories only when they describe the same concrete event, incident, case, or directly connected development.
 - Use the provided story content, tags, languages, and titles together.
+- Do not group stories just because they share a broad topic, domain, geography, industry, or general theme.
+- Do not create coarse topic clusters such as "technical", "political", "economic", or similar umbrella categories.
 - A story with many news items is not automatically correct; you may merge it with another story or keep it separate.
 - Be conservative when evidence is weak or contradictory.
 - Every input story ID must appear exactly once in the output.
