@@ -54,6 +54,9 @@ uv run granian --interface asgi app:app --port 5500
 Canonical paths are documented below. The service also accepts the same
 routes with a trailing slash.
 
+Interactive Swagger docs are available at `GET /docs`.
+The raw OpenAPI 3.1 document is available at `GET /openapi.yaml`.
+
 Upstream LLM transport:
 - `LLM_API_MODE=responses` sends requests to `/responses`
 - `LLM_API_MODE=chat_completions` sends requests to `/chat/completions`
