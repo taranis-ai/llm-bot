@@ -16,7 +16,6 @@ dependencies = [
     "pydantic>=2.11.0",
     "pydantic-settings",
     "quart>=0.20.0",
-    "quart-schema>=0.23.0",
 ]
 dynamic = ["version"]
 
