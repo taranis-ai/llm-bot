@@ -16,14 +16,42 @@ info:
     url: https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
 
 servers:
-  - url: http://localhost:5500
-    description: Local development server
-  - url: http://localhost:8000
-    description: Container server
+  - url: /
+    description: Current server
 
 paths:
+  /docs:
+    get:
+      tags:
+        - System
+      summary: Interactive Swagger UI
+      operationId: swaggerDocs
+      responses:
+        "200":
+          description: HTML page that renders the OpenAPI spec with Swagger UI
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /openapi.yaml:
+    get:
+      tags:
+        - System
+      summary: OpenAPI document
+      operationId: openapiDocument
+      responses:
+        "200":
+          description: OpenAPI 3.1 YAML document for this service
+          content:
+            application/yaml:
+              schema:
+                type: string
+
   /sentiment:
     post:
+      tags:
+        - Sentiment
       summary: Analyze sentiment for input text
       description: |
         Accepts input text and returns a high-level sentiment label with a
@@ -91,6 +119,8 @@ paths:
 
   /title:
     post:
+      tags:
+        - Title
       summary: Generate a concise story title from input text
       description: |
         Accepts input text and returns a concise title in the same language.
@@ -112,7 +142,9 @@ paths:
               basic:
                 summary: Example title request
                 value:
-                  text: "Apple announced new Mac hardware during its developer event in Cupertino."
+                  news_items:
+                    - title: "Apple announced new Mac hardware during its developer event in Cupertino."
+                      content: "The company introduced updates across the Mac lineup."
                   max_chars: 100
                   reasoning_effort: "high"
                   thinking_budget_tokens: 256
@@ -150,6 +182,8 @@ paths:
 
   /translate:
     post:
+      tags:
+        - Translation
       summary: Translate input text into a target language
       description: |
         Accepts plain text and returns a faithful translation into the requested
@@ -217,6 +251,8 @@ paths:
 
   /summarize:
     post:
+      tags:
+        - Summarization
       summary: Summarize input stories
       description: |
         Accepts story news items and returns a summarized version.
@@ -276,6 +312,8 @@ paths:
 
   /ner:
     post:
+      tags:
+        - NER
       summary: Extract named entities from input text
       description: |
         Accepts input text and extracts named entities.
@@ -343,6 +381,8 @@ paths:
 
   /ner-link:
     post:
+      tags:
+        - NER
       summary: Extract and link named entities from input text
       description: |
         Accepts input text, extracts named entities, and resolves them against
@@ -367,14 +407,12 @@ paths:
                 summary: Example deterministic NER and linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
-                  max_chars: 100
                   language: "en"
                   linking_mode: "deterministic"
               llm:
                 summary: Example LLM NER and linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
-                  max_chars: 100
                   language: "en"
                   linking_mode: "llm"
                   reasoning_effort: "high"
@@ -413,6 +451,8 @@ paths:
 
   /link:
     post:
+      tags:
+        - Linking
       summary: Link known entities to Wikidata candidates
       description: |
         Accepts source text plus a list of known entities and resolves them
@@ -436,7 +476,6 @@ paths:
                 summary: Example deterministic linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
-                  max_chars: 100
                   language: "en"
                   linking_mode: "deterministic"
                   entities:
@@ -450,7 +489,6 @@ paths:
                 summary: Example LLM linking request
                 value:
                   text: "Apple announced new Mac hardware during its developer event in Cupertino."
-                  max_chars: 100
                   language: "en"
                   linking_mode: "llm"
                   reasoning_effort: "high"
@@ -496,6 +534,8 @@ paths:
 
   /cluster:
     post:
+      tags:
+        - Clustering
       summary: Cluster stories into event groups
       description: |
         Accepts a batch of stories and returns event clusters in the shape
@@ -549,7 +589,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
-                error: "Invalid cluster request payload"
+                error: "Invalid Cluster request payload"
         "401":
           description: Missing or invalid API key
           content:
@@ -569,6 +609,8 @@ paths:
 
   /health:
     get:
+      tags:
+        - System
       summary: Health check endpoint
       operationId: healthCheck
       responses:
@@ -588,6 +630,8 @@ paths:
 
   /info:
     get:
+      tags:
+        - System
       summary: Runtime information
       operationId: serviceInfo
       responses:
@@ -685,12 +729,15 @@ components:
       additionalProperties: false
       required:
         - package_name
+        - package_version
         - reasoning_profiles
         - linking_modes
         - endpoints
         - current
       properties:
         package_name:
+          type: string
+        package_version:
           type: string
         reasoning_profiles:
           type: object
@@ -714,16 +761,35 @@ components:
           type: object
           additionalProperties: true
 
+    StoryInputNewsItem:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          default: ""
+        content:
+          type: string
+          default: ""
+
     TitleRequest:
       type: object
       additionalProperties: false
-      required:
-        - text
+      anyOf:
+        - required:
+            - text
+        - required:
+            - news_items
       properties:
         text:
           type: string
           minLength: 1
           description: Text to convert into a concise story title
+        news_items:
+          type: array
+          description: Alternative story input used instead of `text`.
+          items:
+            $ref: "#/components/schemas/StoryInputNewsItem"
         max_chars:
           type: integer
           minimum: 1
@@ -784,13 +850,21 @@ components:
     SummarizeRequest:
       type: object
       additionalProperties: false
-      required:
-        - text
+      anyOf:
+        - required:
+            - text
+        - required:
+            - news_items
       properties:
         text:
           type: string
           minLength: 1
           description: Text to summarize
+        news_items:
+          type: array
+          description: Alternative story input used instead of `text`.
+          items:
+            $ref: "#/components/schemas/StoryInputNewsItem"
         max_words:
           type: integer
           minimum: 1
@@ -1054,10 +1128,18 @@ components:
           type: string
 
 tags:
+  - name: Sentiment
+    description: Sentiment analysis operations
+  - name: Title
+    description: Title generation operations
+  - name: Translation
+    description: Translation operations
   - name: Summarization
     description: Summarization operations
   - name: NER
     description: Named entity recognition operations
+  - name: Linking
+    description: Entity linking operations
   - name: Clustering
     description: Story clustering operations
   - name: System

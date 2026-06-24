@@ -27,6 +27,7 @@ async def test_info_endpoint(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.LLM_REASONING_PROFILE", "gemma")
     monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
     monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
+    monkeypatch.setattr("llm_bot.routes.__version__", "9.9.9")
 
     test_client = app.test_client()
     response = await test_client.get("/info")
@@ -34,8 +35,11 @@ async def test_info_endpoint(app, monkeypatch):
 
     assert response.status_code == 200
     assert body["package_name"] == "llm_bot"
+    assert body["package_version"] == "9.9.9"
     assert body["reasoning_profiles"]["gemma"]["description"] == "Prefixes the system prompt with <|think|>"
     assert body["linking_modes"] == ["deterministic", "llm"]
+    assert body["endpoints"]["docs"] == "/docs"
+    assert body["endpoints"]["openapi"] == "/openapi.yaml"
     assert body["endpoints"]["sentiment"] == "/sentiment"
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
@@ -43,6 +47,33 @@ async def test_info_endpoint(app, monkeypatch):
     assert "llm_reasoning_effort" not in body["current"]
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
+
+
+async def test_openapi_endpoint(app, monkeypatch):
+    monkeypatch.setattr("llm_bot.routes.__version__", "9.9.9")
+
+    test_client = app.test_client()
+
+    response = await test_client.get("/openapi.yaml")
+    body = await response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/yaml"
+    assert "openapi: 3.1.0" in body
+    assert "version: 9.9.9" in body
+    assert "/docs:" in body
+
+
+async def test_docs_endpoint(app):
+    test_client = app.test_client()
+
+    response = await test_client.get("/docs")
+    body = await response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert 'url: "/openapi.yaml"' in body
+    assert "SwaggerUIBundle" in body
 
 
 

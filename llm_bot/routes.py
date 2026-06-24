@@ -1,10 +1,12 @@
 import json
 from functools import wraps
+from pathlib import Path
 from typing import Awaitable, Callable
 
 from pydantic import ValidationError
-from quart import Blueprint, request
+from quart import Blueprint, Response, request
 
+from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
 from llm_bot.log import logger
@@ -27,6 +29,39 @@ from llm_bot.tasks.sentiment import analyze_sentiment
 from llm_bot.tasks.summarize import summarize
 from llm_bot.tasks.title import generate_title
 from llm_bot.tasks.translate import translate_text
+
+OPENAPI_PATH = Path(__file__).resolve().parent.parent / "openapi3_1.yml"
+
+SWAGGER_UI_HTML = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>llm-bot API docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <style>
+      html { box-sizing: border-box; overflow-y: scroll; }
+      *, *:before, *:after { box-sizing: inherit; }
+      body { margin: 0; background: #faf7f2; }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: "/openapi.yaml",
+        dom_id: "#swagger-ui",
+      });
+    </script>
+  </body>
+</html>
+"""
+
+
+def _load_openapi_spec_text() -> str:
+    spec_text = OPENAPI_PATH.read_text(encoding="utf-8")
+    return spec_text.replace("version: 0.0.0", f"version: {__version__}", 1)
 
 
 def api_key_required(view_func):
@@ -83,6 +118,7 @@ async def _handle_model_request(
 def build_info_response() -> dict[str, object]:
     return {
         "package_name": Config.PACKAGE_NAME,
+        "package_version": __version__,
         "reasoning_profiles": {
             "none": {"description": "No special reasoning prompt handling"},
             "ministral": {"description": "Adds [THINK]...[/THINK] reasoning instructions"},
@@ -90,6 +126,8 @@ def build_info_response() -> dict[str, object]:
         },
         "linking_modes": ["deterministic", "llm"],
         "endpoints": {
+            "docs": "/docs",
+            "openapi": "/openapi.yaml",
             "sentiment": "/sentiment",
             "summarize": "/summarize",
             "title": "/title",
@@ -122,6 +160,14 @@ def create_api_blueprint() -> Blueprint:
     @api.get("/health")
     async def health() -> tuple[dict[str, str], int]:
         return {"status": "ok"}, 200
+
+    @api.get("/openapi.yaml")
+    async def openapi_spec() -> Response:
+        return Response(_load_openapi_spec_text(), mimetype="application/yaml")
+
+    @api.get("/docs")
+    async def swagger_docs() -> Response:
+        return Response(SWAGGER_UI_HTML, mimetype="text/html")
 
     @api.get("/info")
     async def info() -> tuple[dict[str, object], int]:
