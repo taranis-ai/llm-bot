@@ -3,8 +3,8 @@
 LLM-backed bot service.
 
 The current implementation exposes sentiment analysis, title generation, summary, named entity
-recognition, translation, linking, and clustering endpoints backed by an OpenAI-compatible
-Responses API or Chat Completions API.
+recognition, translation, linking, clustering, and cybersecurity classification endpoints backed
+by an OpenAI-compatible Responses API or Chat Completions API.
 
 ## Requirements
 
@@ -103,6 +103,36 @@ Response body with emotions:
 
 When `include_emotions` is `false` or omitted, the response must not contain an
 `emotions` field.
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
+
+### `POST /cybersec-classification`
+
+Request body:
+
+```json
+{
+  "text": "The newest development in malware automation is concerning.",
+  "reasoning_effort": "high",
+  "thinking_budget_tokens": 256
+}
+```
+
+Response body:
+
+```json
+{
+  "cybersecurity": 0.9999,
+  "non-cybersecurity": 0.0001
+}
+```
+
+This endpoint is LLM-backed and supports the same optional `reasoning_effort` and
+`thinking_budget_tokens` fields as the other LLM routes.
 
 If `API_KEY` is configured, send it as:
 
