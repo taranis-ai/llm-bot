@@ -41,6 +41,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["docs"] == "/docs"
     assert body["endpoints"]["openapi"] == "/openapi.yaml"
     assert body["endpoints"]["sentiment"] == "/sentiment"
+    assert body["endpoints"]["cybersec_classification"] == "/cybersec-classification"
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
@@ -74,6 +75,63 @@ async def test_docs_endpoint(app):
     assert response.mimetype == "text/html"
     assert 'url: "/openapi.yaml"' in body
     assert "SwaggerUIBundle" in body
+
+
+async def test_cybersec_classification_endpoint(app, monkeypatch):
+    from llm_bot.schemas import CybersecClassificationResponse
+
+    async def fake_classify_cybersecurity_text(request_model):
+        assert request_model.text == "The newest development in malware automation is concerning."
+        assert request_model.reasoning_effort == "high"
+        assert request_model.thinking_budget_tokens == 64
+        return CybersecClassificationResponse.model_validate(
+            {"cybersecurity": 0.91, "non-cybersecurity": 0.09}
+        )
+
+    monkeypatch.setattr("llm_bot.routes.classify_cybersecurity_text", fake_classify_cybersecurity_text)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cybersec-classification",
+        json={
+            "text": "The newest development in malware automation is concerning.",
+            "reasoning_effort": "high",
+            "thinking_budget_tokens": 64,
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"cybersecurity": 0.91, "non-cybersecurity": 0.09}
+
+
+async def test_cybersec_classification_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/cybersec-classification", json={})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid cybersec classification request payload"}
+
+
+async def test_cybersec_classification_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_classify_cybersecurity_text(_request_model):
+        raise UpstreamLLMError("Unsupported parameter: text.format")
+
+    monkeypatch.setattr("llm_bot.routes.classify_cybersecurity_text", failing_classify_cybersecurity_text)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/cybersec-classification",
+        json={"text": "The newest development in malware automation is concerning."},
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {
+        "error": "Failed to classify text for cybersecurity relevance: Unsupported parameter: text.format"
+    }
 
 
 

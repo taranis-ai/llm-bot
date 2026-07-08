@@ -5,8 +5,8 @@ info:
     Multi-route LLM-backed bot service for Taranis AI.
 
     The current implementation exposes sentiment analysis, title generation, translation,
-    summarization, clustering, named entity recognition, and entity linking routes backed by
-    an OpenAI-compatible Responses API.
+    summarization, clustering, named entity recognition, entity linking, and cybersecurity
+    classification routes backed by an OpenAI-compatible Responses API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -115,6 +115,67 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to analyze sentiment"
+
+  /cybersec-classification:
+    post:
+      tags:
+        - Classification
+      summary: Classify whether input text is cybersecurity-related
+      description: |
+        Accepts plain text and returns scores for `cybersecurity` and
+        `non-cybersecurity`.
+
+        This endpoint is backed by the configured upstream LLM.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: classifyCybersecurityText
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CybersecClassificationRequest"
+            examples:
+              basic:
+                summary: Example cybersec classification request
+                value:
+                  text: "The newest development in malware automation is concerning."
+                  reasoning_effort: "high"
+                  thinking_budget_tokens: 256
+      responses:
+        "200":
+          description: Text classified successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CybersecClassificationResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid cybersec classification request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to classify text for cybersecurity relevance"
 
 
   /title:
@@ -684,6 +745,35 @@ components:
           $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
+    CybersecClassificationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Text to classify for cybersecurity relevance
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
+        thinking_budget_tokens:
+          $ref: "#/components/schemas/ThinkingBudgetTokens"
+    CybersecClassificationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cybersecurity
+        - non-cybersecurity
+      properties:
+        cybersecurity:
+          type: number
+          minimum: 0
+          maximum: 1
+        non-cybersecurity:
+          type: number
+          minimum: 0
+          maximum: 1
     SentimentResult:
       type: object
       additionalProperties: false
