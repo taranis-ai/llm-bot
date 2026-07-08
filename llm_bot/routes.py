@@ -12,6 +12,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ClusterRequest,
+    CybersecClassificationRequest,
     LinkRequest,
     NerLinkRequest,
     NerRequest,
@@ -21,6 +22,7 @@ from llm_bot.schemas import (
     TranslateRequest,
 )
 from llm_bot.tasks.cluster import cluster_stories
+from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
@@ -129,6 +131,7 @@ def build_info_response() -> dict[str, object]:
             "docs": "/docs",
             "openapi": "/openapi.yaml",
             "sentiment": "/sentiment",
+            "cybersec_classification": "/cybersec-classification",
             "summarize": "/summarize",
             "title": "/title",
             "translate": "/translate",
@@ -182,6 +185,17 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to analyze sentiment",
             request_model_factory=SentimentRequest.model_validate,
             task=analyze_sentiment,
+        )
+
+    @api.post("/cybersec-classification")
+    @api_key_required
+    async def cybersec_classification_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Cybersec classification",
+            validation_error_message="Invalid cybersec classification request payload",
+            processing_error_message="Failed to classify text for cybersecurity relevance",
+            request_model_factory=CybersecClassificationRequest.model_validate,
+            task=classify_cybersecurity_text,
         )
 
     @api.post("/title")
