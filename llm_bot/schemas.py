@@ -119,6 +119,22 @@ class SentimentRequest(LLMRequest):
     include_emotions: bool = False
 
 
+class CybersecClassificationRequest(LLMRequest):
+
+    text: str = Field(min_length=1)
+
+
+class CybersecClassificationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    cybersecurity: float = Field(ge=0, le=1)
+    non_cybersecurity: float = Field(alias="non-cybersecurity", ge=0, le=1)
+
+    def model_dump(self, *args, **kwargs):
+        kwargs.setdefault("by_alias", True)
+        return super().model_dump(*args, **kwargs)
+
+
 class SentimentResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
