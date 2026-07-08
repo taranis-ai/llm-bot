@@ -4,7 +4,6 @@ from llm_bot.schemas import SentimentRequest, SentimentResponse
 from llm_bot.tasks.sentiment import (
     analyze_sentiment,
     build_sentiment_messages,
-    get_sentiment_response_format,
     parse_sentiment_response,
 )
 from tests.test_helpers import StubLLMClient
@@ -28,22 +27,6 @@ def test_build_sentiment_messages_with_emotions():
     assert "Allowed emotions:" in system_message["content"]
     assert "Return the emotions field as an array, even if it is empty." in system_message["content"]
     assert user_message["content"] == "Markets rallied after the announcement."
-
-
-def test_get_sentiment_response_format_without_emotions():
-    response_format = get_sentiment_response_format(False)
-    sentiment_schema = response_format["schema"]["properties"]["sentiment"]
-
-    assert sentiment_schema["required"] == ["label", "score"]
-    assert "emotions" not in sentiment_schema["properties"]
-
-
-def test_get_sentiment_response_format_with_emotions():
-    response_format = get_sentiment_response_format(True)
-    sentiment_schema = response_format["schema"]["properties"]["sentiment"]
-
-    assert sentiment_schema["required"] == ["label", "score", "emotions"]
-    assert sentiment_schema["properties"]["emotions"]["uniqueItems"] is True
 
 
 def test_parse_sentiment_response_without_emotions():

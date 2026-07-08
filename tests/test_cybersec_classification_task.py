@@ -4,7 +4,6 @@ from llm_bot.schemas import CybersecClassificationRequest, CybersecClassificatio
 from llm_bot.tasks.cybersec_classification import (
     build_cybersec_classification_messages,
     classify_cybersecurity_text,
-    get_cybersec_classification_response_format,
     parse_cybersec_classification_response,
 )
 from tests.test_helpers import StubLLMClient
