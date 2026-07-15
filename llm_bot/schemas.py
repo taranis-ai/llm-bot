@@ -293,11 +293,24 @@ class ClusterReason(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class LLMClusterIds(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_clusters: list[list[int]] = Field(min_length=1)
+
+
+class LLMClusterReason(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    story_ids: list[int] = Field(min_length=2)
+    reason: str = Field(min_length=1)
+
+
 class LLMClusterResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cluster_ids: ClusterIds
-    cluster_reasons: list[ClusterReason]
+    cluster_ids: LLMClusterIds
+    cluster_reasons: list[LLMClusterReason]
     message: str = Field(min_length=1)
 
 

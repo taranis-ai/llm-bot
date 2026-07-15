@@ -45,7 +45,7 @@ def test_build_cluster_messages_concatenates_all_news_items(monkeypatch):
     payload = json.loads(user_message["content"])
     story = payload["stories"][0]
 
-    assert story["id"] == "existing-story"
+    assert story["id"] == 1
     assert story["title"] == "Canonical cluster title"
     assert story["source_languages"] == ["de", "en"]
     assert story["tags"] == {"APT29": "GROUP", "Microsoft": "ORG"}
@@ -59,12 +59,13 @@ def test_parse_cluster_response_from_output_text():
     response = parse_cluster_response(
         {
             "output_text": (
-                '{"cluster_ids":{"event_clusters":[["s1","s2"],["s3"]]},'
-                '"cluster_reasons":[{"story_ids":["s1","s2"],"reason":"Same event"}],'
+                '{"cluster_ids":{"event_clusters":[[1,2],[3]]},'
+                '"cluster_reasons":[{"story_ids":[1,2],"reason":"Same event"}],'
                 '"message":"Clustering completed"}'
             )
         },
         expected_story_ids={"s1", "s2", "s3"},
+        story_id_map={1: "s1", 2: "s2", 3: "s3"},
     )
 
     assert response == ClusterResponse.model_validate(
@@ -80,12 +81,13 @@ def test_parse_cluster_response_rejects_missing_story_ids():
         parse_cluster_response(
             {
                 "output_text": (
-                    '{"cluster_ids":{"event_clusters":[["s1","s2"]]},'
-                    '"cluster_reasons":[{"story_ids":["s1","s2"],"reason":"Same event"}],'
+                    '{"cluster_ids":{"event_clusters":[[1,2]]},'
+                    '"cluster_reasons":[{"story_ids":[1,2],"reason":"Same event"}],'
                     '"message":"Clustering completed"}'
                 )
             },
             expected_story_ids={"s1", "s2", "s3"},
+            story_id_map={1: "s1", 2: "s2", 3: "s3"},
         )
 
 
@@ -94,12 +96,13 @@ def test_parse_cluster_response_rejects_missing_cluster_reason():
         parse_cluster_response(
             {
                 "output_text": (
-                    '{"cluster_ids":{"event_clusters":[["s1","s2"],["s3"]]},'
+                    '{"cluster_ids":{"event_clusters":[[1,2],[3]]},'
                     '"cluster_reasons":[],'
                     '"message":"Clustering completed"}'
                 )
             },
             expected_story_ids={"s1", "s2", "s3"},
+            story_id_map={1: "s1", 2: "s2", 3: "s3"},
         )
 
 
@@ -108,12 +111,28 @@ def test_parse_cluster_response_rejects_reason_for_unknown_cluster():
         parse_cluster_response(
             {
                 "output_text": (
-                    '{"cluster_ids":{"event_clusters":[["s1","s2"],["s3"]]},'
-                    '"cluster_reasons":[{"story_ids":["s2","s3"],"reason":"Wrong pair"}],'
+                    '{"cluster_ids":{"event_clusters":[[1,2],[3]]},'
+                    '"cluster_reasons":[{"story_ids":[2,3],"reason":"Wrong pair"}],'
                     '"message":"Clustering completed"}'
                 )
             },
             expected_story_ids={"s1", "s2", "s3"},
+            story_id_map={1: "s1", 2: "s2", 3: "s3"},
+        )
+
+
+def test_parse_cluster_response_rejects_unknown_llm_story_id():
+    with pytest.raises(InvalidLLMOutputError, match="Unexpected story IDs in cluster output: 4"):
+        parse_cluster_response(
+            {
+                "output_text": (
+                    '{"cluster_ids":{"event_clusters":[[1,4],[3]]},'
+                    '"cluster_reasons":[{"story_ids":[1,4],"reason":"Same event"}],'
+                    '"message":"Clustering completed"}'
+                )
+            },
+            expected_story_ids={"s1", "s2", "s3"},
+            story_id_map={1: "s1", 2: "s2", 3: "s3"},
         )
 
 
@@ -122,8 +141,8 @@ async def test_cluster_stories_sends_reduced_story_representation():
     client = StubLLMClient(
         {
             "output_text": (
-                '{"cluster_ids":{"event_clusters":[["s1","s2"]]},'
-                '"cluster_reasons":[{"story_ids":["s1","s2"],"reason":"Same event"}],'
+                '{"cluster_ids":{"event_clusters":[[1,2]]},'
+                '"cluster_reasons":[{"story_ids":[1,2],"reason":"Same event"}],'
                 '"message":"Clustering completed"}'
             )
         }
@@ -171,6 +190,8 @@ async def test_cluster_stories_sends_reduced_story_representation():
         }
     )
     sent_payload = json.loads(client.calls[0]["user_input"])
+    assert sent_payload["stories"][0]["id"] == 1
+    assert sent_payload["stories"][1]["id"] == 2
     assert sent_payload["stories"][0]["content"] == "First report content.\n\nSecond report content with more evidence."
     assert sent_payload["stories"][1]["tags"] == {"Vienna": "GPE"}
     assert sent_payload["stories"][1]["source_languages"] == ["en"]
