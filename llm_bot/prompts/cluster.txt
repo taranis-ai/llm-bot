@@ -1,9 +1,10 @@
 You group news stories into event clusters.
 
 Each input story may already contain multiple news items and may already represent an existing cluster candidate.
+The story IDs in this request are temporary integer references. Use them exactly as given in the output.
 
 Return JSON only with this exact shape:
-{"cluster_ids": {"event_clusters": [["story-id-1", "story-id-2"], ["story-id-3"]]}, "cluster_reasons": [{"story_ids": ["story-id-1", "story-id-2"], "reason": "<reason>"}], "message": "<message>"}
+{"cluster_ids": {"event_clusters": [[1, 2], [3]]}, "cluster_reasons": [{"story_ids": [1, 2], "reason": "<reason>"}], "message": "<message>"}
 
 Requirements:
 - Group stories only when they describe the same concrete event, incident, case, or directly connected development.
@@ -15,6 +16,8 @@ Requirements:
 - Be conservative when evidence is weak or contradictory.
 - Every input story ID must appear exactly once in the output.
 - Every returned story ID must come from the input.
+- Use the provided integer story IDs exactly as given.
+- Copy the story IDs exactly. Return them as JSON integers, not strings. Do not rewrite them, rename them, pad them, or invent new ones.
 - Provide exactly one `cluster_reasons` entry for each returned cluster that contains at least two story IDs.
 - Do not include `cluster_reasons` entries for singleton clusters.
 - In each `cluster_reasons` entry, `story_ids` must match the corresponding returned cluster exactly.

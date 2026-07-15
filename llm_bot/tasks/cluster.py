@@ -7,7 +7,9 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import (
+    ClusterIds,
     ClusterRequest,
+    ClusterReason,
     ClusterResponse,
     LLMClusterResponse,
     StoryClusterItem,
@@ -56,22 +58,82 @@ def build_compact_story(story: StoryClusterItem) -> dict[str, object]:
     }
 
 
+def build_story_id_map(stories: list[StoryClusterItem]) -> dict[int, str]:
+    return {index: story.id for index, story in enumerate(stories, start=1)}
+
+
+def build_llm_story(story: StoryClusterItem, llm_story_id: int) -> dict[str, object]:
+    compact_story = build_compact_story(story)
+    compact_story["id"] = llm_story_id
+    return compact_story
+
+
 def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
-    user_payload = {"stories": [build_compact_story(story) for story in request.stories]}
+    story_id_map = build_story_id_map(request.stories)
+    user_payload = {
+        "stories": [
+            build_llm_story(story, llm_story_id)
+            for llm_story_id, story in zip(story_id_map, request.stories, strict=True)
+        ]
+    }
     return [
         {"role": "system", "content": load_cluster_prompt()},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
     ]
 
 
-def validate_cluster_response(
+def remap_story_ids(story_ids: list[int], story_id_map: dict[int, str]) -> list[str]:
+    remapped_story_ids: list[str] = []
+    unknown_story_ids: list[int] = []
+    for story_id in story_ids:
+        if story_id not in story_id_map:
+            unknown_story_ids.append(story_id)
+            continue
+        remapped_story_ids.append(story_id_map[story_id])
+
+    if unknown_story_ids:
+        raise InvalidLLMOutputError(
+            f"Unexpected story IDs in cluster output: {', '.join(str(story_id) for story_id in sorted(unknown_story_ids))}"
+        )
+
+    return remapped_story_ids
+
+
+def remap_cluster_response(
     response: LLMClusterResponse,
+    *,
+    story_id_map: dict[int, str],
+) -> tuple[ClusterIds, list[ClusterReason], str]:
+    cluster_ids = ClusterIds.model_validate(
+        {
+            "event_clusters": [
+                remap_story_ids(cluster, story_id_map)
+                for cluster in response.cluster_ids.event_clusters
+            ]
+        }
+    )
+    cluster_reasons = [
+        ClusterReason.model_validate(
+            {
+                "story_ids": remap_story_ids(reason.story_ids, story_id_map),
+                "reason": reason.reason,
+            }
+        )
+        for reason in response.cluster_reasons
+    ]
+    return cluster_ids, cluster_reasons, response.message
+
+
+def validate_cluster_response(
+    cluster_ids: ClusterIds,
+    cluster_reasons: list[ClusterReason],
+    message: str,
     *,
     expected_story_ids: set[str],
 ) -> ClusterResponse:
     assigned_story_ids: list[str] = [
         story_id
-        for cluster in response.cluster_ids.event_clusters
+        for cluster in cluster_ids.event_clusters
         for story_id in cluster
     ]
     assigned_story_id_set = set(assigned_story_ids)
@@ -96,8 +158,8 @@ def validate_cluster_response(
             f"Unexpected story IDs in cluster output: {', '.join(unexpected_story_ids)}"
         )
 
-    non_singleton_clusters = {frozenset(cluster) for cluster in response.cluster_ids.event_clusters if len(cluster) >= 2}
-    reason_clusters = [frozenset(reason.story_ids) for reason in response.cluster_reasons]
+    non_singleton_clusters = {frozenset(cluster) for cluster in cluster_ids.event_clusters if len(cluster) >= 2}
+    reason_clusters = [frozenset(reason.story_ids) for reason in cluster_reasons]
 
     if len(reason_clusters) != len(set(reason_clusters)):
         raise InvalidLLMOutputError("Duplicate cluster_reasons entries in cluster output")
@@ -120,8 +182,8 @@ def validate_cluster_response(
 
     return ClusterResponse.model_validate(
         {
-            "cluster_ids": response.cluster_ids.model_dump(),
-            "message": response.message,
+            "cluster_ids": cluster_ids.model_dump(),
+            "message": message,
         }
     )
 
@@ -130,12 +192,21 @@ def parse_cluster_response(
     response_data: dict[str, Any],
     *,
     expected_story_ids: set[str],
+    story_id_map: dict[int, str],
 ) -> ClusterResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw cluster output: %s", output_text)
     parsed_output = loads_json_output(output_text)
-    response = LLMClusterResponse.model_validate(parsed_output)
-    return validate_cluster_response(response, expected_story_ids=expected_story_ids)
+    cluster_ids, cluster_reasons, message = remap_cluster_response(
+        LLMClusterResponse.model_validate(parsed_output),
+        story_id_map=story_id_map,
+    )
+    return validate_cluster_response(
+        cluster_ids,
+        cluster_reasons,
+        message,
+        expected_story_ids=expected_story_ids,
+    )
 
 
 def get_cluster_response_format() -> dict[str, Any]:
@@ -157,7 +228,7 @@ def get_cluster_response_format() -> dict[str, Any]:
                             "type": "array",
                             "items": {
                                 "type": "array",
-                                "items": {"type": "string"},
+                                "items": {"type": "integer"},
                             },
                         }
                     },
@@ -172,7 +243,7 @@ def get_cluster_response_format() -> dict[str, Any]:
                             "story_ids": {
                                 "type": "array",
                                 "minItems": 2,
-                                "items": {"type": "string"},
+                                "items": {"type": "integer"},
                             },
                             "reason": {
                                 "type": "string",
@@ -195,6 +266,7 @@ async def cluster_stories(request: ClusterRequest, client: LLMClient | None = No
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
     )
+    story_id_map = build_story_id_map(request.stories)
     system_message, user_message = build_cluster_messages(request)
     expected_story_ids = {story.id for story in request.stories}
     return await create_and_parse_response(
@@ -206,5 +278,6 @@ async def cluster_stories(request: ClusterRequest, client: LLMClient | None = No
         parse_response=lambda response_data: parse_cluster_response(
             response_data,
             expected_story_ids=expected_story_ids,
+            story_id_map=story_id_map,
         ),
     )
