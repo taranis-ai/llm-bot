@@ -9,7 +9,6 @@ Requirements:
 - Produce one combined story-level summary for all News Items, even when they treat different events.
 - Use both the Title and Content fields when they add useful context.
 - Write a concise factual summary of the provided text.
-- Write the summary in the same language as the input text.
 - Preserve important people, organizations, locations, events, and impacts when present.
 - Synthesize repeated or overlapping details across items instead of listing each item separately.
 - Do not invent facts.

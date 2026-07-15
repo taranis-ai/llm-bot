@@ -35,6 +35,36 @@ def test_build_title_messages_formats_news_items():
     )
 
 
+def test_build_title_messages_uses_explicit_language():
+    system_message, _ = build_title_messages(
+        TitleRequest(text="Story text", max_chars=150, language="de")
+    )
+
+    assert "Write the title in German." in system_message["content"]
+
+
+def test_build_title_messages_uses_majority_news_item_language():
+    system_message, _ = build_title_messages(
+        TitleRequest(
+            news_items=[
+                {"title": "Erste Meldung", "content": "A", "language": "de"},
+                {"title": "Second report", "content": "B", "language": "en"},
+                {"title": "Dritte Meldung", "content": "C", "language": "de"},
+            ]
+        )
+    )
+
+    assert "Write the title in German." in system_message["content"]
+
+
+def test_build_title_messages_falls_back_to_language_code_for_unknown_language():
+    system_message, _ = build_title_messages(
+        TitleRequest(text="Story text", max_chars=150, language="xx")
+    )
+
+    assert 'Write the title in language code "xx".' in system_message["content"]
+
+
 def test_build_title_messages_truncates_input_text(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.title.Config.SUMMARY_MAX_INPUT_CHARS", 12)
 

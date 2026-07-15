@@ -184,7 +184,12 @@ paths:
         - Title
       summary: Generate a concise story title from input text
       description: |
-        Accepts input text and returns a concise title in the same language.
+        Accepts input text and returns a concise title.
+
+        When `language` is provided, the title is generated in that language.
+        When omitted and `news_items` are used, the service uses the majority
+        `news_items[*].language` value when available. Otherwise it falls back
+        to the input text language.
 
         The model is instructed to stay within the request `max_chars` field, which defaults to 100 when omitted. The service does not truncate longer model outputs.
 
@@ -206,6 +211,8 @@ paths:
                   news_items:
                     - title: "Apple announced new Mac hardware during its developer event in Cupertino."
                       content: "The company introduced updates across the Mac lineup."
+                      language: "en"
+                  language: "de"
                   max_chars: 100
                   reasoning_effort: "high"
                   thinking_budget_tokens: 256
@@ -318,6 +325,11 @@ paths:
       description: |
         Accepts story news items and returns a summarized version.
 
+        When `language` is provided, the summary is generated in that language.
+        When omitted and `news_items` are used, the service uses the majority
+        `news_items[*].language` value when available. Otherwise it falls back
+        to the input text language.
+
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
       operationId: summarizeText
@@ -336,6 +348,8 @@ paths:
                   news_items:
                     - title: "Story title"
                       content: "This is the input text to summarize."
+                      language: "en"
+                  language: "de"
                   max_words: 80
                   reasoning_effort: "high"
                   thinking_budget_tokens: 256
@@ -861,6 +875,11 @@ components:
         content:
           type: string
           default: ""
+        language:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Optional language code for this news item.
 
     TitleRequest:
       type: object
@@ -880,6 +899,11 @@ components:
           description: Alternative story input used instead of `text`.
           items:
             $ref: "#/components/schemas/StoryInputNewsItem"
+        language:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Optional output language for the generated title.
         max_chars:
           type: integer
           minimum: 1
@@ -955,6 +979,11 @@ components:
           description: Alternative story input used instead of `text`.
           items:
             $ref: "#/components/schemas/StoryInputNewsItem"
+        language:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Optional output language for the generated summary.
         max_words:
           type: integer
           minimum: 1

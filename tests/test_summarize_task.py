@@ -39,6 +39,36 @@ def test_build_summary_messages_formats_news_items():
     )
 
 
+def test_build_summary_messages_uses_explicit_language():
+    system_message, _ = build_summary_messages(
+        SummarizeRequest(text="Example story text", language="de")
+    )
+
+    assert "Write the summary in German." in system_message["content"]
+
+
+def test_build_summary_messages_uses_majority_news_item_language():
+    system_message, _ = build_summary_messages(
+        SummarizeRequest(
+            news_items=[
+                {"title": "Erste Meldung", "content": "A", "language": "de"},
+                {"title": "Second report", "content": "B", "language": "en"},
+                {"title": "Dritte Meldung", "content": "C", "language": "de"},
+            ]
+        )
+    )
+
+    assert "Write the summary in German." in system_message["content"]
+
+
+def test_build_summary_messages_falls_back_to_language_code_for_unknown_language():
+    system_message, _ = build_summary_messages(
+        SummarizeRequest(text="Example story text", language="xx")
+    )
+
+    assert 'Write the summary in language code "xx".' in system_message["content"]
+
+
 def test_build_summary_messages_with_max_words():
     request = SummarizeRequest(text="Example story text", max_words=80)
 

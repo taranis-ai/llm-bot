@@ -140,6 +140,7 @@ async def test_title_endpoint(app, monkeypatch):
     async def fake_generate_title(request_model):
         assert request_model.news_items[0].title == "Story title"
         assert request_model.news_items[0].content == "Story text"
+        assert request_model.language == "de"
         assert request_model.max_chars == 55
         assert request_model.reasoning_effort == "high"
         assert request_model.thinking_budget_tokens == 128
@@ -151,7 +152,8 @@ async def test_title_endpoint(app, monkeypatch):
     response = await test_client.post(
         "/title",
         json={
-            "news_items": [{"title": "Story title", "content": "Story text"}],
+            "news_items": [{"title": "Story title", "content": "Story text", "language": "en"}],
+            "language": "de",
             "max_chars": 55,
             "reasoning_effort": "high",
             "thinking_budget_tokens": 128,
@@ -259,6 +261,7 @@ async def test_summarize_endpoint(app, monkeypatch):
     async def fake_summarize(request_model):
         assert request_model.news_items[0].title == "Story title"
         assert request_model.news_items[0].content == "Story text"
+        assert request_model.language == "de"
         assert request_model.max_words == 25
         assert request_model.thinking_budget_tokens == 256
         return SummarizeResponse(summary="Condensed summary")
@@ -269,7 +272,8 @@ async def test_summarize_endpoint(app, monkeypatch):
     response = await test_client.post(
         "/summarize",
         json={
-            "news_items": [{"title": "Story title", "content": "Story text"}],
+            "news_items": [{"title": "Story title", "content": "Story text", "language": "en"}],
+            "language": "de",
             "max_words": 25,
             "thinking_budget_tokens": 256,
         },

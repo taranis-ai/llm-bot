@@ -47,6 +47,7 @@ class StoryInputNewsItem(BaseModel):
 
     title: str = ""
     content: str = ""
+    language: str | None = None
 
 
 class LLMRequest(BaseModel):
@@ -60,6 +61,7 @@ class SummarizeRequest(LLMRequest):
 
     text: str | None = Field(default=None, min_length=1)
     news_items: list[StoryInputNewsItem] | None = None
+    language: str | None = Field(default=None, min_length=1)
     max_words: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
@@ -82,6 +84,7 @@ class TitleRequest(LLMRequest):
 
     text: str | None = Field(default=None, min_length=1)
     news_items: list[StoryInputNewsItem] | None = None
+    language: str | None = Field(default=None, min_length=1)
     max_chars: int = Field(default=100, ge=1)
 
     @model_validator(mode="after")
