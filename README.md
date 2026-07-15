@@ -147,6 +147,7 @@ Request body:
 ```json
 {
   "text": "Text to title",
+  "language": "de",
   "max_chars": 100
 }
 ```
@@ -159,7 +160,11 @@ Response body:
 }
 ```
 
-The model is instructed to keep the title within `max_chars` characters. If omitted, `max_chars` defaults to `100`. The service does not truncate longer model outputs.
+`language` is optional. When provided, the title is generated in that language. When omitted and
+`news_items` are used, the service uses the majority `news_items[*].language` value when available.
+Otherwise it falls back to the input text language. The model is instructed to keep the title
+within `max_chars` characters. If omitted, `max_chars` defaults to `100`. The service does not
+truncate longer model outputs.
 
 If `API_KEY` is configured, send it as:
 
@@ -204,9 +209,11 @@ Request body:
   "news_items": [
     {
       "title": "Story title",
-      "content": "Text to summarize"
+      "content": "Text to summarize",
+      "language": "en"
     }
   ],
+  "language": "de",
   "max_words": 80
 }
 ```
@@ -218,6 +225,10 @@ Response body:
   "summary": "Short summary"
 }
 ```
+
+`language` is optional. When provided, the summary is generated in that language. When omitted and
+`news_items` are used, the service uses the majority `news_items[*].language` value when available.
+Otherwise it falls back to the input text language.
 
 If `API_KEY` is configured, send it as:
 

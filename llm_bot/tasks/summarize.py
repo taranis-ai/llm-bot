@@ -6,7 +6,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
-from llm_bot.tasks.task_utils import truncate_text, build_story_input_text
+from llm_bot.tasks.task_utils import build_output_language_instruction, truncate_text, build_story_input_text
 
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summarize.txt"
@@ -18,7 +18,11 @@ def load_summary_prompt() -> str:
 
 def build_summary_messages(request: SummarizeRequest) -> list[dict[str, str]]:
     system_prompt = load_summary_prompt()
-    system_prompt = f"{system_prompt}\n- The summary must not exceed {Config.SUMMARY_MAX_OUTPUT_CHARS} characters."
+    system_prompt = (
+        f"{system_prompt}\n"
+        f"{build_output_language_instruction(request, output_name='summary')}\n"
+        f"- The summary must not exceed {Config.SUMMARY_MAX_OUTPUT_CHARS} characters."
+    )
     if request.max_words is not None:
         system_prompt = f"{system_prompt}\n- The summary must not exceed {request.max_words} words."
     truncated_text = truncate_text(build_story_input_text(request), Config.SUMMARY_MAX_INPUT_CHARS)
