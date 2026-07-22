@@ -197,6 +197,91 @@ class NerResponse(RootModel[dict[str, str]]):
     root: dict[str, str]
 
 
+class ExtractionEntityType(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+
+
+class ExtractionRelationType(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    source_types: list[str] = Field(min_length=1)
+    target_types: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_type_lists(self) -> "ExtractionRelationType":
+        if len(self.source_types) != len(set(self.source_types)):
+            raise ValueError("Relation source_types must not contain duplicates")
+        if len(self.target_types) != len(set(self.target_types)):
+            raise ValueError("Relation target_types must not contain duplicates")
+        if any(not entity_type for entity_type in self.source_types + self.target_types):
+            raise ValueError("Relation source_types and target_types must not contain empty names")
+        return self
+
+
+class EntityRelationshipSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entity_types: list[ExtractionEntityType] = Field(min_length=1)
+    relation_types: list[ExtractionRelationType]
+
+    @model_validator(mode="after")
+    def validate_schema_references(self) -> "EntityRelationshipSchema":
+        entity_type_names = [entity_type.name for entity_type in self.entity_types]
+        if len(entity_type_names) != len(set(entity_type_names)):
+            raise ValueError("Entity type names must be unique")
+
+        relation_type_names = [relation_type.name for relation_type in self.relation_types]
+        if len(relation_type_names) != len(set(relation_type_names)):
+            raise ValueError("Relation type names must be unique")
+
+        known_entity_types = set(entity_type_names)
+        referenced_entity_types = {
+            entity_type
+            for relation_type in self.relation_types
+            for entity_type in relation_type.source_types + relation_type.target_types
+        }
+        unknown_entity_types = sorted(referenced_entity_types - known_entity_types)
+        if unknown_entity_types:
+            raise ValueError(
+                "Relation constraints reference unknown entity types: "
+                + ", ".join(unknown_entity_types)
+            )
+        return self
+
+
+class EntityRelationshipExtractionRequest(LLMRequest):
+    text: str = Field(min_length=1)
+    schema: EntityRelationshipSchema
+
+
+class ExtractedEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+
+
+class ExtractedRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    target_id: str = Field(min_length=1)
+    confidence: float = Field(ge=0, le=1, strict=True)
+
+
+class EntityRelationshipExtractionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entities: list[ExtractedEntity]
+    relations: list[ExtractedRelation]
+
+
 class LinkedEntity(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

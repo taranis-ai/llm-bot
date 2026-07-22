@@ -46,6 +46,8 @@ For a task change, cover the applicable layers:
 - route success, `400` validation/client errors, and `502` upstream errors
 - both upstream API modes when changing `LLMClient`
 
+Treat this as a list of applicable behaviors, not a requirement to create one test for every bullet in every task. Reuse existing coverage for shared utilities and dependency behavior. For example, a repair-path task test should assert the task-specific invalid output triggers one retry, but should not reassert the common repair prompt's exact wording when that wording is already covered elsewhere. Likewise, test custom Pydantic validators and public HTTP error mapping, but do not add unit tests that merely demonstrate ordinary Pydantic type or length validation unless that exact constraint is an important public contract not covered at another boundary.
+
 Use small fake clients from `tests/test_helpers.py` where suitable. Assert the system input, user input, response format, and number of calls rather than relying on a live model.
 
 ## Endpoint-Specific Pitfalls

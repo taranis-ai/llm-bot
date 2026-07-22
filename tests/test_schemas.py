@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from llm_bot.schemas import SummarizeRequest, TitleRequest
+from llm_bot.schemas import EntityRelationshipExtractionRequest, SummarizeRequest, TitleRequest
 
 
 def test_summarize_request_accepts_text_input():
@@ -125,4 +125,55 @@ def test_title_request_rejects_only_empty_news_items():
                     {"title": "", "content": ""},
                 ]
             }
+        )
+
+
+@pytest.mark.parametrize(
+    ("schema_update", "error"),
+    [
+        (
+            {
+                "entity_types": [
+                    {"name": "Thing", "description": "First"},
+                    {"name": "Thing", "description": "Duplicate"},
+                ]
+            },
+            "Entity type names must be unique",
+        ),
+        (
+            {
+                "relation_types": [
+                    {
+                        "name": "USES",
+                        "source_types": ["Unknown"],
+                        "target_types": ["Thing"],
+                    }
+                ]
+            },
+            "reference unknown entity types",
+        ),
+        (
+            {
+                "relation_types": [
+                    {
+                        "name": "USES",
+                        "source_types": [],
+                        "target_types": ["Thing"],
+                    }
+                ]
+            },
+            "at least 1 item",
+        ),
+    ],
+)
+def test_entity_relationship_request_rejects_invalid_schema(schema_update, error):
+    schema = {
+        "entity_types": [{"name": "Thing", "description": "A thing"}],
+        "relation_types": [],
+    }
+    schema.update(schema_update)
+
+    with pytest.raises(ValidationError, match=error):
+        EntityRelationshipExtractionRequest.model_validate(
+            {"text": "Some text", "schema": schema}
         )
