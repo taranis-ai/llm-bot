@@ -5,8 +5,8 @@ info:
     Multi-route LLM-backed bot service for Taranis AI.
 
     The current implementation exposes sentiment analysis, title generation, translation,
-    summarization, clustering, named entity recognition, entity linking, and cybersecurity
-    classification routes backed by an OpenAI-compatible Responses API.
+    summarization, clustering, named entity recognition, entity linking, entity relationship
+    extraction, and cybersecurity classification routes backed by an OpenAI-compatible API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -682,6 +682,70 @@ paths:
               example:
                 error: "Failed to cluster stories"
 
+  /entity-relationship-extraction:
+    post:
+      tags:
+        - Entity Relationship Extraction
+      summary: Extract schema-constrained entities and relationships
+      description: |
+        Extracts only entity and directed relation types allowed by the supplied schema.
+        Relations must obey their configured source and target entity type constraints.
+        The service extracts only information explicitly stated in the input text;
+        it does not infer facts or use external knowledge.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: extractEntityRelationships
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntityRelationshipExtractionRequest"
+            example:
+              text: "APT28 exploited CVE-2025-1234."
+              schema:
+                entity_types:
+                  - name: ThreatActor
+                    description: A named threat actor
+                  - name: Vulnerability
+                    description: A named vulnerability
+                relation_types:
+                  - name: EXPLOITS
+                    source_types: [ThreatActor]
+                    target_types: [Vulnerability]
+      responses:
+        "200":
+          description: Schema-valid entities and relationships extracted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntityRelationshipExtractionResponse"
+        "400":
+          description: Invalid request or extraction schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid entity relationship extraction request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Upstream LLM or output validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to extract entity relationships"
+
   /health:
     get:
       tags:
@@ -1064,6 +1128,134 @@ components:
       description: Flat map of entity values to entity types
       additionalProperties:
         type: string
+    ExtractionEntityType:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+    ExtractionRelationType:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - source_types
+        - target_types
+      properties:
+        name:
+          type: string
+          minLength: 1
+        source_types:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        target_types:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+    EntityRelationshipSchema:
+      type: object
+      additionalProperties: false
+      required:
+        - entity_types
+        - relation_types
+      properties:
+        entity_types:
+          type: array
+          minItems: 1
+          description: Entity type names must be unique.
+          items:
+            $ref: "#/components/schemas/ExtractionEntityType"
+        relation_types:
+          type: array
+          description: |
+            Relation type names must be unique. Every source_types and target_types
+            value must name an entity type declared by entity_types.
+          items:
+            $ref: "#/components/schemas/ExtractionRelationType"
+    EntityRelationshipExtractionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+        - schema
+      properties:
+        text:
+          type: string
+          minLength: 1
+        schema:
+          $ref: "#/components/schemas/EntityRelationshipSchema"
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
+        thinking_budget_tokens:
+          $ref: "#/components/schemas/ThinkingBudgetTokens"
+    ExtractedEntity:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - name
+      properties:
+        id:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+    ExtractedRelation:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - source_id
+        - target_id
+        - confidence
+      properties:
+        type:
+          type: string
+          minLength: 1
+        source_id:
+          type: string
+          minLength: 1
+        target_id:
+          type: string
+          minLength: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+    EntityRelationshipExtractionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - entities
+        - relations
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedEntity"
+        relations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedRelation"
     LinkedEntity:
       type: object
       additionalProperties: false

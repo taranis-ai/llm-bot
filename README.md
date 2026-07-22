@@ -3,7 +3,7 @@
 LLM-backed bot service.
 
 The current implementation exposes sentiment analysis, title generation, summary, named entity
-recognition, translation, linking, clustering, and cybersecurity classification endpoints backed
+recognition, entity relationship extraction, translation, linking, clustering, and cybersecurity classification endpoints backed
 by an OpenAI-compatible Responses API or Chat Completions API.
 
 ## Requirements
@@ -29,7 +29,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, and `/cluster`
+- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relationship-extraction`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -318,6 +318,62 @@ If `API_KEY` is configured, send it as:
 ```http
 Authorization: Bearer <API_KEY>
 ```
+
+### `POST /entity-relationship-extraction`
+
+Extracts schema-constrained entities and directed relationships using only information explicitly
+stated in the supplied text. Entity and relation type names are caller-defined. Relation source
+and target types must reference declared entity types.
+
+Request body:
+
+```json
+{
+  "text": "APT28 exploited CVE-2025-1234.",
+  "schema": {
+    "entity_types": [
+      {"name": "ThreatActor", "description": "A named threat actor"},
+      {"name": "Vulnerability", "description": "A named vulnerability"}
+    ],
+    "relation_types": [
+      {
+        "name": "EXPLOITS",
+        "source_types": ["ThreatActor"],
+        "target_types": ["Vulnerability"]
+      }
+    ]
+  }
+}
+```
+
+Response body:
+
+```json
+{
+  "entities": [
+    {
+      "id": "e1",
+      "type": "ThreatActor",
+      "name": "APT28"
+    },
+    {
+      "id": "e2",
+      "type": "Vulnerability",
+      "name": "CVE-2025-1234"
+    }
+  ],
+  "relations": [
+    {
+      "type": "EXPLOITS",
+      "source_id": "e1",
+      "target_id": "e2",
+      "confidence": 0.9
+    }
+  ]
+}
+```
+
+If no schema-valid explicit extraction exists, both response lists are empty.
 
 ### `POST /ner-link`
 
