@@ -51,6 +51,10 @@ The service needs an OpenAI-compatible backend for LLM routes. `LLM_API_MODE` se
 - Inject `LLMClient` or `LookupClient` into task functions, or monkeypatch the imported dependency at its use site. Unit tests must not call live LLM or lookup services.
 - Keep prompt construction and response parsing testable as pure functions. Cover valid output, invalid output, the one repair attempt, and task-specific invariants when applicable.
 - When changing a request or response, test both Pydantic validation and the HTTP status/body exposed by the route.
+- Test behavior owned by this project, not behavior already guaranteed by Pydantic, Python, or another dependency. A test that only proves `model_validate()` rejects a primitive with the wrong shape, or that `dict.update()` works, adds no useful coverage.
+- Avoid duplicate tests across schema, task, and route layers. Keep more than one only when each protects a distinct boundary, such as a custom model invariant at the schema layer and its documented `400` mapping at the HTTP layer.
+- Prefer direct assertions against the expected public data. Do not build the expected result by calling the same validator or helper used by the code under test.
+- Shared retry and parsing mechanics need task-level coverage only where the task adds behavior to that path. Do not repeat assertions about generic repair-instruction wording in every task test.
 - Preserve async tests and mark standalone async task/client tests with `pytest.mark.asyncio`; the project config uses pytest's auto asyncio mode.
 
 ## API And Documentation Changes
