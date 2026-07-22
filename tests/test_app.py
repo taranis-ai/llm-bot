@@ -2,6 +2,7 @@ from llm_bot.client import UpstreamLLMError
 from llm_bot.schemas import (
     ClusterIds,
     ClusterResponse,
+    EntityRelationshipExtractionResponse,
     LinkedNerResponse,
     NerResponse,
     SentimentResponse,
@@ -44,6 +45,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["cybersec_classification"] == "/cybersec-classification"
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
+    assert body["endpoints"]["entity_relationship_extraction"] == "/entity-relationship-extraction"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert "llm_reasoning_effort" not in body["current"]
     assert body["current"]["lookup_base_url_configured"] is True
@@ -63,6 +65,7 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "openapi: 3.1.0" in body
     assert "version: 9.9.9" in body
     assert "/docs:" in body
+    assert "/entity-relationship-extraction:" in body
 
 
 async def test_docs_endpoint(app):
@@ -558,6 +561,69 @@ async def test_cluster_endpoint_rejects_invalid_payload(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid Cluster request payload"}
+
+
+async def test_entity_relationship_extraction_endpoint(app, monkeypatch):
+    async def fake_extract_entity_relationships(request_model):
+        assert request_model.text == "APT28 exploited CVE-2025-1234."
+        assert request_model.schema.entity_types[0].name == "ThreatActor"
+        return EntityRelationshipExtractionResponse.model_validate(
+            {
+                "entities": [
+                    {
+                        "id": "e1",
+                        "type": "ThreatActor",
+                        "name": "APT28",
+                    }
+                ],
+                "relations": [],
+            }
+        )
+
+    monkeypatch.setattr(
+        "llm_bot.routes.extract_entity_relationships", fake_extract_entity_relationships
+    )
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/entity-relationship-extraction",
+        json={
+            "text": "APT28 exploited CVE-2025-1234.",
+            "schema": {
+                "entity_types": [
+                    {"name": "ThreatActor", "description": "A named threat actor"}
+                ],
+                "relation_types": [],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert await response.get_json() == {
+        "entities": [
+            {
+                "id": "e1",
+                "type": "ThreatActor",
+                "name": "APT28",
+            }
+        ],
+        "relations": [],
+    }
+
+
+async def test_entity_relationship_extraction_endpoint_rejects_invalid_schema(app):
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/entity-relationship-extraction",
+        json={
+            "text": "APT28 exploited CVE-2025-1234.",
+            "schema": {"entity_types": [], "relation_types": []},
+        },
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {
+        "error": "Invalid entity relationship extraction request payload"
+    }
 
 async def test_sentiment_endpoint(app, monkeypatch):
     async def fake_analyze_sentiment(request_model):
