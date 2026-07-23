@@ -312,6 +312,8 @@ Response body:
 ```
 
 This endpoint performs NER only. It does not run entity linking.
+If both the initial response and its repair are truncated, the service returns only complete,
+schema-valid entity/type pairs from the repaired response and discards its incomplete suffix.
 
 If `API_KEY` is configured, send it as:
 
