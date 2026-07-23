@@ -178,10 +178,15 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
         {"role": "user", "content": request.text},
     ]
 
+
 def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list[str]) -> NerResponse:
     output_text = get_output_text(response_data)
     logger.debug("Raw NER output: %s", output_text)
     parsed_output = loads_json_output(output_text)
+    return _validate_ner_output(parsed_output, allowed_entity_types)
+
+
+def _validate_ner_output(parsed_output: Any, allowed_entity_types: list[str]) -> NerResponse:
     postprocessed_output = postprocess_entities(parsed_output)
     logger.debug("Postprocessed NER output: %s", json.dumps(postprocessed_output, ensure_ascii=True, default=str))
     logger.debug("Allowed NER entity types: %s", ", ".join(allowed_entity_types))
@@ -193,6 +198,64 @@ def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list
             f"Allowed entity types: {', '.join(allowed_entity_types)}"
         )
     return response
+
+
+def _recover_complete_ner_pairs(output_text: str) -> dict[str, Any]:
+    object_start = output_text.rfind("{")
+    if object_start == -1:
+        raise InvalidLLMOutputError("Truncated NER output did not contain a JSON object")
+
+    truncated_object = output_text[object_start:].rstrip()
+    comma_indexes: list[int] = []
+    depth = 0
+    in_string = False
+    escaped = False
+    closed_object = False
+    for index, char in enumerate(truncated_object):
+        if escaped:
+            escaped = False
+            continue
+        if in_string and char == "\\":
+            escaped = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                closed_object = True
+        elif char == "," and depth == 1:
+            comma_indexes.append(index)
+
+    if closed_object:
+        raise InvalidLLMOutputError("NER output was invalid but did not appear to be truncated")
+
+    candidates = [truncated_object + "}"]
+    candidates.extend(truncated_object[:comma_index] + "}" for comma_index in reversed(comma_indexes))
+    for candidate in candidates:
+        try:
+            recovered = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(recovered, dict) and recovered:
+            return recovered
+
+    raise InvalidLLMOutputError("Truncated NER output did not contain any complete entity pairs")
+
+
+def recover_ner_response(response_data: dict[str, Any], allowed_entity_types: list[str]) -> NerResponse:
+    output_text = get_output_text(response_data)
+    recovered_output = _recover_complete_ner_pairs(output_text)
+    logger.warning(
+        "Recovered %d complete entity pairs from truncated NER output; discarded the incomplete suffix",
+        len(recovered_output),
+    )
+    return _validate_ner_output(recovered_output, allowed_entity_types)
 
 
 def get_ner_response_format(allowed_entity_types: list[str]) -> dict[str, Any]:
@@ -224,4 +287,5 @@ async def extract_entities(request: NerRequest, client: LLMClient | None = None)
         system_input=system_message["content"],
         response_format=get_ner_response_format(allowed_entity_types),
         parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
+        recover_response=lambda response_data: recover_ner_response(response_data, allowed_entity_types),
     )

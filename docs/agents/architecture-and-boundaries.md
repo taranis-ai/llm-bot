@@ -58,7 +58,7 @@ Each primary task module generally owns:
 - parsing and validating model output
 - creating or accepting an injectable client
 
-Shared output extraction, noisy-JSON recovery, reasoning handling, and repair live in `llm_utils.py` and `reasoning.py`. Shared story formatting, language selection, and truncation live in `task_utils.py`. NER cleanup lives in `ner_postprocessing.py`. Reuse these boundaries rather than duplicating their behavior.
+Shared output extraction, noisy-JSON recovery, reasoning handling, and repair live in `llm_utils.py` and `reasoning.py`. Shared story formatting, language selection, and truncation live in `task_utils.py`. NER cleanup lives in `ner_postprocessing.py`. After the common repair attempt fails, NER may recover complete, schema-valid entity pairs from a truncated JSON object while discarding its incomplete suffix. Reuse these boundaries rather than duplicating their behavior.
 
 Prompts, JSON Schema definitions, and Pydantic response models form one contract. Change and test them together. Never trust structured-output support alone: all model output must still pass local parsing and Pydantic/task-specific validation.
 

@@ -10,6 +10,7 @@ from llm_bot.tasks.ner import (
 from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
 from tests.test_helpers import StubLLMClient
 
+
 @pytest.fixture(autouse=True)
 def use_current_ner_entity_types(monkeypatch):
     monkeypatch.setattr(
@@ -213,6 +214,45 @@ async def test_extract_entities_retries_once_on_invalid_json():
     assert response == NerResponse({"APT29": "GROUP", "Mimikatz": "TOOL"})
     assert len(client.calls) == 2
     assert "Your previous response was invalid." in client.calls[1]["system_input"]
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_recovers_complete_pairs_when_repair_is_truncated():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"DeepSeek":"ORG","Aam'},
+            {"output_text": ('{"DeepSeek":"ORG","Nvidia":"ORG","Microsoft":"ORG","cloudflare":"ORG","Xi Jinping":"PER","Aam')},
+        ]
+    )
+
+    response = await extract_entities(
+        NerRequest(text="DeepSeek, Nvidia, Microsoft, cloudflare, Xi Jinping, and Aam Saltman."),
+        client=client,
+    )
+
+    assert response == NerResponse(
+        {
+            "DeepSeek": "ORG",
+            "Nvidia": "ORG",
+            "Microsoft": "ORG",
+            "cloudflare": "ORG",
+            "Xi Jinping": "PER",
+        }
+    )
+    assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_extract_entities_does_not_recover_when_no_pairs_are_complete():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"Deep'},
+            {"output_text": '{"DeepSeek'},
+        ]
+    )
+
+    with pytest.raises(ValueError, match="No JSON object found"):
+        await extract_entities(NerRequest(text="DeepSeek."), client=client)
 
 
 @pytest.mark.asyncio
