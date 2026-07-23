@@ -29,7 +29,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relationship-extraction`
+- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relation-extraction`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -319,7 +319,7 @@ If `API_KEY` is configured, send it as:
 Authorization: Bearer <API_KEY>
 ```
 
-### `POST /entity-relationship-extraction`
+### `POST /entity-relation-extraction`
 
 Extracts schema-constrained entities and directed relationships using only information explicitly
 stated in the supplied text. Entity and relation type names are caller-defined. Relation source

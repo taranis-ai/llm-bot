@@ -682,7 +682,7 @@ paths:
               example:
                 error: "Failed to cluster stories"
 
-  /entity-relationship-extraction:
+  /entity-relation-extraction:
     post:
       tags:
         - Entity Relationship Extraction

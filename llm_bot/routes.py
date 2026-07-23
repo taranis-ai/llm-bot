@@ -141,7 +141,7 @@ def build_info_response() -> dict[str, object]:
             "ner_link": "/ner-link",
             "link": "/link",
             "cluster": "/cluster",
-            "entity_relationship_extraction": "/entity-relationship-extraction",
+            "entity_relation_extraction": "/entity-relation-extraction",
         },
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,
@@ -281,7 +281,7 @@ def create_api_blueprint() -> Blueprint:
             task=cluster_stories,
         )
 
-    @api.post("/entity-relationship-extraction")
+    @api.post("/entity-relation-extraction")
     @api_key_required
     async def entity_relationship_extraction_view() -> tuple[dict[str, str], int]:
         return await _handle_model_request(
