@@ -138,6 +138,7 @@ async def create_and_parse_response(
     system_input: str,
     response_format: dict[str, Any] | None,
     parse_response: Callable[[dict[str, Any]], T],
+    recover_response: Callable[[dict[str, Any]], T] | None = None,
 ) -> T:
     system_input = apply_reasoning_profile(system_input)
     response_data = await client.create_response(system_input, user_input, response_format)
@@ -153,4 +154,14 @@ async def create_and_parse_response(
             response_format,
         )
         _log_response_payload(task_name, repair_response_data, attempt="repair")
-        return parse_response(repair_response_data)
+        try:
+            return parse_response(repair_response_data)
+        except (json.JSONDecodeError, ValidationError, InvalidLLMOutputError) as repair_error:
+            if recover_response is None:
+                raise
+            logger.warning("Invalid %s repair output, attempting recovery: %s", task_name, repair_error)
+            try:
+                return recover_response(repair_response_data)
+            except (json.JSONDecodeError, ValidationError, InvalidLLMOutputError) as recovery_error:
+                logger.warning("%s output recovery failed: %s", task_name, recovery_error)
+                raise repair_error from recovery_error
