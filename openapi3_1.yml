@@ -6,7 +6,8 @@ info:
 
     The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
-    extraction, and cybersecurity classification routes backed by an OpenAI-compatible API.
+    extraction, graph query generation, and cybersecurity classification routes backed by an
+    OpenAI-compatible API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -800,6 +801,85 @@ paths:
               example:
                 error: "Failed to extract entity relationships"
 
+  /graph-query-generation:
+    post:
+      tags:
+        - Graph Query Generation
+      summary: Generate a schema-constrained read-only Cypher query
+      description: |
+        Generates AGE-compatible read-only Cypher and a separate parameters object
+        from a natural-language question and caller-supplied graph schema. The
+        service validates labels, relationship directions, properties, parameters,
+        prohibited clauses, and the bounded LIMIT. It does not execute the query,
+        access PostgreSQL, or persist data. `graph_name` is passed to the model only
+        as caller context and is never embedded in the generated Cypher.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: generateGraphQuery
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphQueryGenerationRequest"
+            example:
+              question: Which organization employs Alice?
+              graph_name: knowledge_graph
+              schema:
+                node_labels:
+                  - label: Person
+                    properties:
+                      - name: name
+                        type: string
+                  - label: Organization
+                    properties:
+                      - name: name
+                        type: string
+                relationship_types:
+                  - type: WORKS_AT
+                    source_labels: [Person]
+                    target_labels: [Organization]
+                    properties: []
+                default_limit: 25
+                maximum_limit: 100
+      responses:
+        "200":
+          description: A validated read-only Cypher query was generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphQueryGenerationResponse"
+              example:
+                cypher: "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"
+                parameters:
+                  person_name: Alice
+                explanation: Returns organizations that employ the named person.
+        "400":
+          description: Invalid question or graph schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid graph query generation request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Upstream LLM or generated-query validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to generate graph query"
+
   /health:
     get:
       tags:
@@ -1332,6 +1412,147 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExtractedRelation"
+    GraphQueryableProperty:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+        type:
+          type: string
+          nullable: true
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+          minLength: 1
+    GraphNodeLabel:
+      type: object
+      additionalProperties: false
+      required:
+        - label
+        - properties
+      properties:
+        label:
+          type: string
+          minLength: 1
+          pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+        properties:
+          type: array
+          description: Queryable properties for this node label; names must be unique.
+          items:
+            $ref: "#/components/schemas/GraphQueryableProperty"
+    GraphRelationshipType:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - source_labels
+        - target_labels
+      properties:
+        type:
+          type: string
+          minLength: 1
+          pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+        source_labels:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+        target_labels:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+        properties:
+          type: array
+          default: []
+          description: Queryable relationship properties; names must be unique.
+          items:
+            $ref: "#/components/schemas/GraphQueryableProperty"
+    GraphQuerySchema:
+      type: object
+      additionalProperties: false
+      required:
+        - node_labels
+        - relationship_types
+        - default_limit
+        - maximum_limit
+      properties:
+        node_labels:
+          type: array
+          minItems: 1
+          description: Allowed node labels; labels must be unique.
+          items:
+            $ref: "#/components/schemas/GraphNodeLabel"
+        relationship_types:
+          type: array
+          description: |
+            Allowed directed relationships. Source and target labels must reference
+            labels declared in node_labels, and relationship type names must be unique.
+          items:
+            $ref: "#/components/schemas/GraphRelationshipType"
+        default_limit:
+          type: integer
+          minimum: 1
+          description: LIMIT used when the question does not request a smaller result count.
+        maximum_limit:
+          type: integer
+          minimum: 1
+          description: |
+            Hard upper bound for the generated LIMIT. It must be greater than or
+            equal to default_limit.
+    GraphQueryGenerationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - question
+        - graph_name
+        - schema
+      properties:
+        question:
+          type: string
+          minLength: 1
+        graph_name:
+          type: string
+          minLength: 1
+          description: |
+            Fixed graph name from the caller contract. It is not included in the
+            generated Cypher and must be bound separately by the caller.
+        schema:
+          $ref: "#/components/schemas/GraphQuerySchema"
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
+        thinking_budget_tokens:
+          $ref: "#/components/schemas/ThinkingBudgetTokens"
+    GraphQueryGenerationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cypher
+        - parameters
+        - explanation
+      properties:
+        cypher:
+          type: string
+          minLength: 1
+          description: Validated AGE-compatible read-only Cypher without an AGE SQL wrapper.
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Values keyed by the named placeholders used in cypher.
+        explanation:
+          type: string
+          minLength: 1
+          maxLength: 500
     LinkedEntity:
       type: object
       additionalProperties: false
@@ -1531,5 +1752,7 @@ tags:
     description: Entity linking operations
   - name: Clustering
     description: Story clustering operations
+  - name: Graph Query Generation
+    description: Stateless schema-constrained Cypher generation
   - name: System
     description: Health and info endpoints
