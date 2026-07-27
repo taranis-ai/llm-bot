@@ -3,8 +3,8 @@
 LLM-backed bot service.
 
 The current implementation exposes embeddings, sentiment analysis, title generation, summary, named entity
-recognition, entity relationship extraction, translation, linking, clustering, and cybersecurity classification endpoints backed
-by OpenAI-compatible APIs.
+recognition, entity relationship extraction, graph query generation, translation, linking, clustering, and
+cybersecurity classification endpoints backed by OpenAI-compatible APIs.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relation-extraction`
+- `API_KEY`: protects incoming requests to `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -408,6 +408,68 @@ Response body:
 ```
 
 If no schema-valid explicit extraction exists, both response lists are empty.
+
+### `POST /graph-query-generation`
+
+Generates one AGE-compatible, read-only Cypher query from a natural-language question and a
+caller-supplied graph schema. The service returns parameters separately, validates the query
+against the allowed labels, relationship directions, and queryable properties, and requires a
+bounded `LIMIT`. It does not execute Cypher, connect to PostgreSQL, or persist anything.
+
+`graph_name` is part of the caller contract but is never embedded in the generated Cypher. The
+caller must bind that fixed name separately when it executes the returned query.
+
+Request body:
+
+```json
+{
+  "question": "Which organization employs Alice?",
+  "graph_name": "knowledge_graph",
+  "schema": {
+    "node_labels": [
+      {
+        "label": "Person",
+        "properties": [
+          {"name": "name", "type": "string"}
+        ]
+      },
+      {
+        "label": "Organization",
+        "properties": [
+          {"name": "name", "type": "string"}
+        ]
+      }
+    ],
+    "relationship_types": [
+      {
+        "type": "WORKS_AT",
+        "source_labels": ["Person"],
+        "target_labels": ["Organization"],
+        "properties": []
+      }
+    ],
+    "default_limit": 25,
+    "maximum_limit": 100
+  }
+}
+```
+
+Response body:
+
+```json
+{
+  "cypher": "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25",
+  "parameters": {
+    "person_name": "Alice"
+  },
+  "explanation": "Returns organizations that employ the named person."
+}
+```
+
+Only standard unquoted identifiers are accepted in the supplied graph schema. Generated values
+must use named `$parameter` placeholders. Mutations, procedures, administration, external data
+loading, dynamic schema access, comments, multiple statements, and unbounded results are rejected.
+Invalid model output receives the service's standard single repair attempt.
 
 ### `POST /ner-link`
 

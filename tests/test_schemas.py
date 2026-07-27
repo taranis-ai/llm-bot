@@ -1,7 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from llm_bot.schemas import EntityRelationshipExtractionRequest, SummarizeRequest, TitleRequest
+from llm_bot.schemas import (
+    EntityRelationshipExtractionRequest,
+    GraphQueryGenerationRequest,
+    SummarizeRequest,
+    TitleRequest,
+)
 
 
 def test_summarize_request_accepts_text_input():
@@ -142,4 +147,47 @@ def test_entity_relationship_request_rejects_invalid_schema(schema_update, error
     with pytest.raises(ValidationError, match=error):
         EntityRelationshipExtractionRequest.model_validate(
             {"text": "Some text", "schema": schema}
+        )
+
+
+def test_graph_query_request_rejects_unknown_relationship_label():
+    with pytest.raises(ValidationError, match="reference unknown node labels"):
+        GraphQueryGenerationRequest.model_validate(
+            {
+                "question": "What is connected?",
+                "graph_name": "example",
+                "schema": {
+                    "node_labels": [
+                        {
+                            "label": "Known",
+                            "properties": [{"name": "name", "type": "string"}],
+                        }
+                    ],
+                    "relationship_types": [
+                        {
+                            "type": "CONNECTS",
+                            "source_labels": ["Known"],
+                            "target_labels": ["Unknown"],
+                        }
+                    ],
+                    "default_limit": 10,
+                    "maximum_limit": 100,
+                },
+            }
+        )
+
+
+def test_graph_query_request_rejects_default_limit_above_maximum():
+    with pytest.raises(ValidationError, match="default limit must not exceed maximum"):
+        GraphQueryGenerationRequest.model_validate(
+            {
+                "question": "List known nodes",
+                "graph_name": "example",
+                "schema": {
+                    "node_labels": [{"label": "Known", "properties": []}],
+                    "relationship_types": [],
+                    "default_limit": 101,
+                    "maximum_limit": 100,
+                },
+            }
         )

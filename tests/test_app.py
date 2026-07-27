@@ -1,8 +1,10 @@
+from llm_bot.client import UpstreamLLMError
 from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.schemas import (
     ClusterIds,
     ClusterResponse,
     EntityRelationshipExtractionResponse,
+    GraphQueryGenerationResponse,
     LinkedNerResponse,
     NerResponse,
     SentimentResponse,
@@ -49,6 +51,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
+    assert body["endpoints"]["graph_query_generation"] == "/graph-query-generation"
     assert body["endpoints"]["embed"] == "/embed"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
@@ -110,6 +113,7 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "version: 9.9.9" in body
     assert "/docs:" in body
     assert "/entity-relation-extraction:" in body
+    assert "/graph-query-generation:" in body
 
 
 async def test_docs_endpoint(app):
@@ -611,9 +615,97 @@ async def test_entity_relationship_extraction_endpoint_rejects_invalid_schema(ap
     )
 
     assert response.status_code == 400
+    assert await response.get_json() == {"error": "Invalid entity relationship extraction request payload"}
+
+
+async def test_graph_query_generation_endpoint(app, monkeypatch):
+    async def fake_generate_graph_query(request_model):
+        assert request_model.question == "Which organization employs Alice?"
+        assert request_model.graph_name == "knowledge_graph"
+        assert request_model.schema.maximum_limit == 100
+        return GraphQueryGenerationResponse.model_validate(
+            {
+                "cypher": (
+                    "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"
+                ),
+                "parameters": {"person_name": "Alice"},
+                "explanation": "Returns Alice's employer.",
+            }
+        )
+
+    monkeypatch.setattr("llm_bot.routes.generate_graph_query", fake_generate_graph_query)
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/graph-query-generation",
+        json={
+            "question": "Which organization employs Alice?",
+            "graph_name": "knowledge_graph",
+            "schema": {
+                "node_labels": [
+                    {
+                        "label": "Person",
+                        "properties": [{"name": "name", "type": "string"}],
+                    },
+                    {
+                        "label": "Organization",
+                        "properties": [{"name": "name", "type": "string"}],
+                    },
+                ],
+                "relationship_types": [
+                    {
+                        "type": "WORKS_AT",
+                        "source_labels": ["Person"],
+                        "target_labels": ["Organization"],
+                    }
+                ],
+                "default_limit": 25,
+                "maximum_limit": 100,
+            },
+        },
+    )
+
+    assert response.status_code == 200
     assert await response.get_json() == {
-        "error": "Invalid entity relationship extraction request payload"
+        "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"),
+        "parameters": {"person_name": "Alice"},
+        "explanation": "Returns Alice's employer.",
     }
+
+
+async def test_graph_query_generation_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/graph-query-generation",
+        json={"question": "List nodes", "graph_name": "knowledge_graph"},
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Invalid graph query generation request payload"}
+
+
+async def test_graph_query_generation_endpoint_returns_provider_failure(app, monkeypatch):
+    async def failing_generate_graph_query(_request_model):
+        raise UpstreamLLMError("provider unavailable")
+
+    monkeypatch.setattr("llm_bot.routes.generate_graph_query", failing_generate_graph_query)
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/graph-query-generation",
+        json={
+            "question": "List people",
+            "graph_name": "knowledge_graph",
+            "schema": {
+                "node_labels": [{"label": "Person", "properties": []}],
+                "relationship_types": [],
+                "default_limit": 25,
+                "maximum_limit": 100,
+            },
+        },
+    )
+
+    assert response.status_code == 502
+    assert await response.get_json() == {"error": "Failed to generate graph query: provider unavailable"}
+
 
 async def test_sentiment_endpoint(app, monkeypatch):
     async def fake_analyze_sentiment(request_model):

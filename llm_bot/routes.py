@@ -16,6 +16,7 @@ from llm_bot.schemas import (
     CybersecClassificationRequest,
     EmbedRequest,
     EntityRelationshipExtractionRequest,
+    GraphQueryGenerationRequest,
     LinkRequest,
     NerLinkRequest,
     NerRequest,
@@ -29,6 +30,7 @@ from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
 from llm_bot.tasks.embed import embed_text
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
+from llm_bot.tasks.graph_query_generation import generate_graph_query
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
 from llm_bot.tasks.ner_link import extract_and_link
@@ -145,6 +147,7 @@ def build_info_response() -> dict[str, object]:
             "link": "/link",
             "cluster": "/cluster",
             "entity_relation_extraction": "/entity-relation-extraction",
+            "graph_query_generation": "/graph-query-generation",
             "embed": "/embed",
         },
         "current": {
@@ -308,6 +311,17 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to extract entity relationships",
             request_model_factory=EntityRelationshipExtractionRequest.model_validate,
             task=extract_entity_relationships,
+        )
+
+    @api.post("/graph-query-generation")
+    @api_key_required
+    async def graph_query_generation_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Graph query generation",
+            validation_error_message="Invalid graph query generation request payload",
+            processing_error_message="Failed to generate graph query",
+            request_model_factory=GraphQueryGenerationRequest.model_validate,
+            task=generate_graph_query,
         )
 
     return api
