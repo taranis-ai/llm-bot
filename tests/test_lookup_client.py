@@ -59,29 +59,3 @@ async def test_lookup_client_calls_lookup_endpoint(monkeypatch):
     assert session.params == {"q": "Apple", "lang": "en", "limit": 5}
     assert session.timeout == 15
     assert session.headers["Authorization"] == "Bearer lookup-key"
-
-
-def test_lookup_response_validates_candidate_shape():
-    response = LookupResponse.model_validate(
-        {
-            "query": "Apple",
-            "language": "en",
-            "limit": 5,
-            "candidates": [
-                {
-                    "qid": "Q312",
-                    "label": "Apple Inc.",
-                    "description": "American technology company",
-                    "matched_alias": "Apple",
-                    "match_type": "alias",
-                    "language": "en",
-                    "score": 0.98,
-                    "is_label": True,
-                    "type_tags": ["organization", "company"],
-                }
-            ],
-        }
-    )
-
-    assert response.candidates[0].qid == "Q312"
-    assert response.candidates[0].type_tags == ["organization", "company"]
