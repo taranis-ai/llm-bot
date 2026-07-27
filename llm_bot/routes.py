@@ -12,11 +12,13 @@ from llm_bot.config import Config
 from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.log import logger
 from llm_bot.schemas import (
+    ChatRequest,
     ClusterRequest,
     CybersecClassificationRequest,
     EmbedRequest,
     EntityRelationshipExtractionRequest,
     GraphQueryGenerationRequest,
+    HragRequest,
     LinkRequest,
     NerLinkRequest,
     NerRequest,
@@ -25,12 +27,14 @@ from llm_bot.schemas import (
     TitleRequest,
     TranslateRequest,
 )
+from llm_bot.tasks.chat import chat
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
 from llm_bot.tasks.embed import embed_text
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
 from llm_bot.tasks.graph_query_generation import generate_graph_query
+from llm_bot.tasks.hrag import answer_with_hrag
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
 from llm_bot.tasks.ner_link import extract_and_link
@@ -149,6 +153,8 @@ def build_info_response() -> dict[str, object]:
             "entity_relation_extraction": "/entity-relation-extraction",
             "graph_query_generation": "/graph-query-generation",
             "embed": "/embed",
+            "chat": "/chat",
+            "hrag": "/hrag",
         },
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,
@@ -198,6 +204,28 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to analyze sentiment",
             request_model_factory=SentimentRequest.model_validate,
             task=analyze_sentiment,
+        )
+
+    @api.post("/chat")
+    @api_key_required
+    async def chat_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Chat",
+            validation_error_message="Invalid chat request payload",
+            processing_error_message="Failed to generate chat response",
+            request_model_factory=ChatRequest.model_validate,
+            task=chat,
+        )
+
+    @api.post("/hrag")
+    @api_key_required
+    async def hrag_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="HRAG",
+            validation_error_message="Invalid HRAG request payload",
+            processing_error_message="Failed to generate grounded answer",
+            request_model_factory=HragRequest.model_validate,
+            task=answer_with_hrag,
         )
 
     @api.post("/embed")
