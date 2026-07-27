@@ -1,10 +1,12 @@
 from llm_bot.client import UpstreamLLMError
 from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.schemas import (
+    ChatResponse,
     ClusterIds,
     ClusterResponse,
     EntityRelationshipExtractionResponse,
     GraphQueryGenerationResponse,
+    HragResponse,
     LinkedNerResponse,
     NerResponse,
     SentimentResponse,
@@ -53,6 +55,8 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
     assert body["endpoints"]["graph_query_generation"] == "/graph-query-generation"
     assert body["endpoints"]["embed"] == "/embed"
+    assert body["endpoints"]["chat"] == "/chat"
+    assert body["endpoints"]["hrag"] == "/hrag"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
@@ -126,6 +130,107 @@ async def test_docs_endpoint(app):
     assert response.mimetype == "text/html"
     assert 'url: "/openapi.yaml"' in body
     assert "SwaggerUIBundle" in body
+
+
+async def test_chat_endpoint(app, monkeypatch):
+    async def fake_chat(request_model):
+        assert request_model.message == "Hello"
+        assert request_model.messages[0].role == "assistant"
+        assert request_model.reasoning_effort == "high"
+        return ChatResponse(answer="Hello there.", model="example-model")
+
+    monkeypatch.setattr("llm_bot.routes.chat", fake_chat)
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/chat",
+        json={
+            "message": "Hello",
+            "messages": [{"role": "assistant", "content": "How can I help?"}],
+            "reasoning_effort": "high",
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"answer": "Hello there.", "model": "example-model"}
+
+
+async def test_chat_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/chat", json={"message": ""})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid chat request payload"}
+
+
+async def test_hrag_endpoint(app, monkeypatch):
+    async def fake_answer_with_hrag(request_model):
+        assert request_model.question == "Who operates the service?"
+        assert request_model.passages[0].source == "report.pdf#page=2"
+        assert request_model.graph_facts[0].id == "fact-1"
+        return HragResponse(
+            answer="Example Corp operates it.",
+            citations=["passage-1", "fact-1"],
+            insufficient_evidence=False,
+        )
+
+    monkeypatch.setattr(
+        "llm_bot.routes.answer_with_hrag",
+        fake_answer_with_hrag,
+    )
+
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/hrag",
+        json={
+            "question": "Who operates the service?",
+            "passages": [
+                {
+                    "id": "passage-1",
+                    "source": "report.pdf#page=2",
+                    "text": "Example Corp operates the service.",
+                }
+            ],
+            "graph_facts": [
+                {
+                    "id": "fact-1",
+                    "source": "graph://service/42",
+                    "fact": "Example Corp -[OPERATES]-> Service 42",
+                }
+            ],
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {
+        "answer": "Example Corp operates it.",
+        "citations": ["passage-1", "fact-1"],
+        "insufficient_evidence": False,
+    }
+
+
+async def test_hrag_endpoint_rejects_duplicate_evidence_ids(app):
+    test_client = app.test_client()
+    response = await test_client.post(
+        "/hrag",
+        json={
+            "question": "What happened?",
+            "passages": [
+                {"id": "same", "source": "document", "text": "A passage"}
+            ],
+            "graph_facts": [
+                {"id": "same", "source": "graph", "fact": "A fact"}
+            ],
+        },
+    )
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid HRAG request payload"}
 
 
 async def test_cybersec_classification_endpoint(app, monkeypatch):
