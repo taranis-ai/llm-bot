@@ -1,6 +1,11 @@
+import re
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
+
+
+GRAPH_IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*$"
 
 
 class EmotionLabel(StrEnum):
@@ -292,6 +297,98 @@ class EntityRelationshipExtractionResponse(BaseModel):
 
     entities: list[ExtractedEntity]
     relations: list[ExtractedRelation]
+
+
+class GraphQueryableProperty(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
+    type: str | None = Field(default=None, min_length=1)
+    description: str | None = Field(default=None, min_length=1)
+
+
+class GraphNodeLabel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
+    properties: list[GraphQueryableProperty]
+
+    @model_validator(mode="after")
+    def validate_property_names(self) -> "GraphNodeLabel":
+        property_names = [prop.name for prop in self.properties]
+        if len(property_names) != len(set(property_names)):
+            raise ValueError(f"Property names for node label {self.label} must be unique")
+        return self
+
+
+class GraphRelationshipType(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
+    source_labels: list[str] = Field(min_length=1)
+    target_labels: list[str] = Field(min_length=1)
+    properties: list[GraphQueryableProperty] = Field(default_factory=list)
+
+    @field_validator("source_labels", "target_labels")
+    @classmethod
+    def validate_label_names(cls, labels: list[str]) -> list[str]:
+        if len(labels) != len(set(labels)):
+            raise ValueError("Relationship source_labels and target_labels must not contain duplicates")
+        for label in labels:
+            if not label or not re.fullmatch(GRAPH_IDENTIFIER_PATTERN, label):
+                raise ValueError("Relationship source_labels and target_labels must contain valid identifiers")
+        return labels
+
+    @model_validator(mode="after")
+    def validate_property_names(self) -> "GraphRelationshipType":
+        property_names = [prop.name for prop in self.properties]
+        if len(property_names) != len(set(property_names)):
+            raise ValueError(f"Property names for relationship type {self.type} must be unique")
+        return self
+
+
+class GraphQuerySchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_labels: list[GraphNodeLabel] = Field(min_length=1)
+    relationship_types: list[GraphRelationshipType]
+    default_limit: int = Field(ge=1)
+    maximum_limit: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def validate_schema_references(self) -> "GraphQuerySchema":
+        node_labels = [node.label for node in self.node_labels]
+        if len(node_labels) != len(set(node_labels)):
+            raise ValueError("Graph node labels must be unique")
+
+        relationship_types = [relationship.type for relationship in self.relationship_types]
+        if len(relationship_types) != len(set(relationship_types)):
+            raise ValueError("Graph relationship types must be unique")
+
+        known_labels = set(node_labels)
+        referenced_labels = {
+            label for relationship in self.relationship_types for label in relationship.source_labels + relationship.target_labels
+        }
+        unknown_labels = sorted(referenced_labels - known_labels)
+        if unknown_labels:
+            raise ValueError("Relationship constraints reference unknown node labels: " + ", ".join(unknown_labels))
+        if self.default_limit > self.maximum_limit:
+            raise ValueError("Graph query default limit must not exceed maximum")
+        return self
+
+
+class GraphQueryGenerationRequest(LLMRequest):
+    question: str = Field(min_length=1)
+    graph_name: str = Field(min_length=1)
+    schema: GraphQuerySchema
+
+
+class GraphQueryGenerationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cypher: str = Field(min_length=1)
+    parameters: dict[str, Any]
+    explanation: str = Field(min_length=1, max_length=500)
 
 
 class LinkedEntity(BaseModel):
