@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     LLM_REASONING_PROFILE: str = "none"
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
+    EMBEDDING_BASE_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_MODEL: str = ""
+    EMBEDDING_TIMEOUT: int = 120
     LOOKUP_BASE_URL: str = ""
     LOOKUP_API_KEY: str = ""
     LOOKUP_DEFAULT_LANGUAGE: str = "en"

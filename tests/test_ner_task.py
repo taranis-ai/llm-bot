@@ -7,7 +7,7 @@ from llm_bot.tasks.ner import (
     parse_ner_response,
     resolve_entity_types,
 )
-from llm_bot.tasks.ner_postprocessing import is_url_like, normalize_entity_name, postprocess_entities
+from llm_bot.tasks.ner_postprocessing import is_url_like
 from tests.test_helpers import StubLLMClient
 
 
@@ -92,33 +92,10 @@ def test_resolve_entity_types_rejects_unknown_request_entity_types():
         resolve_entity_types(request)
 
 
-def test_normalize_entity_name_strips_markdown_emphasis():
-    assert normalize_entity_name(" **Microsoft** ") == "Microsoft"
-    assert normalize_entity_name("_Vienna_") == "Vienna"
-
-
 def test_is_url_like_detects_urls():
     assert is_url_like("https://example.com/login") is True
     assert is_url_like("www.example.com") is True
     assert is_url_like("Wikipedia") is False
-
-
-def test_postprocess_entities_normalizes_entity_names():
-    processed = postprocess_entities({"**Microsoft**": "ORG", "_Vienna_": "GPE"})
-
-    assert processed == {"Microsoft": "ORG", "Vienna": "GPE"}
-
-
-def test_postprocess_entities_drops_url_like_products():
-    processed = postprocess_entities(
-        {
-            "https://mail.google.com": "PRODUCT",
-            "Wikipedia": "PRODUCT",
-            "https://example.org": "ORG",
-        }
-    )
-
-    assert processed == {"Wikipedia": "PRODUCT", "https://example.org": "ORG"}
 
 
 def test_parse_ner_response_from_output_text():

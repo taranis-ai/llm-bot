@@ -57,6 +57,18 @@ class LLMRequest(BaseModel):
     thinking_budget_tokens: int | None = Field(default=None, ge=0)
 
 
+class EmbedRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1)
+
+
+class EmbedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    embedding: list[float] = Field(min_length=1)
+
+
 class SummarizeRequest(LLMRequest):
 
     text: str | None = Field(default=None, min_length=1)

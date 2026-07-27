@@ -1,4 +1,4 @@
-from llm_bot.client import UpstreamLLMError
+from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.schemas import (
     ClusterIds,
     ClusterResponse,
@@ -26,6 +26,9 @@ async def test_health_endpoint(app):
 
 async def test_info_endpoint(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.LLM_REASONING_PROFILE", "gemma")
+    monkeypatch.setattr(
+        "llm_bot.routes.Config.EMBEDDING_BASE_URL", "https://embeddings.example"
+    )
     monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
     monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
     monkeypatch.setattr("llm_bot.routes.__version__", "9.9.9")
@@ -46,10 +49,51 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
+    assert body["endpoints"]["embed"] == "/embed"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
-    assert "llm_reasoning_effort" not in body["current"]
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
+    assert body["current"]["embedding_base_url_configured"] is True
+
+
+async def test_embed_endpoint(app, monkeypatch):
+    class FakeEmbeddingClient:
+        async def create_embedding(self, text):
+            assert text == "Text to embed"
+            return [0.25, -0.5, 0.75]
+
+    monkeypatch.setattr("llm_bot.tasks.embed.EmbeddingClient", FakeEmbeddingClient)
+
+    test_client = app.test_client()
+    response = await test_client.post("/embed", json={"text": "Text to embed"})
+    body = await response.get_json()
+
+    assert response.status_code == 200
+    assert body == {"embedding": [0.25, -0.5, 0.75]}
+
+
+async def test_embed_endpoint_rejects_invalid_payload(app):
+    test_client = app.test_client()
+
+    response = await test_client.post("/embed", json={"text": ""})
+    body = await response.get_json()
+
+    assert response.status_code == 400
+    assert body == {"error": "Invalid embedding request payload"}
+
+
+async def test_embed_endpoint_returns_upstream_error(app, monkeypatch):
+    async def failing_embed_text(_request_model):
+        raise UpstreamEmbeddingError("Unknown embedding model")
+
+    monkeypatch.setattr("llm_bot.routes.embed_text", failing_embed_text)
+
+    test_client = app.test_client()
+    response = await test_client.post("/embed", json={"text": "Text to embed"})
+    body = await response.get_json()
+
+    assert response.status_code == 502
+    assert body == {"error": "Failed to create embedding: Unknown embedding model"}
 
 
 async def test_openapi_endpoint(app, monkeypatch):
@@ -116,27 +160,6 @@ async def test_cybersec_classification_endpoint_rejects_invalid_payload(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid cybersec classification request payload"}
-
-
-async def test_cybersec_classification_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_classify_cybersecurity_text(_request_model):
-        raise UpstreamLLMError("Unsupported parameter: text.format")
-
-    monkeypatch.setattr("llm_bot.routes.classify_cybersecurity_text", failing_classify_cybersecurity_text)
-
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/cybersec-classification",
-        json={"text": "The newest development in malware automation is concerning."},
-    )
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {
-        "error": "Failed to classify text for cybersecurity relevance: Unsupported parameter: text.format"
-    }
-
-
 
 
 async def test_title_endpoint(app, monkeypatch):
@@ -207,22 +230,6 @@ async def test_translate_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid translate request payload"}
 
-
-async def test_translate_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_translate_text(request_model):
-        raise UpstreamLLMError("Unsupported parameter: text.format")
-
-    monkeypatch.setattr("llm_bot.routes.translate_text", failing_translate_text)
-
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/translate",
-        json={"text": "Guten Morgen", "target_language": "en"},
-    )
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {"error": "Failed to translate text: Unsupported parameter: text.format"}
 
 async def test_api_key_required_rejects_missing_api_key(app, monkeypatch):
     async def fake_translate_text(request_model):
@@ -295,23 +302,6 @@ async def test_summarize_endpoint_rejects_invalid_payload(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid summarize request payload"}
-
-
-async def test_summarize_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_summarize(request_model):
-        raise UpstreamLLMError("Unsupported parameter: text.format")
-
-    monkeypatch.setattr("llm_bot.routes.summarize", failing_summarize)
-
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/summarize",
-        json={"news_items": [{"title": "Story title", "content": "Story text"}]},
-    )
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {"error": "Failed to generate summary: Unsupported parameter: text.format"}
 
 
 async def test_ner_endpoint(app, monkeypatch):

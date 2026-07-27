@@ -9,10 +9,12 @@ from quart import Blueprint, Response, request
 from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
+from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ClusterRequest,
     CybersecClassificationRequest,
+    EmbedRequest,
     EntityRelationshipExtractionRequest,
     LinkRequest,
     NerLinkRequest,
@@ -24,6 +26,7 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
+from llm_bot.tasks.embed import embed_text
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
 from llm_bot.tasks.link_task import link_entities
@@ -108,7 +111,7 @@ async def _handle_model_request(
     except client_error_exceptions as exc:
         logger.warning("%s client error: %s", log_prefix, exc)
         return {"error": str(exc)}, 400
-    except UpstreamLLMError as exc:
+    except (UpstreamLLMError, UpstreamEmbeddingError) as exc:
         logger.error("%s upstream error: %s", log_prefix, exc)
         return {"error": f"{processing_error_message}: {exc}"}, 502
     except Exception:
@@ -142,6 +145,7 @@ def build_info_response() -> dict[str, object]:
             "link": "/link",
             "cluster": "/cluster",
             "entity_relation_extraction": "/entity-relation-extraction",
+            "embed": "/embed",
         },
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,
@@ -151,6 +155,9 @@ def build_info_response() -> dict[str, object]:
             "llm_reasoning_profile": Config.LLM_REASONING_PROFILE,
             "llm_strip_reasoning_output": Config.LLM_STRIP_REASONING_OUTPUT,
             "llm_parse_reasoning_as_output": Config.LLM_PARSE_REASONING_AS_OUTPUT,
+            "embedding_base_url_configured": bool(Config.EMBEDDING_BASE_URL),
+            "embedding_model": Config.EMBEDDING_MODEL,
+            "embedding_timeout": Config.EMBEDDING_TIMEOUT,
             "lookup_base_url_configured": bool(Config.LOOKUP_BASE_URL),
             "lookup_default_language": Config.LOOKUP_DEFAULT_LANGUAGE,
             "lookup_candidate_limit": Config.LOOKUP_CANDIDATE_LIMIT,
@@ -188,6 +195,17 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to analyze sentiment",
             request_model_factory=SentimentRequest.model_validate,
             task=analyze_sentiment,
+        )
+
+    @api.post("/embed")
+    @api_key_required
+    async def embed_view() -> tuple[dict[str, str], int]:
+        return await _handle_model_request(
+            log_prefix="Embedding",
+            validation_error_message="Invalid embedding request payload",
+            processing_error_message="Failed to create embedding",
+            request_model_factory=EmbedRequest.model_validate,
+            task=embed_text,
         )
 
     @api.post("/cybersec-classification")

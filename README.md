@@ -2,9 +2,9 @@
 
 LLM-backed bot service.
 
-The current implementation exposes sentiment analysis, title generation, summary, named entity
+The current implementation exposes embeddings, sentiment analysis, title generation, summary, named entity
 recognition, entity relationship extraction, translation, linking, clustering, and cybersecurity classification endpoints backed
-by an OpenAI-compatible Responses API or Chat Completions API.
+by OpenAI-compatible APIs.
 
 ## Requirements
 
@@ -29,12 +29,16 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relation-extraction`
+- `API_KEY`: protects incoming requests to `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, and `/entity-relation-extraction`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `gemma` reasoning is enabled by prefixing the system prompt with `<|think|>` and the service strips Gemma thought-channel output before parsing when output stripping is enabled
+- `EMBEDDING_BASE_URL`: base URL for the OpenAI-compatible embedding service; required by `/embed`
+- `EMBEDDING_API_KEY`
+- `EMBEDDING_MODEL`
+- `EMBEDDING_TIMEOUT`
 - `LOOKUP_BASE_URL`
 - `LOOKUP_API_KEY`
 - `LOOKUP_DEFAULT_LANGUAGE`
@@ -63,6 +67,34 @@ Upstream LLM transport:
 - structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
 - LLM-backed request payloads may include an optional `reasoning_effort` field. The service forwards it upstream as `reasoning.effort` in `responses` mode and `reasoning_effort` in `chat_completions` mode.
 - LLM-backed request payloads may include an optional `thinking_budget_tokens` field, which the service forwards upstream unchanged as a provider-specific extension. This is intended for servers such as `llama.cpp`; other OpenAI-compatible servers may reject it.
+
+### `POST /embed`
+
+Creates an embedding for one text using the separately configured OpenAI-compatible
+embedding service. The service sends the text to its `/embeddings` path and returns
+the first embedding vector.
+
+Request body:
+
+```json
+{
+  "text": "Text to embed"
+}
+```
+
+Response body:
+
+```json
+{
+  "embedding": [0.012, -0.034, 0.056]
+}
+```
+
+If `API_KEY` is configured, send it as:
+
+```http
+Authorization: Bearer <API_KEY>
+```
 
 ### `POST /sentiment`
 

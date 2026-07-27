@@ -11,6 +11,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/routes.py`: HTTP boundary, optional bearer authentication, common validation/error mapping, health/docs/info endpoints, and task dispatch.
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
+- `llm_bot/embedding_client.py`: asynchronous OpenAI-compatible embedding transport.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
 - `llm_bot/tasks/`: task orchestration, prompt construction, structured-output definitions, parsing, validation, and post-processing.
@@ -33,7 +34,7 @@ HTTP request
   -> serialized JSON response
 ```
 
-`llm_bot.routes._handle_model_request()` owns the common HTTP behavior: request validation failures and supported client errors are `400`, upstream LLM failures are `502` with their message, and unexpected processing failures are logged and returned as a generic `502`. Keep task code independent of Quart request/response objects.
+`llm_bot.routes._handle_model_request()` owns the common HTTP behavior: request validation failures and supported client errors are `400`, upstream provider failures are `502` with their message, and unexpected processing failures are logged and returned as a generic `502`. Keep task code independent of Quart request/response objects.
 
 The optional incoming `API_KEY` protects only the LLM-backed POST routes. `/health`, `/info`, `/docs`, and `/openapi.yaml` stay public. The upstream `LLM_API_KEY` and lookup API key are separate credentials.
 
@@ -77,6 +78,9 @@ The lookup service supplies candidates. Deterministic mode selects the first can
 `Config` is a module-level `Settings` instance created during import. Code reads it directly, and tests commonly monkeypatch its attributes. New configuration should have a safe default and should not cause network access or secret validation at import time.
 
 The service is stateless: it has no database or queue. Its external state boundaries are the LLM provider and, for linking, the lookup service.
+The embedding provider is a separate external boundary configured through `EMBEDDING_*`
+settings. `/embed` sends one text to its OpenAI-compatible `/embeddings` path and
+returns the first validated vector.
 
 ## Contract Invariants
 
