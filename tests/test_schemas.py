@@ -4,9 +4,25 @@ from pydantic import ValidationError
 from llm_bot.schemas import (
     EntityRelationshipExtractionRequest,
     GraphQueryGenerationRequest,
+    HragRequest,
     SummarizeRequest,
     TitleRequest,
 )
+
+
+def test_hrag_request_rejects_duplicate_evidence_ids_across_lists():
+    with pytest.raises(ValidationError, match="Evidence IDs must be unique"):
+        HragRequest.model_validate(
+            {
+                "question": "What happened?",
+                "passages": [
+                    {"id": "evidence-1", "source": "document", "text": "A passage"}
+                ],
+                "graph_facts": [
+                    {"id": "evidence-1", "source": "graph", "fact": "A fact"}
+                ],
+            }
+        )
 
 
 def test_summarize_request_accepts_text_input():

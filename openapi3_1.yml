@@ -6,8 +6,8 @@ info:
 
     The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
-    extraction, graph query generation, and cybersecurity classification routes backed by an
-    OpenAI-compatible API.
+    extraction, graph query generation, general chat, grounded HRAG answering, and
+    cybersecurity classification routes backed by an OpenAI-compatible API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -48,6 +48,131 @@ paths:
             application/yaml:
               schema:
                 type: string
+
+  /chat:
+    post:
+      tags:
+        - Chat
+      summary: Generate a general chat response
+      description: |
+        Accepts a latest user message and optional prior user/assistant messages.
+        The service is stateless; prior messages apply only to the current request.
+        The response includes the configured model identifier when one is set.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: createChatResponse
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+            example:
+              message: "What should I do next?"
+              messages:
+                - role: user
+                  content: "Help me plan a release."
+                - role: assistant
+                  content: "Start by running the validation suite."
+      responses:
+        "200":
+          description: Chat response generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid chat request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to generate chat response"
+
+  /hrag:
+    post:
+      tags:
+        - Grounded Answering
+      summary: Answer a question from supplied hybrid evidence
+      description: |
+        Produces an answer grounded only in caller-supplied document passages
+        and graph facts. Every evidence item requires an ID that is unique
+        across both lists and a source reference. Returned citations are
+        validated against those IDs. No retrieval, embeddings, graph access, or
+        persistence is performed by this endpoint.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: createGroundedAnswer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HragRequest"
+            example:
+              question: "Who operates the service?"
+              passages:
+                - id: "passage-1"
+                  source: "report.pdf#page=2"
+                  text: "Example Corp operates the service."
+              graph_facts:
+                - id: "fact-1"
+                  source: "graph://service/42"
+                  fact: "Example Corp -[OPERATES]-> Service 42"
+      responses:
+        "200":
+          description: Grounded answer generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HragResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid HRAG request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream LLM, parsing, or citation validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to generate grounded answer"
 
   /embed:
     post:
@@ -922,6 +1047,137 @@ components:
       scheme: bearer
       bearerFormat: API key
   schemas:
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+          minLength: 1
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+        messages:
+          type: array
+          default: []
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
+        thinking_budget_tokens:
+          $ref: "#/components/schemas/ThinkingBudgetTokens"
+    ChatResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - answer
+        - model
+      properties:
+        answer:
+          type: string
+          minLength: 1
+        model:
+          type:
+            - string
+            - "null"
+          description: Configured model identifier, or null when the provider selects its default
+    HragDocumentPassage:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source
+        - text
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Caller-supplied stable evidence ID
+        source:
+          type: string
+          minLength: 1
+          description: Caller-supplied source reference
+        text:
+          type: string
+          minLength: 1
+    HragGraphFact:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source
+        - fact
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Caller-supplied stable evidence ID
+        source:
+          type: string
+          minLength: 1
+          description: Caller-supplied source reference
+        fact:
+          type: string
+          minLength: 1
+          description: A graph fact or relationship represented as text
+    HragRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - question
+        - passages
+        - graph_facts
+      properties:
+        question:
+          type: string
+          minLength: 1
+        passages:
+          type: array
+          items:
+            $ref: "#/components/schemas/HragDocumentPassage"
+        graph_facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HragGraphFact"
+        reasoning_effort:
+          $ref: "#/components/schemas/ReasoningEffort"
+        thinking_budget_tokens:
+          $ref: "#/components/schemas/ThinkingBudgetTokens"
+    HragResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - answer
+        - citations
+        - insufficient_evidence
+      properties:
+        answer:
+          type: string
+          minLength: 1
+        citations:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+          description: Supplied evidence IDs that directly support the answer
+        insufficient_evidence:
+          type: boolean
+          description: True when the supplied evidence cannot support a reliable answer
     EmbedRequest:
       type: object
       additionalProperties: false
@@ -1736,6 +1992,10 @@ components:
           type: string
 
 tags:
+  - name: Chat
+    description: Stateless general chat completion
+  - name: Grounded Answering
+    description: Stateless answers grounded in caller-supplied hybrid evidence
   - name: Embeddings
     description: Text embedding operations
   - name: Sentiment

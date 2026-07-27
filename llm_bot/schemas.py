@@ -1,6 +1,6 @@
 import re
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
 
@@ -60,6 +60,72 @@ class LLMRequest(BaseModel):
 
     reasoning_effort: str | None = Field(default=None, min_length=1)
     thinking_budget_tokens: int | None = Field(default=None, ge=0)
+
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1)
+
+
+class ChatRequest(LLMRequest):
+    message: str = Field(min_length=1)
+    messages: list[ChatMessage] = Field(default_factory=list)
+
+
+class ChatResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(min_length=1)
+    model: str | None
+
+
+class HragDocumentPassage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+
+
+class HragGraphFact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    fact: str = Field(min_length=1)
+
+
+class HragRequest(LLMRequest):
+    question: str = Field(min_length=1)
+    passages: list[HragDocumentPassage]
+    graph_facts: list[HragGraphFact]
+
+    @model_validator(mode="after")
+    def validate_evidence_ids(self) -> "HragRequest":
+        evidence_ids = [item.id for item in self.passages]
+        evidence_ids.extend(item.id for item in self.graph_facts)
+        if len(evidence_ids) != len(set(evidence_ids)):
+            raise ValueError("Evidence IDs must be unique across passages and graph_facts")
+        return self
+
+
+class HragResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(min_length=1)
+    citations: list[str]
+    insufficient_evidence: bool
+
+    @field_validator("citations")
+    @classmethod
+    def validate_unique_citations(cls, citations: list[str]) -> list[str]:
+        if len(citations) != len(set(citations)):
+            raise ValueError("Citations must not contain duplicates")
+        if any(not citation for citation in citations):
+            raise ValueError("Citations must not contain empty IDs")
+        return citations
 
 
 class EmbedRequest(BaseModel):
