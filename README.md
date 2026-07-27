@@ -2,9 +2,9 @@
 
 LLM-backed bot service.
 
-The current implementation exposes embeddings, sentiment analysis, title generation, summary, named entity
-recognition, entity relationship extraction, graph query generation, translation, linking, clustering, and
-cybersecurity classification endpoints backed by OpenAI-compatible APIs.
+The current implementation exposes stateless chat and grounded HRAG answering, embeddings, sentiment analysis,
+title generation, summary, named entity recognition, entity relationship extraction, graph query generation,
+translation, linking, clustering, and cybersecurity classification endpoints backed by OpenAI-compatible APIs.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -67,6 +67,85 @@ Upstream LLM transport:
 - structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
 - LLM-backed request payloads may include an optional `reasoning_effort` field. The service forwards it upstream as `reasoning.effort` in `responses` mode and `reasoning_effort` in `chat_completions` mode.
 - LLM-backed request payloads may include an optional `thinking_budget_tokens` field, which the service forwards upstream unchanged as a provider-specific extension. This is intended for servers such as `llama.cpp`; other OpenAI-compatible servers may reject it.
+
+### `POST /chat`
+
+Generates a general chat response. The optional `messages` array contains prior
+conversation turns for this request only; the service does not persist conversation
+state. Prior messages may use the `user` and `assistant` roles.
+
+Request body:
+
+```json
+{
+  "message": "What should I do next?",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Help me plan a release."
+    },
+    {
+      "role": "assistant",
+      "content": "Start by running the validation suite."
+    }
+  ]
+}
+```
+
+Response body:
+
+```json
+{
+  "answer": "Review the validation results, then tag the release.",
+  "model": "configured-model"
+}
+```
+
+`model` is `null` when `LLM_MODEL` is unset and the upstream provider selects
+its own default.
+
+### `POST /hrag`
+
+Answers a question using only evidence supplied in the request. The endpoint does
+not retrieve documents, query a graph, create embeddings, or persist data. IDs
+must be unique across `passages` and `graph_facts`; every item also requires a
+caller-supplied source reference.
+
+Request body:
+
+```json
+{
+  "question": "Who operates the service?",
+  "passages": [
+    {
+      "id": "passage-1",
+      "source": "report.pdf#page=2",
+      "text": "Example Corp operates the service."
+    }
+  ],
+  "graph_facts": [
+    {
+      "id": "fact-1",
+      "source": "graph://service/42",
+      "fact": "Example Corp -[OPERATES]-> Service 42"
+    }
+  ]
+}
+```
+
+Response body:
+
+```json
+{
+  "answer": "Example Corp operates the service.",
+  "citations": ["passage-1", "fact-1"],
+  "insufficient_evidence": false
+}
+```
+
+The model is instructed to use no outside knowledge and to report insufficient
+evidence explicitly. The service validates that every returned citation is one
+of the evidence IDs supplied in the request.
 
 ### `POST /embed`
 
