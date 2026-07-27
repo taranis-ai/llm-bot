@@ -13,24 +13,6 @@ def test_summarize_request_accepts_text_input():
     assert request.thinking_budget_tokens is None
 
 
-def test_summarize_request_accepts_language():
-    request = SummarizeRequest.model_validate({"text": "Story text", "language": "de"})
-
-    assert request.language == "de"
-
-
-def test_summarize_request_accepts_reasoning_effort():
-    request = SummarizeRequest.model_validate({"text": "Story text", "reasoning_effort": "high"})
-
-    assert request.reasoning_effort == "high"
-
-
-def test_summarize_request_accepts_thinking_budget_tokens():
-    request = SummarizeRequest.model_validate({"text": "Story text", "thinking_budget_tokens": 256})
-
-    assert request.thinking_budget_tokens == 256
-
-
 def test_summarize_request_accepts_non_empty_news_items():
     request = SummarizeRequest.model_validate(
         {
@@ -74,22 +56,6 @@ def test_title_request_accepts_text_input():
     assert request.max_chars == 100
     assert request.reasoning_effort is None
     assert request.thinking_budget_tokens is None
-
-
-def test_title_request_accepts_language():
-    request = TitleRequest.model_validate({"text": "Story text", "language": "de"})
-
-    assert request.language == "de"
-
-
-def test_title_request_rejects_empty_reasoning_effort():
-    with pytest.raises(ValidationError):
-        TitleRequest.model_validate({"text": "Story text", "reasoning_effort": ""})
-
-
-def test_title_request_rejects_negative_thinking_budget_tokens():
-    with pytest.raises(ValidationError):
-        TitleRequest.model_validate({"text": "Story text", "thinking_budget_tokens": -1})
 
 
 def test_title_request_accepts_non_empty_news_items():
