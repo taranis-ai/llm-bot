@@ -3,7 +3,7 @@ import json
 import pytest
 
 from llm_bot.schemas import ChatRequest
-from llm_bot.tasks.chat import build_chat_messages, chat, parse_chat_response
+from llm_bot.tasks.chat import build_chat_messages, chat
 from tests.test_helpers import StubLLMClient
 
 
