@@ -731,7 +731,7 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
         return GraphQueryGenerationResponse.model_validate(
             {
                 "cypher": (
-                    "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"
+                    "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"
                 ),
                 "parameters": {"person_name": "Alice"},
                 "explanation": "Returns Alice's employer.",
@@ -771,7 +771,7 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
 
     assert response.status_code == 200
     assert await response.get_json() == {
-        "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"),
+        "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
         "parameters": {"person_name": "Alice"},
         "explanation": "Returns Alice's employer.",
     }

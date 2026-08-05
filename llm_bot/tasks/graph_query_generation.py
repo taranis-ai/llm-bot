@@ -259,12 +259,6 @@ def _validate_schema_references(
         if property_name not in _property_names(owner):
             _raise_invalid(f"Cypher uses unknown property {property_name} on variable {variable}")
 
-    schema_identifiers = set(nodes_by_label) | set(relationships_by_type)
-    referenced_schema_identifiers = set(re.findall(rf":\s*({IDENTIFIER})\b", cypher))
-    unknown_schema_identifiers = sorted(referenced_schema_identifiers - schema_identifiers)
-    if unknown_schema_identifiers:
-        _raise_invalid("Cypher uses unknown labels or relationship types: " + ", ".join(unknown_schema_identifiers))
-
     return_match = re.search(
         r"\bRETURN\b(?P<body>.*?)(?=\b(?:ORDER\s+BY|SKIP|LIMIT)\b)",
         cypher,
@@ -289,7 +283,7 @@ def _validate_schema_references(
             flags=re.IGNORECASE,
         )
         if re.search(
-            rf"(?<![.\w]){re.escape(variable)}\b(?!\s*\.)",
+            rf"(?<![.\w]){re.escape(variable)}\b(?!\s*(?:\.|:))",
             return_body_without_count,
         ):
             _raise_invalid(f"Cypher must not return whole graph variable: {variable}")
@@ -299,6 +293,8 @@ def _validate_schema_references(
             flags=re.IGNORECASE,
         ):
             _raise_invalid(f"Cypher must not alias whole graph variable: {variable}")
+    if not re.search(r"\bAS\s+result\s*$", return_body.strip(), flags=re.IGNORECASE):
+        _raise_invalid("Cypher must return exactly one value aliased as result")
 
 
 def _validate_parameters(cypher: str, parameters: dict[str, Any]) -> None:

@@ -42,7 +42,7 @@ REQUEST_PAYLOAD = {
     },
 }
 VALID_OUTPUT = {
-    "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"),
+    "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
     "parameters": {"person_name": "Alice"},
     "explanation": "Returns organizations that employ the named person.",
 }
@@ -67,6 +67,25 @@ def test_parse_valid_graph_query():
     response = parse_graph_query_generation_response({"output_text": json.dumps(VALID_OUTPUT)}, make_request())
 
     assert response.model_dump() == VALID_OUTPUT
+
+
+def test_parse_accepts_a_map_with_a_key_matching_its_graph_variable():
+    output = {
+        **VALID_OUTPUT,
+        "cypher": "MATCH (p:Person) RETURN {p: p.name} AS result LIMIT 25",
+        "parameters": {},
+    }
+
+    response = parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
+
+    assert response.model_dump() == output
+
+
+def test_parse_rejects_a_return_value_without_the_required_result_alias():
+    output = {**VALID_OUTPUT, "cypher": "MATCH (p:Person) RETURN p.name AS name LIMIT 25", "parameters": {}}
+
+    with pytest.raises(InvalidLLMOutputError, match="aliased as result"):
+        parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
 
 
 @pytest.mark.parametrize(

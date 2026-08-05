@@ -537,7 +537,7 @@ Response body:
 
 ```json
 {
-  "cypher": "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25",
+  "cypher": "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25",
   "parameters": {
     "person_name": "Alice"
   },

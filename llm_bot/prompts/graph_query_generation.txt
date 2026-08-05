@@ -19,6 +19,7 @@ Safety and query rules:
 - End the result-producing query with one integer LIMIT no greater than the supplied maximum.
   Use the supplied default unless the question asks for a smaller result count.
 - Return explicit queryable properties or aggregates, not whole nodes or relationships.
+- Return exactly one expression or map and alias it as `result`.
 - Do not generate mutations, procedures, subqueries, administration, schema operations,
   transactions, external data loading, UNION, comments, or multiple statements.
 - Do not use dynamic label, relationship-type, or property access.

@@ -978,7 +978,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GraphQueryGenerationResponse"
               example:
-                cypher: "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS organization LIMIT 25"
+                cypher: "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"
                 parameters:
                   person_name: Alice
                 explanation: Returns organizations that employ the named person.
