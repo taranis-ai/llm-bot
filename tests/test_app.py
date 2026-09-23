@@ -1,9 +1,11 @@
+import json
+
+import pytest
+
 from llm_bot.client import UpstreamLLMError
 from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.schemas import (
     ChatResponse,
-    ClusterIds,
-    ClusterResponse,
     EntityRelationshipExtractionResponse,
     GraphQueryGenerationResponse,
     HragResponse,
@@ -16,6 +18,23 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
+from tests.test_helpers import StubLLMClient, StubLookupClient
+
+
+@pytest.mark.parametrize("linking_mode", ["llm", "deterministic"])
+async def test_ner_link_endpoint_returns_empty_entities(app, monkeypatch, linking_mode):
+    client = StubLLMClient({"output_text": "{}"})
+    lookup_client = StubLookupClient()
+    monkeypatch.setattr("llm_bot.tasks.ner_link.LLMClient", lambda **kwargs: client)
+    monkeypatch.setattr("llm_bot.tasks.entity_linking.LookupClient", lambda: lookup_client)
+    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "")
+
+    response = await app.test_client().post("/ner-link", json={"text": "Nothing named here.", "linking_mode": linking_mode})
+
+    assert response.status_code == 200
+    assert await response.get_json() == {"entities": []}
+    assert len(client.calls) == 1
+    assert lookup_client.calls == []
 
 
 async def test_health_endpoint(app):
@@ -30,9 +49,7 @@ async def test_health_endpoint(app):
 
 async def test_info_endpoint(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.LLM_REASONING_PROFILE", "gemma")
-    monkeypatch.setattr(
-        "llm_bot.routes.Config.EMBEDDING_BASE_URL", "https://embeddings.example"
-    )
+    monkeypatch.setattr("llm_bot.routes.Config.EMBEDDING_BASE_URL", "https://embeddings.example")
     monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
     monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
     monkeypatch.setattr("llm_bot.routes.__version__", "9.9.9")
@@ -219,12 +236,8 @@ async def test_hrag_endpoint_rejects_duplicate_evidence_ids(app):
         "/hrag",
         json={
             "question": "What happened?",
-            "passages": [
-                {"id": "same", "source": "document", "text": "A passage"}
-            ],
-            "graph_facts": [
-                {"id": "same", "source": "graph", "fact": "A fact"}
-            ],
+            "passages": [{"id": "same", "source": "document", "text": "A passage"}],
+            "graph_facts": [{"id": "same", "source": "graph", "fact": "A fact"}],
         },
     )
     body = await response.get_json()
@@ -240,9 +253,7 @@ async def test_cybersec_classification_endpoint(app, monkeypatch):
         assert request_model.text == "The newest development in malware automation is concerning."
         assert request_model.reasoning_effort == "high"
         assert request_model.thinking_budget_tokens == 64
-        return CybersecClassificationResponse.model_validate(
-            {"cybersecurity": 0.91, "non-cybersecurity": 0.09}
-        )
+        return CybersecClassificationResponse.model_validate({"cybersecurity": 0.91, "non-cybersecurity": 0.09})
 
     monkeypatch.setattr("llm_bot.routes.classify_cybersecurity_text", fake_classify_cybersecurity_text)
 
@@ -375,6 +386,7 @@ async def test_api_key_required_accepts_valid_api_key(app, monkeypatch):
 
     assert response.status_code == 200
     assert body == {"translation": "Good morning"}
+
 
 async def test_summarize_endpoint(app, monkeypatch):
     async def fake_summarize(request_model):
@@ -561,6 +573,7 @@ async def test_ner_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid NER request payload"}
 
+
 async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
     async def failing_extract_entities(request_model):
         raise UnsupportedEntityTypesError("Unsupported entity types requested: AlienType")
@@ -580,9 +593,7 @@ async def test_ner_endpoint_rejects_invalid_entity_types(app, monkeypatch):
 
 async def test_ner_link_endpoint_rejects_invalid_linking_mode(app, monkeypatch):
     async def failing_extract_and_link(request_model):
-        raise UnsupportedLinkingModeError(
-            "Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm"
-        )
+        raise UnsupportedLinkingModeError("Unsupported linking mode requested: magic. Allowed linking modes: deterministic, llm")
 
     monkeypatch.setattr("llm_bot.routes.extract_and_link", failing_extract_and_link)
 
@@ -606,6 +617,7 @@ async def test_link_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid link request payload"}
 
+
 async def test_ner_link_endpoint_rejects_invalid_payload(app):
     test_client = app.test_client()
 
@@ -615,33 +627,32 @@ async def test_ner_link_endpoint_rejects_invalid_payload(app):
     assert response.status_code == 400
     assert body == {"error": "Invalid NER link request payload"}
 
-async def test_cluster_endpoint(app, monkeypatch):
-    async def fake_cluster_stories(request_model):
-        assert len(request_model.stories) == 2
-        return ClusterResponse(
-            cluster_ids=ClusterIds(event_clusters=[["s1", "s2"]]),
-            message="Clustering completed",
-        )
 
-    monkeypatch.setattr("llm_bot.routes.cluster_stories", fake_cluster_stories)
+@pytest.mark.parametrize(
+    "story_fields",
+    [
+        {"summary": "APT29 targeted Microsoft users in Vienna.", "tags": {"APT29": {"name": "APT29", "tag_type": "APT"}}},
+        {"summary": None, "tags": {}},
+        {"summary": "", "tags": {}},
+        {"tags": {}},
+    ],
+)
+async def test_cluster_endpoint(app, monkeypatch, story_fields):
+    client = StubLLMClient(
+        {
+            "output_text": (
+                '{"cluster_ids":{"event_clusters":[[1,2]]},'
+                '"cluster_reasons":[{"story_ids":[1,2],"reason":"Same event"}],'
+                '"message":"Clustering completed"}'
+            )
+        }
+    )
+    monkeypatch.setattr("llm_bot.tasks.cluster.LLMClient", lambda **kwargs: client)
 
     test_client = app.test_client()
     response = await test_client.post(
         "/cluster",
-        json={
-            "stories": [
-                {
-                    "id": "s1",
-                    "tags": {"APT29": {"tag_type": "APT"}},
-                    "news_items": [{"title": "A", "content": "A", "language": "en"}],
-                },
-                {
-                    "id": "s2",
-                    "tags": {"APT28": {"tag_type": "APT"}},
-                    "news_items": [{"title": "B", "content": "B", "language": "en"}],
-                },
-            ]
-        },
+        json={"stories": [{"id": "s1", **story_fields}, {"id": "s2", **story_fields}]},
     )
     body = await response.get_json()
 
@@ -650,6 +661,9 @@ async def test_cluster_endpoint(app, monkeypatch):
         "cluster_ids": {"event_clusters": [["s1", "s2"]]},
         "message": "Clustering completed",
     }
+    assert len(client.calls) == 1
+    sent_stories = json.loads(client.calls[0]["user_input"])["stories"]
+    assert [story["summary"] for story in sent_stories] == [story_fields.get("summary")] * 2
 
 
 async def test_cluster_endpoint_rejects_invalid_payload(app):
@@ -679,18 +693,14 @@ async def test_entity_relationship_extraction_endpoint(app, monkeypatch):
             }
         )
 
-    monkeypatch.setattr(
-        "llm_bot.routes.extract_entity_relationships", fake_extract_entity_relationships
-    )
+    monkeypatch.setattr("llm_bot.routes.extract_entity_relationships", fake_extract_entity_relationships)
     test_client = app.test_client()
     response = await test_client.post(
         "/entity-relation-extraction",
         json={
             "text": "APT28 exploited CVE-2025-1234.",
             "schema": {
-                "entity_types": [
-                    {"name": "ThreatActor", "description": "A named threat actor"}
-                ],
+                "entity_types": [{"name": "ThreatActor", "description": "A named threat actor"}],
                 "relation_types": [],
             },
         },
@@ -730,9 +740,7 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
         assert request_model.schema.maximum_limit == 100
         return GraphQueryGenerationResponse.model_validate(
             {
-                "cypher": (
-                    "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"
-                ),
+                "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
                 "parameters": {"person_name": "Alice"},
                 "explanation": "Returns Alice's employer.",
             }

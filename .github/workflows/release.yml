@@ -6,13 +6,15 @@ on:
       - "[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   release:
-    name: Build Release Assets
+    name: Validate and Release Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
 
     env:
       GHCR_IMAGE: ghcr.io/taranis-ai/taranis-${{ github.event.repository.name }}
@@ -27,7 +29,7 @@ jobs:
         shell: bash
         run: |
           echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
-          echo "TAG_SAFE=${GITHUB_REF#refs/tags/}" | tr '.' '_' | awk '{print "TAG_SAFE="$0}' >> "$GITHUB_ENV"
+          echo "TAG_SAFE=${GITHUB_REF_NAME//./_}" >> "$GITHUB_ENV"
 
       - name: Validate tag matches package version scheme
         shell: bash
@@ -61,8 +63,27 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Build Python distributions
-        run: uv build
+      - name: Validate source
+        run: ./scripts/check.sh
+
+      - name: Build and check Python distributions
+        run: |
+          uv build --no-sources
+          uvx twine check --strict dist/*
+
+      - name: Smoke-test installed wheel outside the checkout
+        working-directory: ${{ runner.temp }}
+        shell: bash
+        run: |
+          uv run --no-project --python 3.13 --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -I "$GITHUB_WORKSPACE/tests/smoke_distribution.py" "$TAG"
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
 
       - name: Generate SBOM
         shell: bash
@@ -95,6 +116,22 @@ jobs:
           body_path: ${{ runner.temp }}/release_body.md
           files: |
             dist/*
-            openapi3_1.yml
+            llm_bot/openapi3_1.yml
             Containerfile
             ${{ runner.temp }}/sbom_${{ env.TAG_SAFE }}.json
+
+  publish:
+    name: Publish Python Package
+    needs: release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - uses: astral-sh/setup-uv@v4
+      - name: Publish to PyPI
+        run: uv publish --trusted-publishing always

@@ -1,8 +1,9 @@
 import pytest
 
-from llm_bot.schemas import LinkRequest, LinkedNerResponse, LookupResponse
+from llm_bot.schemas import LinkedNerResponse, LinkRequest, LookupResponse
 from llm_bot.tasks.link_task import build_linking_ner_response, link_entities
 from tests.test_helpers import StubLLMClient, StubLookupClient
+
 
 def test_build_linking_ner_response_converts_entities_to_map():
     request = LinkRequest.model_validate(

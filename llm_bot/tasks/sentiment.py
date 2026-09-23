@@ -17,7 +17,6 @@ from llm_bot.tasks.llm_utils import (
     loads_json_output,
 )
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "sentiment.txt"
 
 
@@ -37,11 +36,7 @@ def build_sentiment_messages(request: SentimentRequest) -> list[dict[str, str]]:
             "- Only include emotions that are clearly supported by the text.\n"
         )
     else:
-        system_prompt = (
-            f"{system_prompt}\n"
-            "Emotion extraction is disabled.\n"
-            "- Do not include an emotions field in the response.\n"
-        )
+        system_prompt = f"{system_prompt}\nEmotion extraction is disabled.\n- Do not include an emotions field in the response.\n"
 
     return [
         {"role": "system", "content": system_prompt},
@@ -53,17 +48,16 @@ def parse_sentiment_response(response_data: dict[str, Any], include_emotions: bo
     output_text = get_output_text(response_data)
     logger.debug("Raw sentiment output: %s", output_text)
     parsed_output = loads_json_output(output_text)
-    sentiment = parsed_output.get("sentiment")
-    if not isinstance(sentiment, dict):
-        raise InvalidLLMOutputError("Response did not contain a sentiment object")
+    response = SentimentResponse.model_validate(parsed_output)
+    sentiment = response.sentiment
 
-    has_emotions = "emotions" in sentiment
-    if include_emotions and not has_emotions:
-        raise InvalidLLMOutputError("Emotion extraction was enabled but the response omitted emotions")
+    has_emotions = "emotions" in sentiment.model_fields_set
+    if include_emotions and sentiment.emotions is None:
+        raise InvalidLLMOutputError("Emotion extraction was enabled but the response omitted the emotions array")
     if not include_emotions and has_emotions:
         raise InvalidLLMOutputError("Emotion extraction was disabled but the response included emotions")
 
-    return SentimentResponse.model_validate(parsed_output)
+    return response
 
 
 def get_sentiment_response_format(include_emotions: bool) -> dict[str, Any]:

@@ -7,7 +7,7 @@ Read this before editing application code, tests, configuration, packaging, CI, 
 ## Environment
 
 - The project targets Python 3.13 and uses `uv` for dependency management. Do not use `pip` or edit `uv.lock` by hand.
-- Runtime and development dependencies are declared in `pyproject.toml`; install them with `uv sync --extra dev`.
+- Runtime and development dependencies are declared in `pyproject.toml`; `scripts/check.sh` installs them from the lockfile before running checks.
 - Copy `.env.example` to `.env` for local configuration. Never commit secrets or copy values from an existing `.env` into documentation, tests, or logs.
 - Settings are loaded by `llm_bot.config.Config` from the process environment and `.env`. When adding a setting, update `Settings`, `.env.example`, and the relevant README/API metadata together.
 
@@ -16,12 +16,12 @@ Read this before editing application code, tests, configuration, packaging, CI, 
 Run commands from the repository root:
 
 ```bash
-uv sync --extra dev
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
+./scripts/check.sh
 uv build
 ```
+
+`scripts/check.sh` runs dependency sync, Ruff lint/format checks, and the full test
+suite. It can also be invoked by absolute path from another directory.
 
 For a focused test while iterating, run its file or node directly, for example:
 
@@ -31,6 +31,7 @@ uv run pytest tests/test_app.py::test_health_endpoint
 ```
 
 Run the full test suite and Ruff checks before handing off a code change. Run `uv build` when changing packaging, package data, or release inputs.
+Ruff also checks import order (`I`), Python modernization (`UP`), and common bugs (`B`).
 
 ## Local Startup
 
@@ -63,7 +64,7 @@ The API contract is represented in several places. When behavior changes, keep t
 
 - `llm_bot/schemas.py` for runtime validation and serialization
 - `llm_bot/routes.py` for routing, errors, `/info`, and Swagger/OpenAPI serving
-- `openapi3_1.yml` for the published contract
+- `llm_bot/openapi3_1.yml` for the published contract
 - `README.md` for operator-facing examples and configuration
 - `.env.example` for new or changed settings
 - focused tests under `tests/`
@@ -73,9 +74,21 @@ Prompt changes in `llm_bot/prompts/` are behavior changes. Update the correspond
 ## Packaging And Release
 
 - Versioning is tag-driven through `setuptools_scm`; release tags use `X.Y.Z`.
-- `llm_bot.__version__` resolves the latest Git tag at runtime and falls back to `0.0.0` outside a Git checkout.
-- `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
-- `.github/workflows/test.yml` delegates Python validation to the shared Taranis AI workflow. The build workflow publishes multi-architecture images, and the release workflow retags the existing `latest` image and publishes build artifacts.
+- `llm_bot.__version__` reads the installed distribution metadata and falls back to `0.0.0` only when distribution metadata is unavailable. Git is needed for release builds, not at runtime. Release tags support multi-digit `X.Y.Z` components.
+- `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `llm_bot/openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
+- The OpenAPI source lives inside `llm_bot` and is included as package data. After packaging changes, smoke-test `/health`, `/openapi.yaml`, and prompt loading from the built wheel outside the checkout. The release workflow uploads the same packaged source as its OpenAPI artifact.
+- `.github/workflows/test.yml` delegates Python validation to the shared Taranis AI workflow. The build workflow publishes multi-architecture images on branch pushes.
+- `.github/workflows/release.yml` handles image and Python releases on `X.Y.Z` tag pushes. It runs `scripts/check.sh`, builds and checks wheel/sdist metadata, smoke-tests the installed wheel outside the checkout, and verifies its version matches the tag. It then retags the existing `latest` image and creates the GitHub release with the build artifacts.
+- The dependent PyPI publish job runs after the image/GitHub release succeeds and any `pypi` environment approval. It receives only the tested distributions and OIDC permission, and does not rebuild the package.
+- For a local distribution smoke test, run from a temporary directory: `uv run --no-project --python 3.13 --with /absolute/path/to/dist/package.whl python -I /absolute/path/to/tests/smoke_distribution.py`. An optional final argument checks the expected release version. No live LLM or lookup service is required.
+
+To configure automated PyPI releases:
+
+1. Ensure `llm-bot` is available on PyPI or owned by the organization.
+2. Register a [trusted publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) for project `llm-bot`, owner `taranis-ai`, repository `llm-bot`, workflow `release.yml`, environment `pypi`.
+3. Create the GitHub `pypi` environment with required reviewers and release-tag restrictions.
+
+Local uploads use `UV_PUBLISH_TOKEN` from secure storage; never commit the token.
 
 ## Change Discipline
 

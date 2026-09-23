@@ -147,12 +147,7 @@ def test_parse_ner_response_rejects_unsupported_entity_types():
 
 def test_parse_ner_response_extracts_final_json_from_noisy_output():
     response = parse_ner_response(
-        {
-            "output_text": (
-                'Thinking: Chrome Dev is a product. Final plan.{"Chrome Dev":"PRODUCT",'
-                '"Android":"PRODUCT","Google Play":"ORG"}'
-            )
-        },
+        {"output_text": ('Thinking: Chrome Dev is a product. Final plan.{"Chrome Dev":"PRODUCT","Android":"PRODUCT","Google Play":"ORG"}')},
         ["ORG", "PRODUCT"],
     )
 
@@ -233,10 +228,11 @@ async def test_extract_entities_does_not_recover_when_no_pairs_are_complete():
 
 
 @pytest.mark.asyncio
-async def test_extract_entities_retries_once_on_validation_error():
+@pytest.mark.parametrize("invalid_output", ['{"Microsoft":["ORG"]}', "[]", "null", '"Microsoft"'])
+async def test_extract_entities_retries_once_on_validation_error(invalid_output):
     client = StubLLMClient(
         [
-            {"output_text": '{"Microsoft":["ORG"]}'},
+            {"output_text": invalid_output},
             {"output_text": '{"Microsoft":"ORG"}'},
         ]
     )

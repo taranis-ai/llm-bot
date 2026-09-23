@@ -6,6 +6,7 @@ from llm_bot.tasks.llm_utils import get_output_text
 from llm_bot.tasks.summarize import build_summary_messages, parse_summary_response, summarize
 from tests.test_helpers import StubLLMClient
 
+
 def test_build_summary_messages_without_max_words():
     request = SummarizeRequest(text="Example story text")
 
@@ -28,43 +29,30 @@ def test_build_summary_messages_formats_news_items():
     _, user_message = build_summary_messages(request)
 
     assert user_message["content"] == (
-        "News item 1\n"
-        "Title: First title\n"
-        "Content:\n"
-        "First content\n\n"
-        "News item 2\n"
-        "Title: Second title\n"
-        "Content:\n"
-        "Second content"
+        "News item 1\nTitle: First title\nContent:\nFirst content\n\nNews item 2\nTitle: Second title\nContent:\nSecond content"
     )
 
 
 def test_build_summary_messages_uses_explicit_language():
-    system_message, _ = build_summary_messages(
-        SummarizeRequest(text="Example story text", language="de")
-    )
+    system_message, _ = build_summary_messages(SummarizeRequest(text="Example story text", language="de"))
 
     assert "Write the summary in German." in system_message["content"]
 
 
-def test_build_summary_messages_uses_majority_news_item_language():
+@pytest.mark.parametrize(
+    ("languages", "expected_language"),
+    [(["de", "en", "de"], "German"), (["en", "de"], "English"), ([None, " ", " de ", "en"], "German")],
+)
+def test_build_summary_messages_uses_majority_news_item_language(languages, expected_language):
     system_message, _ = build_summary_messages(
-        SummarizeRequest(
-            news_items=[
-                {"title": "Erste Meldung", "content": "A", "language": "de"},
-                {"title": "Second report", "content": "B", "language": "en"},
-                {"title": "Dritte Meldung", "content": "C", "language": "de"},
-            ]
-        )
+        SummarizeRequest(news_items=[{"title": "Report", "content": "Content", "language": language} for language in languages])
     )
 
-    assert "Write the summary in German." in system_message["content"]
+    assert f"Write the summary in {expected_language}." in system_message["content"]
 
 
 def test_build_summary_messages_falls_back_to_language_code_for_unknown_language():
-    system_message, _ = build_summary_messages(
-        SummarizeRequest(text="Example story text", language="xx")
-    )
+    system_message, _ = build_summary_messages(SummarizeRequest(text="Example story text", language="xx"))
 
     assert 'Write the summary in language code "xx".' in system_message["content"]
 
@@ -94,7 +82,7 @@ def test_parse_summary_response_from_output_text():
 
 
 def test_strip_reasoning_output_removes_think_block():
-    output_text = "[THINK]\nI should summarize this.\n[/THINK]\n{\"summary\":\"Short summary\"}"
+    output_text = '[THINK]\nI should summarize this.\n[/THINK]\n{"summary":"Short summary"}'
 
     assert strip_reasoning_output(output_text) == '{"summary":"Short summary"}'
 
@@ -247,14 +235,7 @@ async def test_summarize_formats_news_items_for_client():
 
     assert response == SummarizeResponse(summary="Short summary")
     assert client.calls[0]["user_input"] == (
-        "News item 1\n"
-        "Title: First title\n"
-        "Content:\n"
-        "First content\n\n"
-        "News item 2\n"
-        "Title: Second title\n"
-        "Content:\n"
-        "Second content"
+        "News item 1\nTitle: First title\nContent:\nFirst content\n\nNews item 2\nTitle: Second title\nContent:\nSecond content"
     )
 
 
@@ -296,8 +277,8 @@ async def test_summarize_retries_once_on_invalid_json(caplog):
     assert len(client.calls) == 2
     assert "Your previous response was invalid." in client.calls[1]["system_input"]
     assert 'LLM summary response payload (initial): {"output_text": "Short summary"}' in caplog.text
-    assert 'LLM summary response payload (repair):' in caplog.text
-    assert '\"summary\":\"Short summary\"' in caplog.text
+    assert "LLM summary response payload (repair):" in caplog.text
+    assert '"summary":"Short summary"' in caplog.text
 
 
 @pytest.mark.asyncio

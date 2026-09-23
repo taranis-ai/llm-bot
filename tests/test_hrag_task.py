@@ -11,7 +11,6 @@ from llm_bot.tasks.hrag import (
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from tests.test_helpers import StubLLMClient
 
-
 REQUEST_PAYLOAD = {
     "question": "Who operates the service?",
     "passages": [

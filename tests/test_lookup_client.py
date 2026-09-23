@@ -36,7 +36,9 @@ class FakeSession:
 
 
 @pytest.mark.asyncio
-async def test_lookup_client_calls_lookup_endpoint(monkeypatch):
+@pytest.mark.parametrize("api_key", ["lookup-key", ""])
+async def test_lookup_client_calls_lookup_endpoint(monkeypatch, api_key):
+    monkeypatch.setattr("llm_bot.lookup_client.Config.LOOKUP_API_KEY", "configured-key")
     session = FakeSession()
 
     def fake_async_session(*, base_url=None, headers=None):
@@ -48,7 +50,7 @@ async def test_lookup_client_calls_lookup_endpoint(monkeypatch):
 
     client = LookupClient(
         base_url="https://example.invalid",
-        api_key="lookup-key",
+        api_key=api_key,
         timeout=15,
     )
 
@@ -58,4 +60,4 @@ async def test_lookup_client_calls_lookup_endpoint(monkeypatch):
     assert session.path == "/lookup"
     assert session.params == {"q": "Apple", "lang": "en", "limit": 5}
     assert session.timeout == 15
-    assert session.headers["Authorization"] == "Bearer lookup-key"
+    assert session.headers.get("Authorization") == (f"Bearer {api_key}" if api_key else None)

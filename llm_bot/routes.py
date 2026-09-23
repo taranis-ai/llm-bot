@@ -1,9 +1,10 @@
 import json
+from collections.abc import Awaitable, Callable
 from functools import wraps
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Any
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from quart import Blueprint, Response, request
 
 from llm_bot import __version__
@@ -43,7 +44,7 @@ from llm_bot.tasks.summarize import summarize
 from llm_bot.tasks.title import generate_title
 from llm_bot.tasks.translate import translate_text
 
-OPENAPI_PATH = Path(__file__).resolve().parent.parent / "openapi3_1.yml"
+OPENAPI_PATH = Path(__file__).resolve().with_name("openapi3_1.yml")
 
 SWAGGER_UI_HTML = """<!doctype html>
 <html lang="en">
@@ -94,15 +95,15 @@ def api_key_required(view_func):
     return wrapped
 
 
-async def _handle_model_request(
+async def _handle_model_request[RequestModel: BaseModel](
     *,
     log_prefix: str,
     validation_error_message: str,
     processing_error_message: str,
-    request_model_factory: Callable[[object], object],
-    task: Callable[[object], Awaitable[object]],
+    request_model_factory: Callable[[object], RequestModel],
+    task: Callable[[RequestModel], Awaitable[BaseModel]],
     client_error_exceptions: tuple[type[Exception], ...] = (),
-) -> tuple[dict[str, str], int]:
+) -> tuple[dict[str, Any], int]:
     try:
         payload = await request.get_json()
         if Config.DEBUG:
@@ -180,7 +181,7 @@ def create_api_blueprint() -> Blueprint:
     api = Blueprint("api", __name__)
 
     @api.get("/health")
-    async def health() -> tuple[dict[str, str], int]:
+    async def health() -> tuple[dict[str, Any], int]:
         return {"status": "ok"}, 200
 
     @api.get("/openapi.yaml")
@@ -197,7 +198,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/sentiment")
     @api_key_required
-    async def sentiment_view() -> tuple[dict[str, str], int]:
+    async def sentiment_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Sentiment",
             validation_error_message="Invalid sentiment request payload",
@@ -208,7 +209,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/chat")
     @api_key_required
-    async def chat_view() -> tuple[dict[str, str], int]:
+    async def chat_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Chat",
             validation_error_message="Invalid chat request payload",
@@ -219,7 +220,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/hrag")
     @api_key_required
-    async def hrag_view() -> tuple[dict[str, str], int]:
+    async def hrag_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="HRAG",
             validation_error_message="Invalid HRAG request payload",
@@ -230,7 +231,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/embed")
     @api_key_required
-    async def embed_view() -> tuple[dict[str, str], int]:
+    async def embed_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Embedding",
             validation_error_message="Invalid embedding request payload",
@@ -241,7 +242,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/cybersec-classification")
     @api_key_required
-    async def cybersec_classification_view() -> tuple[dict[str, str], int]:
+    async def cybersec_classification_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Cybersec classification",
             validation_error_message="Invalid cybersec classification request payload",
@@ -252,7 +253,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/title")
     @api_key_required
-    async def title_view() -> tuple[dict[str, str], int]:
+    async def title_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Title",
             validation_error_message="Invalid title request payload",
@@ -263,7 +264,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/translate")
     @api_key_required
-    async def translate_view() -> tuple[dict[str, str], int]:
+    async def translate_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Translate",
             validation_error_message="Invalid translate request payload",
@@ -274,7 +275,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/summarize")
     @api_key_required
-    async def summarize_view() -> tuple[dict[str, str], int]:
+    async def summarize_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Summarize",
             validation_error_message="Invalid summarize request payload",
@@ -285,7 +286,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/ner")
     @api_key_required
-    async def ner_view() -> tuple[dict[str, str], int]:
+    async def ner_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="NER",
             validation_error_message="Invalid NER request payload",
@@ -297,7 +298,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/ner-link")
     @api_key_required
-    async def ner_link_view() -> tuple[dict[str, str], int]:
+    async def ner_link_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="NER link",
             validation_error_message="Invalid NER link request payload",
@@ -309,7 +310,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/link")
     @api_key_required
-    async def link_view() -> tuple[dict[str, str], int]:
+    async def link_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Link",
             validation_error_message="Invalid link request payload",
@@ -321,7 +322,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/cluster")
     @api_key_required
-    async def cluster_view() -> tuple[dict[str, str], int]:
+    async def cluster_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Cluster",
             validation_error_message="Invalid Cluster request payload",
@@ -332,7 +333,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/entity-relation-extraction")
     @api_key_required
-    async def entity_relationship_extraction_view() -> tuple[dict[str, str], int]:
+    async def entity_relationship_extraction_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Entity relationship extraction",
             validation_error_message="Invalid entity relationship extraction request payload",
@@ -343,7 +344,7 @@ def create_api_blueprint() -> Blueprint:
 
     @api.post("/graph-query-generation")
     @api_key_required
-    async def graph_query_generation_view() -> tuple[dict[str, str], int]:
+    async def graph_query_generation_view() -> tuple[dict[str, Any], int]:
         return await _handle_model_request(
             log_prefix="Graph query generation",
             validation_error_message="Invalid graph query generation request payload",

@@ -24,7 +24,7 @@ RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user 
 
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user llm_bot /app/llm_bot
-COPY --chown=user:user README.md app.py LICENSE.md openapi3_1.yml /app/
+COPY --chown=user:user README.md app.py LICENSE.md /app/
 
 USER user
 

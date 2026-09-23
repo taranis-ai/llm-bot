@@ -4,6 +4,7 @@ from llm_bot.schemas import LinkedNerResponse, LookupResponse, NerLinkRequest
 from llm_bot.tasks.ner_link import extract_and_link
 from tests.test_helpers import StubLLMClient, StubLookupClient
 
+
 @pytest.mark.asyncio
 async def test_extract_and_link_returns_linked_response_in_deterministic_mode(monkeypatch):
     monkeypatch.setattr("llm_bot.tasks.entity_linking.Config.LOOKUP_CANDIDATE_LIMIT", 3)

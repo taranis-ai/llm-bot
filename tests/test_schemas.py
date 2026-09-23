@@ -15,12 +15,8 @@ def test_hrag_request_rejects_duplicate_evidence_ids_across_lists():
         HragRequest.model_validate(
             {
                 "question": "What happened?",
-                "passages": [
-                    {"id": "evidence-1", "source": "document", "text": "A passage"}
-                ],
-                "graph_facts": [
-                    {"id": "evidence-1", "source": "graph", "fact": "A fact"}
-                ],
+                "passages": [{"id": "evidence-1", "source": "document", "text": "A passage"}],
+                "graph_facts": [{"id": "evidence-1", "source": "graph", "fact": "A fact"}],
             }
         )
 
@@ -161,9 +157,7 @@ def test_entity_relationship_request_rejects_invalid_schema(schema_update, error
     schema.update(schema_update)
 
     with pytest.raises(ValidationError, match=error):
-        EntityRelationshipExtractionRequest.model_validate(
-            {"text": "Some text", "schema": schema}
-        )
+        EntityRelationshipExtractionRequest.model_validate({"text": "Some text", "schema": schema})
 
 
 def test_graph_query_request_rejects_unknown_relationship_label():

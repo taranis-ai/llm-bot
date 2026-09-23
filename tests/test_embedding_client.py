@@ -38,7 +38,9 @@ class FakeSession:
 
 
 @pytest.mark.asyncio
-async def test_create_embedding_calls_configured_service(monkeypatch):
+@pytest.mark.parametrize("api_key", ["embedding-key", ""])
+async def test_create_embedding_calls_configured_service(monkeypatch, api_key):
+    monkeypatch.setattr("llm_bot.embedding_client.Config.EMBEDDING_API_KEY", "configured-key")
     session = FakeSession()
 
     def fake_async_session(*, base_url=None, headers=None):
@@ -50,7 +52,7 @@ async def test_create_embedding_calls_configured_service(monkeypatch):
 
     client = EmbeddingClient(
         base_url="https://embeddings.example/v1/",
-        api_key="embedding-key",
+        api_key=api_key,
         model="embedding-model",
         timeout=15,
     )
@@ -62,7 +64,7 @@ async def test_create_embedding_calls_configured_service(monkeypatch):
     assert session.path == "/embeddings"
     assert session.json == {"input": "Text to embed", "model": "embedding-model"}
     assert session.timeout == 15
-    assert session.headers["Authorization"] == "Bearer embedding-key"
+    assert session.headers.get("Authorization") == (f"Bearer {api_key}" if api_key else None)
 
 
 @pytest.mark.asyncio

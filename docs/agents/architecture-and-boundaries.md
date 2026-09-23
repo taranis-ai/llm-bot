@@ -17,11 +17,17 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/tasks/`: task orchestration, prompt construction, structured-output definitions, parsing, validation, and post-processing.
 - `llm_bot/prompts/`: task-specific system prompts loaded at request time.
 - `llm_bot/config.py`: environment-backed application settings.
-- `openapi3_1.yml`: published OpenAPI 3.1 contract served at `/openapi.yaml`.
+- `llm_bot/openapi3_1.yml`: published OpenAPI 3.1 contract served at `/openapi.yaml`.
 - `tests/`: route, client, schema, prompt-building, parsing, retry, and task orchestration coverage.
 - `Containerfile` and `.github/workflows/`: image construction, test, build, and tagged-release automation.
 
 ## Request Data Flow
+
+The installed Python library exposes the same async task functions under
+`llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
+validated request models directly to tasks, optionally inject clients, and receive
+response models or exceptions. No Quart application or HTTP request context is
+required. Set environment or `.env` configuration before importing task modules.
 
 ```text
 HTTP request
@@ -71,6 +77,9 @@ NER extraction and Wikidata linking are intentionally separable:
 - `/link` links caller-provided mentions and types.
 - `/ner-link` composes extraction followed by linking.
 
+An empty NER result returns an empty linked-entity list immediately. It does not
+need a lookup or an LLM disambiguation request.
+
 The lookup service supplies candidates. Deterministic mode selects the first candidate. LLM mode may choose only a QID from the supplied candidate set and falls back to unresolved entities if batch selection fails. Keep lookup concerns in `LookupClient`/`entity_linking.py`, and do not allow model-generated QIDs that were absent from lookup results.
 
 ## Configuration And Runtime State
@@ -85,8 +94,10 @@ returns the first validated vector.
 ## Contract Invariants
 
 - Request models forbid unknown fields unless a schema explicitly documents tolerance; cluster story/tag input intentionally permits extra upstream fields.
+- `StoryRequest` holds the shared title/summary input validation; `NerLinkRequest` extends `NerRequest` with linking options.
 - Response models generally forbid unknown fields and serialize aliases where required, such as `non-cybersecurity`.
 - Trailing slashes are accepted because the Quart URL map disables strict slashes.
 - Story IDs are remapped to compact integer IDs for clustering and validated/remapped back before returning them; every input story must appear exactly once.
+- Clustering uses only story summaries and tags. Summaries may be omitted, null, or empty; non-null summaries are truncated to `CLUSTER_MAX_CONTENT_CHARS_PER_STORY`. Extra story fields, including news items and titles, are not sent to the model.
 - Summary input and output are bounded by configuration. Title input is bounded, but overlong model titles are not truncated by the service.
 - Reasoning content is diagnostic output and must be stripped before JSON parsing when configured.

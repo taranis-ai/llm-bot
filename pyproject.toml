@@ -1,8 +1,9 @@
 [project]
 name = "llm-bot"
-description = "LLM-backed bot service for Taranis AI"
+description = "Async LLM task library and bot service for Taranis AI"
 readme = "README.md"
 license = "EUPL-1.2"
+license-files = ["LICENSE.md"]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -20,6 +21,10 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.urls]
+Repository = "https://github.com/taranis-ai/llm-bot"
+Documentation = "https://github.com/taranis-ai/llm-bot#readme"
+
 [project.optional-dependencies]
 dev = [
     "pytest",
@@ -30,26 +35,28 @@ dev = [
 
 [build-system]
 requires = [
-    "setuptools>=45",
-    "setuptools_scm[toml]>=6.2",
-    "wheel",
+    "setuptools>=77",
+    "setuptools_scm>=8",
 ]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 fallback_version = "0.0.0"
-tag_regex = "^([0-9].[0-9].[0-9])"
+tag_regex = '^([0-9]+\.[0-9]+\.[0-9]+)$'
 local_scheme = "no-local-version"
 
 [tool.setuptools]
 packages = ["llm_bot", "llm_bot.prompts", "llm_bot.tasks"]
 
 [tool.setuptools.package-data]
-llm_bot = ["prompts/*.txt"]
+llm_bot = ["prompts/*.txt", "openapi3_1.yml"]
 
 [tool.ruff]
 line-length = 142
 target-version = "py313"
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "B"]
 
 [tool.pytest.ini_options]
 filterwarnings = [

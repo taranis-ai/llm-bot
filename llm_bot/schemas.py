@@ -1,9 +1,8 @@
 import re
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
-
 
 GRAPH_IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*$"
 
@@ -103,7 +102,7 @@ class HragRequest(LLMRequest):
     graph_facts: list[HragGraphFact]
 
     @model_validator(mode="after")
-    def validate_evidence_ids(self) -> "HragRequest":
+    def validate_evidence_ids(self) -> Self:
         evidence_ids = [item.id for item in self.passages]
         evidence_ids.extend(item.id for item in self.graph_facts)
         if len(evidence_ids) != len(set(evidence_ids)):
@@ -140,21 +139,20 @@ class EmbedResponse(BaseModel):
     embedding: list[float] = Field(min_length=1)
 
 
-class SummarizeRequest(LLMRequest):
-
+class StoryRequest(LLMRequest):
     text: str | None = Field(default=None, min_length=1)
     news_items: list[StoryInputNewsItem] | None = None
     language: str | None = Field(default=None, min_length=1)
-    max_words: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
-    def validate_story_input(self) -> "SummarizeRequest":
-        if self.text:
+    def validate_story_input(self) -> Self:
+        if self.text or any(item.title or item.content for item in self.news_items or []):
             return self
-        if self.news_items:
-            if any(item.title or item.content for item in self.news_items):
-                return self
         raise ValueError("Either text or news_items with at least one non-empty item must be provided")
+
+
+class SummarizeRequest(StoryRequest):
+    max_words: int | None = Field(default=None, ge=1)
 
 
 class SummarizeResponse(BaseModel):
@@ -163,21 +161,8 @@ class SummarizeResponse(BaseModel):
     summary: str = Field(min_length=1)
 
 
-class TitleRequest(LLMRequest):
-
-    text: str | None = Field(default=None, min_length=1)
-    news_items: list[StoryInputNewsItem] | None = None
-    language: str | None = Field(default=None, min_length=1)
+class TitleRequest(StoryRequest):
     max_chars: int = Field(default=100, ge=1)
-
-    @model_validator(mode="after")
-    def validate_story_input(self) -> "TitleRequest":
-        if self.text:
-            return self
-        if self.news_items:
-            if any(item.title or item.content for item in self.news_items):
-                return self
-        raise ValueError("Either text or news_items with at least one non-empty item must be provided")
 
 
 class TitleResponse(BaseModel):
@@ -187,7 +172,6 @@ class TitleResponse(BaseModel):
 
 
 class TranslateRequest(LLMRequest):
-
     text: str = Field(min_length=1)
     target_language: str = Field(min_length=1)
     source_language: str | None = None
@@ -200,25 +184,19 @@ class TranslateResponse(BaseModel):
 
 
 class SentimentRequest(LLMRequest):
-
     text: str = Field(min_length=1)
     include_emotions: bool = False
 
 
 class CybersecClassificationRequest(LLMRequest):
-
     text: str = Field(min_length=1)
 
 
 class CybersecClassificationResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, serialize_by_alias=True)
 
     cybersecurity: float = Field(ge=0, le=1)
     non_cybersecurity: float = Field(alias="non-cybersecurity", ge=0, le=1)
-
-    def model_dump(self, *args, **kwargs):
-        kwargs.setdefault("by_alias", True)
-        return super().model_dump(*args, **kwargs)
 
 
 class SentimentResult(BaseModel):
@@ -229,23 +207,17 @@ class SentimentResult(BaseModel):
     emotions: list[EmotionLabel] | None = None
 
     @model_validator(mode="after")
-    def validate_emotions(self) -> "SentimentResult":
+    def validate_emotions(self) -> Self:
         if self.emotions is None:
             return self
 
         if len(self.emotions) != len(set(self.emotions)):
             raise ValueError("Emotions must not contain duplicates")
 
-        invalid_emotions = [
-            emotion
-            for emotion in self.emotions
-            if self.label not in _ALLOWED_SENTIMENTS_BY_EMOTION[emotion]
-        ]
+        invalid_emotions = [emotion for emotion in self.emotions if self.label not in _ALLOWED_SENTIMENTS_BY_EMOTION[emotion]]
         if invalid_emotions:
             invalid_names = ", ".join(emotion.value for emotion in invalid_emotions)
-            raise ValueError(
-                f"Emotions not allowed for sentiment {self.label.value}: {invalid_names}"
-            )
+            raise ValueError(f"Emotions not allowed for sentiment {self.label.value}: {invalid_names}")
 
         return self
 
@@ -261,17 +233,12 @@ class SentimentResponse(BaseModel):
 
 
 class NerRequest(LLMRequest):
-
     text: str = Field(min_length=1)
     cybersecurity: bool = False
     entity_types: list[str] | None = None
 
 
-class NerLinkRequest(LLMRequest):
-
-    text: str = Field(min_length=1)
-    cybersecurity: bool = False
-    entity_types: list[str] | None = None
+class NerLinkRequest(NerRequest):
     language: str | None = None
     linking_mode: str | None = None
 
@@ -295,7 +262,7 @@ class ExtractionRelationType(BaseModel):
     target_types: list[str] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_type_lists(self) -> "ExtractionRelationType":
+    def validate_type_lists(self) -> Self:
         if len(self.source_types) != len(set(self.source_types)):
             raise ValueError("Relation source_types must not contain duplicates")
         if len(self.target_types) != len(set(self.target_types)):
@@ -312,7 +279,7 @@ class EntityRelationshipSchema(BaseModel):
     relation_types: list[ExtractionRelationType]
 
     @model_validator(mode="after")
-    def validate_schema_references(self) -> "EntityRelationshipSchema":
+    def validate_schema_references(self) -> Self:
         entity_type_names = [entity_type.name for entity_type in self.entity_types]
         if len(entity_type_names) != len(set(entity_type_names)):
             raise ValueError("Entity type names must be unique")
@@ -323,16 +290,11 @@ class EntityRelationshipSchema(BaseModel):
 
         known_entity_types = set(entity_type_names)
         referenced_entity_types = {
-            entity_type
-            for relation_type in self.relation_types
-            for entity_type in relation_type.source_types + relation_type.target_types
+            entity_type for relation_type in self.relation_types for entity_type in relation_type.source_types + relation_type.target_types
         }
         unknown_entity_types = sorted(referenced_entity_types - known_entity_types)
         if unknown_entity_types:
-            raise ValueError(
-                "Relation constraints reference unknown entity types: "
-                + ", ".join(unknown_entity_types)
-            )
+            raise ValueError("Relation constraints reference unknown entity types: " + ", ".join(unknown_entity_types))
         return self
 
 
@@ -380,7 +342,7 @@ class GraphNodeLabel(BaseModel):
     properties: list[GraphQueryableProperty]
 
     @model_validator(mode="after")
-    def validate_property_names(self) -> "GraphNodeLabel":
+    def validate_property_names(self) -> Self:
         property_names = [prop.name for prop in self.properties]
         if len(property_names) != len(set(property_names)):
             raise ValueError(f"Property names for node label {self.label} must be unique")
@@ -406,7 +368,7 @@ class GraphRelationshipType(BaseModel):
         return labels
 
     @model_validator(mode="after")
-    def validate_property_names(self) -> "GraphRelationshipType":
+    def validate_property_names(self) -> Self:
         property_names = [prop.name for prop in self.properties]
         if len(property_names) != len(set(property_names)):
             raise ValueError(f"Property names for relationship type {self.type} must be unique")
@@ -422,7 +384,7 @@ class GraphQuerySchema(BaseModel):
     maximum_limit: int = Field(ge=1)
 
     @model_validator(mode="after")
-    def validate_schema_references(self) -> "GraphQuerySchema":
+    def validate_schema_references(self) -> Self:
         node_labels = [node.label for node in self.node_labels]
         if len(node_labels) != len(set(node_labels)):
             raise ValueError("Graph node labels must be unique")
@@ -485,7 +447,6 @@ class LinkRequestEntity(BaseModel):
 
 
 class LinkRequest(LLMRequest):
-
     text: str = Field(min_length=1)
     entities: list[LinkRequestEntity] = Field(min_length=1)
     language: str | None = None
@@ -521,25 +482,15 @@ class StoryTag(BaseModel):
     tag_type: str
 
 
-class StoryNewsItem(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    title: str
-    content: str
-    review: str | None = None
-    language: str | None = None
-
-
 class StoryClusterItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     id: str = Field(min_length=1)
     tags: dict[str, StoryTag]
-    news_items: list[StoryNewsItem] = Field(min_length=1)
+    summary: str | None = None
 
 
 class ClusterRequest(LLMRequest):
-
     stories: list[StoryClusterItem] = Field(min_length=1)
 
 

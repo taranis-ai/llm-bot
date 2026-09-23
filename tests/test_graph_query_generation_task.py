@@ -11,7 +11,6 @@ from llm_bot.tasks.graph_query_generation import (
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from tests.test_helpers import StubLLMClient
 
-
 REQUEST_PAYLOAD = {
     "question": "Which organization employs Alice?",
     "graph_name": "knowledge_graph",
@@ -69,11 +68,12 @@ def test_parse_valid_graph_query():
     assert response.model_dump() == VALID_OUTPUT
 
 
-def test_parse_accepts_a_map_with_a_key_matching_its_graph_variable():
+@pytest.mark.parametrize("projection", ["{p: p.name}", "{name: p.name, age: p.age}", "coalesce(p.name, $fallback)"])
+def test_parse_accepts_one_result_expression(projection):
     output = {
         **VALID_OUTPUT,
-        "cypher": "MATCH (p:Person) RETURN {p: p.name} AS result LIMIT 25",
-        "parameters": {},
+        "cypher": f"MATCH (p:Person) RETURN {projection} AS result LIMIT 25",
+        "parameters": {"fallback": "Unknown"} if "$fallback" in projection else {},
     }
 
     response = parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
@@ -158,6 +158,22 @@ def test_parse_rejects_schema_violations(cypher, error):
         (
             "MATCH (p:Person) RETURN p.name AS name LIMIT 25 RETURN p.name",
             "LIMIT must be the final clause",
+        ),
+        (
+            "MATCH (p:Person)-->(o:Organization) RETURN o.name AS result LIMIT 25",
+            "explicit allowed relationship type",
+        ),
+        (
+            "MATCH (p:Person) <-- (o:Organization) RETURN o.name AS result LIMIT 25",
+            "explicit allowed relationship type",
+        ),
+        (
+            "MATCH (p:Person)--(o:Organization) RETURN o.name AS result LIMIT 25",
+            "explicit allowed relationship type",
+        ),
+        (
+            "MATCH (p:Person) RETURN p.name AS first, p.age AS result LIMIT 25",
+            "exactly one value aliased as result",
         ),
     ],
 )

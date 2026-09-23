@@ -19,13 +19,9 @@ def test_build_cybersec_classification_messages():
 
 
 def test_parse_cybersec_classification_response():
-    response = parse_cybersec_classification_response(
-        {"output_text": '{"cybersecurity":0.97,"non-cybersecurity":0.03}'}
-    )
+    response = parse_cybersec_classification_response({"output_text": '{"cybersecurity":0.97,"non-cybersecurity":0.03}'})
 
-    assert response == CybersecClassificationResponse.model_validate(
-        {"cybersecurity": 0.97, "non-cybersecurity": 0.03}
-    )
+    assert response == CybersecClassificationResponse.model_validate({"cybersecurity": 0.97, "non-cybersecurity": 0.03})
 
 
 @pytest.mark.asyncio
@@ -41,9 +37,7 @@ async def test_classify_cybersecurity_text_calls_client():
         client=client,
     )
 
-    assert response == CybersecClassificationResponse.model_validate(
-        {"cybersecurity": 0.97, "non-cybersecurity": 0.03}
-    )
+    assert response == CybersecClassificationResponse.model_validate({"cybersecurity": 0.97, "non-cybersecurity": 0.03})
     assert client.calls[0]["user_input"] == "APT29 used Mimikatz."
     assert client.calls[0]["response_format"]["type"] == "json_schema"
 
@@ -62,8 +56,6 @@ async def test_classify_cybersecurity_text_retries_once_on_invalid_output():
         client=client,
     )
 
-    assert response == CybersecClassificationResponse.model_validate(
-        {"cybersecurity": 0.61, "non-cybersecurity": 0.39}
-    )
+    assert response == CybersecClassificationResponse.model_validate({"cybersecurity": 0.61, "non-cybersecurity": 0.39})
     assert len(client.calls) == 2
     assert "Your previous response was invalid." in client.calls[1]["system_input"]

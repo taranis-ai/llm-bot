@@ -16,7 +16,6 @@ from llm_bot.tasks.llm_utils import (
     loads_json_output,
 )
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "entity_relationship_extraction.txt"
 
 

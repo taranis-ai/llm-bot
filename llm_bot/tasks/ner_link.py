@@ -1,6 +1,7 @@
 from llm_bot.client import LLMClient
 from llm_bot.lookup_client import LookupClient
-from llm_bot.schemas import LinkRequest, LinkedNerResponse, NerLinkRequest, NerRequest
+from llm_bot.schemas import LinkedNerResponse, LinkRequest, NerLinkRequest, NerRequest
+from llm_bot.tasks.entity_linking import resolve_linking_mode
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import extract_entities
 
@@ -10,6 +11,7 @@ async def extract_and_link(
     client: LLMClient | None = None,
     lookup_client: LookupClient | None = None,
 ) -> LinkedNerResponse:
+    linking_mode = resolve_linking_mode(request)
     llm_client = client or LLMClient(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
@@ -24,15 +26,15 @@ async def extract_and_link(
         ),
         client=llm_client,
     )
+    if not ner_response.root:
+        return LinkedNerResponse(entities=[])
+
     link_request = LinkRequest(
         text=request.text,
         language=request.language,
-        linking_mode=request.linking_mode,
+        linking_mode=linking_mode,
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
-        entities=[
-            {"mention": mention, "type": entity_type}
-            for mention, entity_type in ner_response.root.items()
-        ],
+        entities=[{"mention": mention, "type": entity_type} for mention, entity_type in ner_response.root.items()],
     )
     return await link_entities(link_request, client=llm_client, lookup_client=lookup_client)
