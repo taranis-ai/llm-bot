@@ -1,5 +1,6 @@
 import re
 from enum import StrEnum
+from math import isclose
 from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
@@ -184,12 +185,45 @@ class TranslateResponse(BaseModel):
 
 
 class SentimentRequest(LLMRequest):
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, description="English text; translate other languages before analysis")
     include_emotions: bool = False
 
 
 class CybersecClassificationRequest(LLMRequest):
+    text: str = Field(min_length=1, description="English text; translate other languages before analysis")
+
+
+class LocalTextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     text: str = Field(min_length=1)
+
+
+TopicLabel = Literal["vulnerabilities", "attacks", "incidents", "politics", "business", "other"]
+
+
+class ClassificationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: TopicLabel
+    scores: dict[TopicLabel, float]
+
+    @model_validator(mode="after")
+    def validate_scores(self) -> Self:
+        expected = {"vulnerabilities", "attacks", "incidents", "politics", "business", "other"}
+        if set(self.scores) != expected or any(not 0 <= value <= 1 for value in self.scores.values()):
+            raise ValueError("Expected a probability for each of the six categories")
+        if not isclose(sum(self.scores.values()), 1, abs_tol=1e-6):
+            raise ValueError("Category scores must sum to one")
+        if self.scores[self.category] != max(self.scores.values()):
+            raise ValueError("Primary category must have the highest score")
+        return self
+
+
+class LanguageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    language: str = Field(pattern=r"^(?:[a-z]{2}|und)$")
 
 
 class CybersecClassificationResponse(BaseModel):

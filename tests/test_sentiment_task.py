@@ -99,7 +99,9 @@ async def test_analyze_sentiment_repairs_null_emotions_when_requested():
         ]
     )
 
-    response = await analyze_sentiment(SentimentRequest(text="Encouraging results.", include_emotions=True), client=client)
+    response = await analyze_sentiment(
+        SentimentRequest(text="The results of the investigation were encouraging.", include_emotions=True), client=client
+    )
 
     assert response.model_dump() == {"sentiment": {"label": "positive", "score": 0.72, "emotions": []}}
     assert len(client.calls) == 2

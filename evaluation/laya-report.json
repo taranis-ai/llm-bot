@@ -1,0 +1,1072 @@
+{
+  "provenance": "Synthetic Taranis-style examples authored for issue #24; labels are engineering expectations, not independently annotated production data.",
+  "backend": "laya",
+  "analysis_languages": [
+    "en"
+  ],
+  "model_revision": "aa8c91ca088ec597df95a0d1c76b3063cb2ae5e8",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "python": "3.13.15",
+  "device": "cpu",
+  "cpu_threads": 4,
+  "dataset_cases": 24,
+  "cold_load_seconds": 1.827299333002884,
+  "wall_seconds": 12.108440082985908,
+  "cpu_seconds": 24.149901999999997,
+  "peak_rss_mib": 2851.453125,
+  "metrics": {
+    "topic": {
+      "count": 15,
+      "accuracy": 0.9333333333333333,
+      "per_label": {
+        "vulnerabilities": {
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "support": 2
+        },
+        "attacks": {
+          "precision": 1.0,
+          "recall": 0.5,
+          "support": 2
+        },
+        "incidents": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 4
+        },
+        "politics": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2
+        },
+        "business": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 3
+        },
+        "other": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 2
+        }
+      },
+      "confidence_brier": 0.0657461776663846,
+      "ece_10_bins": 0.2051272642611154,
+      "latency_seconds": {
+        "p50": 0.09686449999571778,
+        "p95": 0.09956391699961387
+      }
+    },
+    "sentiment": {
+      "count": 15,
+      "accuracy": 0.8,
+      "per_label": {
+        "positive": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1
+        },
+        "negative": {
+          "precision": 0.4,
+          "recall": 1.0,
+          "support": 2
+        },
+        "neutral": {
+          "precision": 1.0,
+          "recall": 0.75,
+          "support": 12
+        }
+      },
+      "confidence_brier": 0.20328563935142446,
+      "ece_10_bins": 0.22817282215879486,
+      "latency_seconds": {
+        "p50": 0.35684333299286664,
+        "p95": 0.44340791599825025
+      }
+    },
+    "language": {
+      "count": 24,
+      "accuracy": 1,
+      "per_label": {
+        "de": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 3
+        },
+        "en": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 16
+        },
+        "es": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1
+        },
+        "fr": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 1
+        },
+        "und": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 3
+        }
+      },
+      "latency_seconds": {
+        "p50": 0.01295652100816369,
+        "p95": 0.19814812499680556
+      }
+    },
+    "cybersecurity": {
+      "count": 15,
+      "accuracy": 1,
+      "per_label": {
+        "true": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 10
+        },
+        "false": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "support": 5
+        }
+      },
+      "confidence_brier": 0.051889002000000004,
+      "ece_10_bins": 0.19307333333333332,
+      "latency_seconds": {
+        "p50": 0.06471816601697356,
+        "p95": 0.07559475000016391
+      }
+    }
+  },
+  "laya_language_heuristic": {
+    "count": 24,
+    "accuracy": 0.9583333333333334,
+    "per_label": {
+      "de": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "support": 3
+      },
+      "en": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 16
+      },
+      "es": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 1
+      },
+      "fr": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 1
+      },
+      "und": {
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "support": 3
+      }
+    }
+  },
+  "emotions_micro_f1": 0.29411764705882354,
+  "errors": [
+    {
+      "id": "de-incident",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "de-incident",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "de-incident",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "de-politics",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "de-politics",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "de-politics",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "fr-politics",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "fr-politics",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "fr-politics",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "es-politics",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "es-politics",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "es-politics",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "mixed",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "mixed",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "mixed",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "short",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "short",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "short",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "technical",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "technical",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "technical",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-incident",
+      "task": "sentiment",
+      "error": "LocalInputError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-incident",
+      "task": "cybersecurity",
+      "error": "LocalInputError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-incident",
+      "task": "topic",
+      "error": "LocalInputError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-german",
+      "task": "sentiment",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-german",
+      "task": "cybersecurity",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    },
+    {
+      "id": "long-german",
+      "task": "topic",
+      "error": "EnglishTextRequiredError",
+      "expected_rejection": true
+    }
+  ],
+  "predictions": [
+    {
+      "id": "flaw",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.4110142500139773,
+      "predicted": "en"
+    },
+    {
+      "id": "flaw",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.44340791599825025,
+      "predicted": "neutral",
+      "confidence": 0.7180718071807181,
+      "emotions": [
+        "surprise",
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "flaw",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.07064937500399537,
+      "predicted": true,
+      "confidence": 0.8212
+    },
+    {
+      "id": "flaw",
+      "task": "topic",
+      "expected": "vulnerabilities",
+      "seconds": 0.09157933300593868,
+      "predicted": "vulnerabilities",
+      "confidence": 0.9881,
+      "scores": {
+        "vulnerabilities": 0.9881,
+        "attacks": 0.002,
+        "incidents": 0.0031,
+        "politics": 0.0011,
+        "business": 0.0024,
+        "other": 0.0033
+      }
+    },
+    {
+      "id": "patch-overlap",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.07156220899196342,
+      "predicted": "en"
+    },
+    {
+      "id": "patch-overlap",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.3365141659742221,
+      "predicted": "neutral",
+      "confidence": 0.8633,
+      "emotions": [
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "patch-overlap",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06445012500626035,
+      "predicted": true,
+      "confidence": 0.7607
+    },
+    {
+      "id": "patch-overlap",
+      "task": "topic",
+      "expected": "vulnerabilities",
+      "seconds": 0.08650954099721275,
+      "predicted": "vulnerabilities",
+      "confidence": 0.8743,
+      "scores": {
+        "vulnerabilities": 0.8743,
+        "attacks": 0.0256,
+        "incidents": 0.0227,
+        "politics": 0.009,
+        "business": 0.0168,
+        "other": 0.0516
+      }
+    },
+    {
+      "id": "campaign",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.067335333005758,
+      "predicted": "en"
+    },
+    {
+      "id": "campaign",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.36252345802495256,
+      "predicted": "neutral",
+      "confidence": 0.7094,
+      "emotions": [],
+      "expected_emotions": []
+    },
+    {
+      "id": "campaign",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.0656268330058083,
+      "predicted": true,
+      "confidence": 0.888
+    },
+    {
+      "id": "campaign",
+      "task": "topic",
+      "expected": "attacks",
+      "seconds": 0.09817437498713844,
+      "predicted": "attacks",
+      "confidence": 0.7263452690538108,
+      "scores": {
+        "vulnerabilities": 0.034206841368273656,
+        "attacks": 0.7263452690538108,
+        "incidents": 0.14342868573714745,
+        "politics": 0.016203240648129627,
+        "business": 0.03050610122024405,
+        "other": 0.04930986197239448
+      }
+    },
+    {
+      "id": "techniques",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.041326708014821634,
+      "predicted": "en"
+    },
+    {
+      "id": "techniques",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.34036908397683874,
+      "predicted": "neutral",
+      "confidence": 0.7011701170117011,
+      "emotions": [],
+      "expected_emotions": []
+    },
+    {
+      "id": "techniques",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06839204198331572,
+      "predicted": true,
+      "confidence": 0.7221
+    },
+    {
+      "id": "techniques",
+      "task": "topic",
+      "expected": "attacks",
+      "seconds": 0.09041587499086745,
+      "predicted": "vulnerabilities",
+      "confidence": 0.31833183318331837,
+      "scores": {
+        "vulnerabilities": 0.31833183318331837,
+        "attacks": 0.19781978197819783,
+        "incidents": 0.2074207420742074,
+        "politics": 0.0224022402240224,
+        "business": 0.030903090309030903,
+        "other": 0.2231223122312231
+      }
+    },
+    {
+      "id": "hospital",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.01649120799265802,
+      "predicted": "en"
+    },
+    {
+      "id": "hospital",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.36945808297605254,
+      "predicted": "negative",
+      "confidence": 0.908,
+      "emotions": [
+        "fear",
+        "surprise",
+        "sadness",
+        "disgust",
+        "anger"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "hospital",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06471816601697356,
+      "predicted": true,
+      "confidence": 0.8421
+    },
+    {
+      "id": "hospital",
+      "task": "topic",
+      "expected": "incidents",
+      "seconds": 0.09872995800105855,
+      "predicted": "incidents",
+      "confidence": 0.9654,
+      "scores": {
+        "vulnerabilities": 0.0029,
+        "attacks": 0.0178,
+        "incidents": 0.9654,
+        "politics": 0.0021,
+        "business": 0.0081,
+        "other": 0.0037
+      }
+    },
+    {
+      "id": "breach-overlap",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.019600250001531094,
+      "predicted": "en"
+    },
+    {
+      "id": "breach-overlap",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.365874042006908,
+      "predicted": "negative",
+      "confidence": 0.874,
+      "emotions": [
+        "fear",
+        "sadness",
+        "disgust"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "breach-overlap",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06684608399518766,
+      "predicted": true,
+      "confidence": 0.8026
+    },
+    {
+      "id": "breach-overlap",
+      "task": "topic",
+      "expected": "incidents",
+      "seconds": 0.09948329199687578,
+      "predicted": "incidents",
+      "confidence": 0.875012498750125,
+      "scores": {
+        "vulnerabilities": 0.049595040495950406,
+        "attacks": 0.023997600239976002,
+        "incidents": 0.875012498750125,
+        "politics": 0.0022997700229977,
+        "business": 0.0430956904309569,
+        "other": 0.0059994000599940004
+      }
+    },
+    {
+      "id": "regulation",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.013959000003524125,
+      "predicted": "en"
+    },
+    {
+      "id": "regulation",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.3547036669915542,
+      "predicted": "neutral",
+      "confidence": 0.851014898510149,
+      "emotions": [
+        "surprise",
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "regulation",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06894112500594929,
+      "predicted": true,
+      "confidence": 0.5649
+    },
+    {
+      "id": "regulation",
+      "task": "topic",
+      "expected": "politics",
+      "seconds": 0.09450320899486542,
+      "predicted": "politics",
+      "confidence": 0.536953695369537,
+      "scores": {
+        "vulnerabilities": 0.037903790379037905,
+        "attacks": 0.047204720472047206,
+        "incidents": 0.1689168916891689,
+        "politics": 0.536953695369537,
+        "business": 0.13701370137013702,
+        "other": 0.072007200720072
+      }
+    },
+    {
+      "id": "election",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.01666516700061038,
+      "predicted": "en"
+    },
+    {
+      "id": "election",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.344340125011513,
+      "predicted": "neutral",
+      "confidence": 0.8677,
+      "emotions": [
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "election",
+      "task": "cybersecurity",
+      "expected": false,
+      "seconds": 0.07559475000016391,
+      "predicted": false,
+      "confidence": 0.9027
+    },
+    {
+      "id": "election",
+      "task": "topic",
+      "expected": "politics",
+      "seconds": 0.0936599999840837,
+      "predicted": "politics",
+      "confidence": 0.946005399460054,
+      "scores": {
+        "vulnerabilities": 0.0117988201179882,
+        "attacks": 0.005699430056994301,
+        "incidents": 0.0094990500949905,
+        "politics": 0.946005399460054,
+        "business": 0.012798720127987202,
+        "other": 0.014198580141985802
+      }
+    },
+    {
+      "id": "acquisition",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.011954042012803257,
+      "predicted": "en"
+    },
+    {
+      "id": "acquisition",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.3555927499837708,
+      "predicted": "neutral",
+      "confidence": 0.5866,
+      "emotions": [
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "acquisition",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06439862502156757,
+      "predicted": true,
+      "confidence": 0.801
+    },
+    {
+      "id": "acquisition",
+      "task": "topic",
+      "expected": "business",
+      "seconds": 0.09956391699961387,
+      "predicted": "business",
+      "confidence": 0.8616861686168618,
+      "scores": {
+        "vulnerabilities": 0.018201820182018203,
+        "attacks": 0.032303230323032305,
+        "incidents": 0.025302530253025302,
+        "politics": 0.03910391039103911,
+        "business": 0.8616861686168618,
+        "other": 0.023402340234023402
+      }
+    },
+    {
+      "id": "earnings",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.0076177500013727695,
+      "predicted": "en"
+    },
+    {
+      "id": "earnings",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.34196104199509136,
+      "predicted": "negative",
+      "confidence": 0.9222,
+      "emotions": [
+        "sadness",
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "earnings",
+      "task": "cybersecurity",
+      "expected": false,
+      "seconds": 0.07070987499901094,
+      "predicted": false,
+      "confidence": 0.903
+    },
+    {
+      "id": "earnings",
+      "task": "topic",
+      "expected": "business",
+      "seconds": 0.0917775830021128,
+      "predicted": "business",
+      "confidence": 0.9633,
+      "scores": {
+        "vulnerabilities": 0.006,
+        "attacks": 0.0033,
+        "incidents": 0.0135,
+        "politics": 0.0102,
+        "business": 0.9633,
+        "other": 0.0037
+      }
+    },
+    {
+      "id": "sports",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.00978074999875389,
+      "predicted": "en"
+    },
+    {
+      "id": "sports",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.3577154169906862,
+      "predicted": "neutral",
+      "confidence": 0.8064193580641936,
+      "emotions": [
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "sports",
+      "task": "cybersecurity",
+      "expected": false,
+      "seconds": 0.06324691599002108,
+      "predicted": false,
+      "confidence": 0.9664
+    },
+    {
+      "id": "sports",
+      "task": "topic",
+      "expected": "other",
+      "seconds": 0.0991924999980256,
+      "predicted": "other",
+      "confidence": 0.6765,
+      "scores": {
+        "vulnerabilities": 0.0644,
+        "attacks": 0.0238,
+        "incidents": 0.1338,
+        "politics": 0.0483,
+        "business": 0.0532,
+        "other": 0.6765
+      }
+    },
+    {
+      "id": "weather",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.00813608302269131,
+      "predicted": "en"
+    },
+    {
+      "id": "weather",
+      "task": "sentiment",
+      "expected": "neutral",
+      "seconds": 0.363244416017551,
+      "predicted": "neutral",
+      "confidence": 0.7316,
+      "emotions": [
+        "surprise",
+        "anticipation"
+      ],
+      "expected_emotions": []
+    },
+    {
+      "id": "weather",
+      "task": "cybersecurity",
+      "expected": false,
+      "seconds": 0.06344375002663583,
+      "predicted": false,
+      "confidence": 0.9579
+    },
+    {
+      "id": "weather",
+      "task": "topic",
+      "expected": "other",
+      "seconds": 0.09875125001417473,
+      "predicted": "other",
+      "confidence": 0.6155,
+      "scores": {
+        "vulnerabilities": 0.1082,
+        "attacks": 0.038,
+        "incidents": 0.0426,
+        "politics": 0.1391,
+        "business": 0.0566,
+        "other": 0.6155
+      }
+    },
+    {
+      "id": "praise",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.005128416989464313,
+      "predicted": "en"
+    },
+    {
+      "id": "praise",
+      "task": "sentiment",
+      "expected": "positive",
+      "seconds": 0.3538585409987718,
+      "predicted": "positive",
+      "confidence": 0.8911,
+      "emotions": [
+        "joy",
+        "trust"
+      ],
+      "expected_emotions": [
+        "joy",
+        "trust",
+        "anticipation"
+      ]
+    },
+    {
+      "id": "praise",
+      "task": "cybersecurity",
+      "expected": false,
+      "seconds": 0.0625386250030715,
+      "predicted": false,
+      "confidence": 0.8267
+    },
+    {
+      "id": "praise",
+      "task": "topic",
+      "expected": "business",
+      "seconds": 0.09672508301446214,
+      "predicted": "business",
+      "confidence": 0.5131,
+      "scores": {
+        "vulnerabilities": 0.0866,
+        "attacks": 0.055,
+        "incidents": 0.0702,
+        "politics": 0.0421,
+        "business": 0.5131,
+        "other": 0.233
+      }
+    },
+    {
+      "id": "anger",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.01144020800711587,
+      "predicted": "en"
+    },
+    {
+      "id": "anger",
+      "task": "sentiment",
+      "expected": "negative",
+      "seconds": 0.35684333299286664,
+      "predicted": "negative",
+      "confidence": 0.9488,
+      "emotions": [
+        "fear",
+        "sadness",
+        "disgust",
+        "anger"
+      ],
+      "expected_emotions": [
+        "anger",
+        "disgust"
+      ]
+    },
+    {
+      "id": "anger",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06375366597785614,
+      "predicted": true,
+      "confidence": 0.531
+    },
+    {
+      "id": "anger",
+      "task": "topic",
+      "expected": "incidents",
+      "seconds": 0.09840566600905731,
+      "predicted": "incidents",
+      "confidence": 0.8976,
+      "scores": {
+        "vulnerabilities": 0.0452,
+        "attacks": 0.0228,
+        "incidents": 0.8976,
+        "politics": 0.0046,
+        "business": 0.0201,
+        "other": 0.0097
+      }
+    },
+    {
+      "id": "fear",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.003867458988679573,
+      "predicted": "en"
+    },
+    {
+      "id": "fear",
+      "task": "sentiment",
+      "expected": "negative",
+      "seconds": 0.3624483330058865,
+      "predicted": "negative",
+      "confidence": 0.9369,
+      "emotions": [
+        "fear",
+        "sadness"
+      ],
+      "expected_emotions": [
+        "fear"
+      ]
+    },
+    {
+      "id": "fear",
+      "task": "cybersecurity",
+      "expected": true,
+      "seconds": 0.06450620800023898,
+      "predicted": true,
+      "confidence": 0.8136
+    },
+    {
+      "id": "fear",
+      "task": "topic",
+      "expected": "incidents",
+      "seconds": 0.09686449999571778,
+      "predicted": "incidents",
+      "confidence": 0.8016198380161984,
+      "scores": {
+        "vulnerabilities": 0.0580941905809419,
+        "attacks": 0.05929407059294071,
+        "incidents": 0.8016198380161984,
+        "politics": 0.020097990200979902,
+        "business": 0.0206979302069793,
+        "other": 0.040195980401959805
+      }
+    },
+    {
+      "id": "de-incident",
+      "task": "language",
+      "expected": "de",
+      "seconds": 0.017060916987247765,
+      "predicted": "de"
+    },
+    {
+      "id": "de-politics",
+      "task": "language",
+      "expected": "de",
+      "seconds": 0.011576082993997261,
+      "predicted": "de"
+    },
+    {
+      "id": "fr-politics",
+      "task": "language",
+      "expected": "fr",
+      "seconds": 0.015702292002970353,
+      "predicted": "fr"
+    },
+    {
+      "id": "es-politics",
+      "task": "language",
+      "expected": "es",
+      "seconds": 0.008601207984611392,
+      "predicted": "es"
+    },
+    {
+      "id": "mixed",
+      "task": "language",
+      "expected": "und",
+      "seconds": 0.004599083011271432,
+      "predicted": "und"
+    },
+    {
+      "id": "short",
+      "task": "language",
+      "expected": "und",
+      "seconds": 8.541601710021496e-05,
+      "predicted": "und"
+    },
+    {
+      "id": "technical",
+      "task": "language",
+      "expected": "und",
+      "seconds": 5.708300159312785e-05,
+      "predicted": "und"
+    },
+    {
+      "id": "long-incident",
+      "task": "language",
+      "expected": "en",
+      "seconds": 0.19814812499680556,
+      "predicted": "en"
+    },
+    {
+      "id": "long-german",
+      "task": "language",
+      "expected": "de",
+      "seconds": 0.18601545799174346,
+      "predicted": "de"
+    }
+  ],
+  "peak_cuda_allocated_mib": null
+}
