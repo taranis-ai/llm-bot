@@ -71,7 +71,7 @@ def build_graph_query_generation_messages(
     user_payload = {
         "question": request.question,
         "graph_name": request.graph_name,
-        "schema": request.schema.model_dump(exclude_none=True),
+        "schema": request.graph_schema.model_dump(exclude_none=True),
     }
     return [
         {"role": "system", "content": load_graph_query_generation_prompt()},
@@ -166,8 +166,8 @@ def _validate_schema_references(
     if re.search(r"\)\s*(?:-->|<--|--)\s*\(", cypher):
         raise InvalidLLMOutputError("Cypher relationships must use one explicit allowed relationship type")
 
-    nodes_by_label = {node.label: node for node in request.schema.node_labels}
-    relationships_by_type = {relationship.type: relationship for relationship in request.schema.relationship_types}
+    nodes_by_label = {node.label: node for node in request.graph_schema.node_labels}
+    relationships_by_type = {relationship.type: relationship for relationship in request.graph_schema.relationship_types}
     variables: dict[str, GraphNodeLabel | GraphRelationshipType] = {}
 
     node_matches = list(NODE_PATTERN.finditer(cypher))
@@ -331,7 +331,7 @@ def validate_graph_query_generation(
     request: GraphQueryGenerationRequest,
 ) -> GraphQueryGenerationResponse:
     cypher = response.cypher.strip()
-    _validate_query_shape(cypher, request.schema.maximum_limit)
+    _validate_query_shape(cypher, request.graph_schema.maximum_limit)
     _validate_schema_references(cypher, request)
     _validate_parameters(cypher, response.parameters)
     response.cypher = cypher
