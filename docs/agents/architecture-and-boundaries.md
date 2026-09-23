@@ -23,6 +23,12 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 
 ## Request Data Flow
 
+The installed Python library exposes the same async task functions under
+`llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
+validated request models directly to tasks, optionally inject clients, and receive
+response models or exceptions. No Quart application or HTTP request context is
+required. Set environment or `.env` configuration before importing task modules.
+
 ```text
 HTTP request
   -> Quart route and optional API-key check
