@@ -118,6 +118,7 @@ returns the first validated vector.
 
 ## Contract Invariants
 
+- Entity extraction and graph query requests use Python attributes `extraction_schema` and `graph_schema`, aliased to `schema` for input and default serialization. Keep the JSON key unchanged and avoid shadowing Pydantic methods.
 - Request models forbid unknown fields unless a schema explicitly documents tolerance; cluster story/tag input intentionally permits extra upstream fields.
 - `StoryRequest` holds the shared title/summary input validation; `NerLinkRequest` extends `NerRequest` with linking options.
 - Response models generally forbid unknown fields and serialize aliases where required, such as `non-cybersecurity`.

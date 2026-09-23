@@ -333,8 +333,10 @@ class EntityRelationshipSchema(BaseModel):
 
 
 class EntityRelationshipExtractionRequest(LLMRequest):
+    model_config = ConfigDict(serialize_by_alias=True)
+
     text: str = Field(min_length=1)
-    schema: EntityRelationshipSchema
+    extraction_schema: EntityRelationshipSchema = Field(alias="schema")
 
 
 class ExtractedEntity(BaseModel):
@@ -440,9 +442,11 @@ class GraphQuerySchema(BaseModel):
 
 
 class GraphQueryGenerationRequest(LLMRequest):
+    model_config = ConfigDict(serialize_by_alias=True)
+
     question: str = Field(min_length=1)
     graph_name: str = Field(min_length=1)
-    schema: GraphQuerySchema
+    graph_schema: GraphQuerySchema = Field(alias="schema")
 
 
 class GraphQueryGenerationResponse(BaseModel):

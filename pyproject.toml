@@ -63,6 +63,6 @@ extend-select = ["I", "UP", "B"]
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning",
-    "ignore::UserWarning",
+    "error:Field name .* shadows an attribute:UserWarning",
 ]
 asyncio_mode = "auto"
