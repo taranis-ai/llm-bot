@@ -84,11 +84,17 @@ Prompt changes in `llm_bot/prompts/` are behavior changes. Update the correspond
 
 To configure automated PyPI releases:
 
-1. Ensure `llm-bot` is available on PyPI or owned by the organization.
-2. Register a [trusted publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) for project `llm-bot`, owner `taranis-ai`, repository `llm-bot`, workflow `release.yml`, environment `pypi`.
+1. Use the PyPI project `taranis-llm-bot` owned by the `taranis-ai` organization. The distribution name in `pyproject.toml` must match this project; the Python import package remains `llm_bot`. PyPI's `llm-bot` is an unrelated project.
+2. Register a [trusted publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) for project `taranis-llm-bot`, owner `taranis-ai`, repository `llm-bot`, workflow `release.yml`, environment `pypi`.
 3. Create the GitHub `pypi` environment with required reviewers and release-tag restrictions.
 
 Local uploads use `UV_PUBLISH_TOKEN` from secure storage; never commit the token.
+
+An upload error saying the OIDC token is not valid for project `llm-bot` indicates
+that the distribution was built with the old name. Rebuild from a commit with
+the corrected package metadata into an empty output directory. Rerunning the old
+tag's publish job reuses the old artifacts and cannot fix the name mismatch;
+create the next release tag from the corrected commit instead.
 
 ## Change Discipline
 

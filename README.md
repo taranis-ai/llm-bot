@@ -13,9 +13,10 @@ translation, linking, clustering, and cybersecurity classification endpoints bac
 
 ## Python library
 
-Install a published release into a Python 3.13 project with `uv add llm-bot`.
+Install a published release into a Python 3.13 project with `uv add taranis-llm-bot`.
+The PyPI distribution is `taranis-llm-bot`; Python imports use `llm_bot`.
 Before publishing, install a locally built wheel with
-`uv add /absolute/path/to/llm_bot-VERSION-py3-none-any.whl`.
+`uv add /absolute/path/to/taranis_llm_bot-VERSION-py3-none-any.whl`.
 
 Set `LLM_BASE_URL`, `LLM_API_KEY`, and optionally `LLM_MODEL` and `LLM_API_MODE`
 in the environment or `.env` **before importing** the library. Call the async

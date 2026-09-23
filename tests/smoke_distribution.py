@@ -14,7 +14,7 @@ from llm_bot.tasks.summarize import summarize
 
 
 async def main() -> None:
-    assert __version__ == version("llm-bot")
+    assert __version__ == version("taranis-llm-bot")
     if len(sys.argv) > 1:
         assert __version__ == sys.argv[1], (__version__, sys.argv[1])
 
@@ -49,7 +49,7 @@ async def main() -> None:
         response = await http.get("/openapi.yaml")
         assert response.status_code == 200
         assert f"version: {__version__}" in await response.get_data(as_text=True)
-    print(f"Installed llm-bot {__version__}: tasks, prompts, health and OpenAPI OK")
+    print(f"Installed taranis-llm-bot {__version__}: tasks, prompts, health and OpenAPI OK")
 
 
 if __name__ == "__main__":

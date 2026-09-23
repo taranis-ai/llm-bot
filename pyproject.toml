@@ -1,5 +1,5 @@
 [project]
-name = "llm-bot"
+name = "taranis-llm-bot"
 description = "Async LLM task library and bot service for Taranis AI"
 readme = "README.md"
 license = "EUPL-1.2"

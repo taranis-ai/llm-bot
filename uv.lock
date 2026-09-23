@@ -274,41 +274,6 @@ wheels = [
 ]
 
 [[package]]
-name = "llm-bot"
-source = { editable = "." }
-dependencies = [
-    { name = "granian" },
-    { name = "langcodes", extra = ["data"] },
-    { name = "niquests" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "quart" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "python-dotenv" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "granian" },
-    { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
-    { name = "niquests" },
-    { name = "pydantic", specifier = ">=2.11.0" },
-    { name = "pydantic-settings" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
-    { name = "python-dotenv", marker = "extra == 'dev'" },
-    { name = "quart", specifier = ">=0.20.0" },
-    { name = "ruff", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "marisa-trie"
 version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -591,6 +556,41 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/a2/ef467cb77099062317154c63f234b8a7baf7cb690b99af760c5b68b9ee7f/ruff-0.15.8-py3-none-win_amd64.whl", hash = "sha256:04f79eff02a72db209d47d665ba7ebcad609d8918a134f86cb13dd132159fc89", size = 11743893, upload-time = "2026-03-26T18:39:25.01Z" },
     { url = "https://files.pythonhosted.org/packages/15/e2/77be4fff062fa78d9b2a4dea85d14785dac5f1d0c1fb58ed52331f0ebe28/ruff-0.15.8-py3-none-win_arm64.whl", hash = "sha256:cf891fa8e3bb430c0e7fac93851a5978fc99c8fa2c053b57b118972866f8e5f2", size = 11048175, upload-time = "2026-03-26T18:40:01.06Z" },
 ]
+
+[[package]]
+name = "taranis-llm-bot"
+source = { editable = "." }
+dependencies = [
+    { name = "granian" },
+    { name = "langcodes", extra = ["data"] },
+    { name = "niquests" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "quart" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "python-dotenv" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "granian" },
+    { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
+    { name = "niquests" },
+    { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "pydantic-settings" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "python-dotenv", marker = "extra == 'dev'" },
+    { name = "quart", specifier = ">=0.20.0" },
+    { name = "ruff", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "typing-extensions"
