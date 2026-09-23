@@ -4,7 +4,9 @@ Async Python library and LLM-backed bot service.
 
 The current implementation exposes stateless chat and grounded HRAG answering, embeddings, sentiment analysis,
 title generation, summary, named entity recognition, entity relationship extraction, graph query generation,
-translation, linking, clustering, and cybersecurity classification endpoints backed by OpenAI-compatible APIs.
+translation, linking and clustering through OpenAI-compatible APIs. Topic classification,
+cybersecurity relevance and sentiment use embedded Laya models by default; language detection
+uses Lingua locally. No separate inference service is needed for these four tasks.
 
 ## Requirements
 
@@ -48,6 +50,12 @@ import it from `llm_bot.client`. Inputs and outputs are Pydantic models, and err
 propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embeddings
 use `EMBEDDING_*`.
 
+Local tasks accept an injectable `inference=` object with async `predict(text, questions)`.
+`classify.classify_text(LocalTextRequest(text=...))` returns the primary topic and scores;
+`language.detect_language(LocalTextRequest(text=...))` returns a language code.
+For sentiment and cybersecurity, explicitly passing `client=LLMClient(...)` selects
+the previous LLM implementation for comparison. Otherwise Laya is the default.
+
 To embed the HTTP service, import `create_app` from `llm_bot.app` and expose
 `app = create_app()` in your ASGI entry point.
 
@@ -71,7 +79,12 @@ images and the PyPI package on tag pushes; see [PyPI setup](docs/agents/developm
 ```bash
 ./scripts/check.sh
 cp .env.example .env
+uv run python -m llm_bot.local_inference --download
 ```
+
+The last command downloads and verifies both pinned models once. Normal startup is offline
+and preloads them before serving. See [embedded runtime deployment](docs/deployment.md)
+for storage, memory, device selection, readiness and rollback. Each process has its own models.
 
 Configure the following values in `.env`:
 
@@ -82,7 +95,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/classify`, `/language`, `/cybersec-classification`, `/chat`, `/hrag`, `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -233,9 +246,62 @@ If `API_KEY` is configured, send it as:
 Authorization: Bearer <API_KEY>
 ```
 
+### Local text analysis
+
+`POST /classify` accepts `{"text":"..."}` and returns, for example:
+
+```json
+{
+  "category": "incidents",
+  "scores": {"vulnerabilities": 0.05, "attacks": 0.1, "incidents": 0.7, "politics": 0.05, "business": 0.05, "other": 0.05}
+}
+```
+
+Scores compete for the primary topic and sum to one. Choose by the main focus:
+newly disclosed flaws, CVEs and patches are `vulnerabilities`; campaign and technique
+analysis is `attacks`; a hospital reporting a ransomware breach is `incidents`.
+Government, geopolitics and legislation are `politics`; companies, markets and
+acquisitions are `business`; remaining content is `other`. Cybersecurity regulation
+can be primarily `politics` while `/cybersec-classification` still marks it relevant.
+
+`POST /language` accepts `{"text":"..."}` and returns `{"language":"en"}`.
+Codes are ISO 639-1; `und` means inconclusive. Fewer than 20 letters, content with
+less than 50% usable letters after removing URLs/identifiers, or an uncertain
+detection returns `und`. For mixed articles, a language must cover at least 80%
+of confidently identified sentence text; sentences with fewer than 20 letters are ignored
+to avoid false switches on shared vocabulary. This policy is conservative and
+does not identify language switches within a sentence. Empty or
+whitespace-only text returns 400.
+
+Local inference selects the English checkpoint only for `en`; all other languages,
+including `und`, use the multilingual checkpoint. Translation uses detected language
+when `source_language` is absent; `und` leaves source identification to the translator.
+Explicit `source_language` always wins. Detection examines the full input without
+truncation; translation without an explicit source is subject to the same character limit.
+
+All local analysis rejects input exceeding `LOCAL_MAX_INPUT_CHARS` (default 50,000).
+Laya additionally rejects text that will not fit its selected checkpoint's token
+budget **including the task question** (512 English / 1024 multilingual total
+tokens at the pinned revision). Rejection is 400, before any forward pass. There
+is no automatic truncation or chunk averaging; long articles must be shortened
+explicitly by the caller. These stricter limits change what existing sentiment
+and cybersecurity callers can submit, while their response formats stay unchanged.
+
+`reasoning_effort` and `thinking_budget_tokens` remain accepted but have no effect
+on Laya sentiment/cybersecurity calls; Laya does not generate reasoning. New
+`/classify` and `/language` requests accept only `text`. All four POST routes use
+the existing optional bearer authentication. Busy/unavailable local inference
+returns 503; invalid model output returns a generic 502. There is no remote fallback.
+
+See [deployment settings](docs/deployment.md) and [evaluation](evaluation/README.md).
+
 ### `POST /sentiment`
 
-Sentiment analysis endpoint.
+Embedded Laya sentiment analysis. The score is the selected label's probability,
+not Laya's entropy-based confidence field. It is an estimate, not a calibrated
+guarantee. Tone is separate from event severity: factual negative-event reporting
+should be neutral. Optional emotions are independently assessed and filtered through
+the existing sentiment/emotion compatibility rules.
 
 Request body:
 

@@ -7,7 +7,8 @@ info:
     The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
     extraction, graph query generation, general chat, grounded HRAG answering, and
-    cybersecurity classification routes backed by an OpenAI-compatible API.
+    cybersecurity classification. Topic, relevance and sentiment use embedded Laya;
+    language detection uses local Lingua. Other tasks use OpenAI-compatible APIs.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -24,6 +25,102 @@ servers:
     description: Current server
 
 paths:
+  /ready:
+    get:
+      tags: [System]
+      summary: Readiness of both embedded Laya checkpoints
+      responses:
+        "200":
+          description: Both checkpoints are resident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Models are not loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+  /classify:
+    post:
+      tags: [Local analysis]
+      summary: Classify the primary topic
+      operationId: classifyText
+      description: |
+        Six competing primary categories with scores summing to one. Main focus decides overlaps:
+        a newly disclosed flaw is vulnerabilities, campaign analysis is attacks, and a hospital
+        reporting a breach is incidents. Cybersecurity legislation is politics and a security
+        company acquisition is business. Relevance is assessed separately by /cybersec-classification.
+        Uses embedded Laya. Rejects inputs exceeding LOCAL_MAX_INPUT_CHARS (default 50000) or the
+        selected model token budget including question overhead (512 English, 1024 multilingual).
+        No silent truncation. Only the text field is accepted.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalTextRequest"
+      responses:
+        "200":
+          description: Validated result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassificationResponse"
+        "400":
+          description: Invalid, blank or overlong input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing bearer token
+        "502":
+          description: Invalid model output or unexpected processing error
+        "503":
+          description: Local inference busy or unavailable; retry with backoff
+  /language:
+    post:
+      tags: [Local analysis]
+      summary: Detect language locally
+      operationId: detectLanguage
+      description: |
+        Returns an ISO 639-1 language code, or und when inconclusive. Uses local Lingua.
+        Short text (fewer than 20 usable letters), URL/identifier-dominated text (under 50%
+        usable letters), uncertain detection or substantial mixing returns und. A dominant
+        language needs 80% of confidently identified sentence text; sentences shorter than 20 letters are ignored.
+        Blank input and text exceeding LOCAL_MAX_INPUT_CHARS (default 50000) return 400.
+        Only the text field is accepted. No weights download is needed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalTextRequest"
+      responses:
+        "200":
+          description: Validated result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LanguageResponse"
+        "400":
+          description: Invalid, blank or overlong input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing bearer token
+        "502":
+          description: Invalid model output or unexpected processing error
+        "503":
+          description: Local inference busy or unavailable; retry with backoff
   /docs:
     get:
       tags:
@@ -239,8 +336,14 @@ paths:
         - Sentiment
       summary: Analyze sentiment for input text
       description: |
+        Uses in-process Laya by default (TEXT_ANALYSIS_BACKEND=laya). Existing reasoning
+        options are accepted but ignored locally. Blank/overlong inputs return 400;
+        the selected checkpoint's full token budget includes task question overhead.
+        No truncation or remote fallback occurs. TEXT_ANALYSIS_BACKEND=llm restores
+        the previous upstream implementation. Probabilities are estimates and may be miscalibrated.
         Accepts input text and returns a high-level sentiment label with a
-        confidence score.
+        selected-label probability, not the SDK entropy-based confidence. Factual
+        negative-event reporting should be neutral; sentiment is separate from severity.
 
         When `include_emotions` is true, the response also includes zero or
         more Plutchik emotions that are compatible with the predicted
@@ -292,6 +395,12 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Unauthorized"
+        "503":
+          description: Local inference busy or unavailable; retry with backoff
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "502":
           description: Upstream LLM or parsing failure
           content:
@@ -307,6 +416,11 @@ paths:
         - Classification
       summary: Classify whether input text is cybersecurity-related
       description: |
+        Uses in-process Laya by default (TEXT_ANALYSIS_BACKEND=laya). Existing reasoning
+        options are accepted but ignored locally. Blank/overlong inputs return 400;
+        the selected checkpoint's full token budget includes task question overhead.
+        No truncation or remote fallback occurs. TEXT_ANALYSIS_BACKEND=llm restores
+        the previous upstream implementation. Probabilities are estimates and may be miscalibrated.
         Accepts plain text and returns scores for `cybersecurity` and
         `non-cybersecurity`.
 
@@ -353,6 +467,12 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Unauthorized"
+        "503":
+          description: Local inference busy or unavailable; retry with backoff
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "502":
           description: Upstream LLM or parsing failure
           content:
@@ -1056,6 +1176,72 @@ components:
       scheme: bearer
       bearerFormat: API key
   schemas:
+    LocalTextRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Non-whitespace text; configurable character and model token limits apply.
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, laya_ready]
+      properties:
+        status:
+          type: string
+          enum: [ok, loading]
+        laya_ready:
+          type: boolean
+    LanguageResponse:
+      type: object
+      additionalProperties: false
+      required: [language]
+      properties:
+        language:
+          type: string
+          pattern: '^(?:[a-z]{2}|und)$'
+          description: ISO 639-1 code, or und for inconclusive detection
+    ClassificationResponse:
+      type: object
+      additionalProperties: false
+      required: [category, scores]
+      properties:
+        category:
+          type: string
+          enum: [vulnerabilities, attacks, incidents, politics, business, other]
+        scores:
+          type: object
+          additionalProperties: false
+          description: Competing probabilities summing to one; category has a maximum score.
+          required: [vulnerabilities, attacks, incidents, politics, business, other]
+          properties:
+            vulnerabilities:
+              type: number
+              minimum: 0
+              maximum: 1
+            attacks:
+              type: number
+              minimum: 0
+              maximum: 1
+            incidents:
+              type: number
+              minimum: 0
+              maximum: 1
+            politics:
+              type: number
+              minimum: 0
+              maximum: 1
+            business:
+              type: number
+              minimum: 0
+              maximum: 1
+            other:
+              type: number
+              minimum: 0
+              maximum: 1
     ChatMessage:
       type: object
       additionalProperties: false
@@ -1216,7 +1402,7 @@ components:
       description: |
         Optional reasoning effort for the upstream model request. The service
         forwards this as `reasoning.effort` in `responses` mode and as
-        `reasoning_effort` in `chat_completions` mode.
+        `reasoning_effort` in `chat_completions` mode. Accepted but ignored for local Laya analysis.
     ThinkingBudgetTokens:
       type: integer
       minimum: 0
@@ -1224,7 +1410,7 @@ components:
       description: |
         Optional provider-specific reasoning budget forwarded upstream unchanged
         as `thinking_budget_tokens`. This is intended for compatible servers such
-        as `llama.cpp`; other OpenAI-compatible servers may reject it.
+        as `llama.cpp`; other OpenAI-compatible servers may reject it. Ignored by local Laya analysis.
     SentimentRequest:
       type: object
       additionalProperties: false

@@ -2,9 +2,12 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
+from llm_bot.local_inference import LayaRuntime, runtime
 from llm_bot.log import logger
 from llm_bot.schemas import CybersecClassificationRequest, CybersecClassificationResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.local_analysis import local_cybersecurity
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cybersec_classification.txt"
 
@@ -57,7 +60,11 @@ def get_cybersec_classification_response_format() -> dict[str, Any]:
 async def classify_cybersecurity_text(
     request: CybersecClassificationRequest,
     client: LLMClient | None = None,
+    *,
+    inference: LayaRuntime | None = None,
 ) -> CybersecClassificationResponse:
+    if inference is not None or (client is None and Config.TEXT_ANALYSIS_BACKEND == "laya"):
+        return await local_cybersecurity(request, inference or runtime)
     llm_client = client or LLMClient(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,

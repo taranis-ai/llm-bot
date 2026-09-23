@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,6 +9,15 @@ class Settings(BaseSettings):
 
     DEBUG: bool = False
     API_KEY: str = ""
+
+    TEXT_ANALYSIS_BACKEND: Literal["laya", "llm"] = "laya"
+    LAYA_DEVICE: Literal["cpu", "cuda", "mps"] = "cpu"
+    LAYA_MODEL_REVISION: str = Field(default="aa8c91ca088ec597df95a0d1c76b3063cb2ae5e8", pattern=r"^[0-9a-f]{40}$")
+    LAYA_CACHE_DIR: str = "~/.cache/llm-bot/models"
+    LAYA_ALLOW_DOWNLOAD: bool = False
+    LAYA_PRELOAD: bool = True
+    LAYA_CPU_THREADS: int = Field(default=4, ge=1)
+    LOCAL_MAX_INPUT_CHARS: int = Field(default=50000, ge=1)
 
     PACKAGE_NAME: str = "llm_bot"
 

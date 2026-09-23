@@ -1,5 +1,14 @@
 # LLM Task Development
 
+Local topic, relevance and sentiment tasks use embedded Laya instead of these
+generative JSON/repair steps. Keep choice definitions in their task modules,
+validate probabilities and response models, and inject `inference=` for network-free
+tests. Reuse `local_inference.py` for loading, concurrency and token-budget checks.
+Local language detection uses Lingua and does not require a Laya checkpoint.
+Question changes also require a real evaluation run: prompt token budgets and
+choice calibration can change. Do not substitute SDK entropy confidence for
+the probability of the selected label.
+
 ## When To Load
 
 Read this before adding an endpoint or changing a task, prompt, request/response schema, structured-output contract, parsing rule, or reasoning behavior.
