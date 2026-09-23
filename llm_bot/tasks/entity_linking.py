@@ -5,11 +5,10 @@ from pydantic import BaseModel, ConfigDict
 
 from llm_bot.client import LLMClient
 from llm_bot.config import Config
-from llm_bot.lookup_client import LookupClient
 from llm_bot.log import logger
-from llm_bot.schemas import LinkRequest, LinkedEntity, LinkedNerResponse, LookupCandidate, LookupResponse, NerLinkRequest, NerResponse
+from llm_bot.lookup_client import LookupClient
+from llm_bot.schemas import LinkedEntity, LinkedNerResponse, LinkRequest, LookupCandidate, LookupResponse, NerLinkRequest, NerResponse
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
-
 
 ALLOWED_LINKING_MODES = {"llm", "deterministic"}
 
@@ -32,8 +31,7 @@ def resolve_linking_mode(request: LinkRequest | NerLinkRequest) -> str:
     linking_mode = request.linking_mode or Config.NER_LINKING_MODE
     if linking_mode not in ALLOWED_LINKING_MODES:
         raise UnsupportedLinkingModeError(
-            f"Unsupported linking mode requested: {linking_mode}. "
-            f"Allowed linking modes: {', '.join(sorted(ALLOWED_LINKING_MODES))}"
+            f"Unsupported linking mode requested: {linking_mode}. Allowed linking modes: {', '.join(sorted(ALLOWED_LINKING_MODES))}"
         )
     return linking_mode
 
@@ -49,8 +47,6 @@ async def lookup_entity_candidates(
 
     lookup_results: dict[str, LookupResponse] = {}
     for mention in response.root:
-        if mention in lookup_results:
-            continue
         lookup_results[mention] = await lookup_client.lookup(mention, language, limit)
     return lookup_results
 
@@ -61,14 +57,15 @@ def select_deterministic_candidate(lookup_response: LookupResponse) -> LookupCan
     return lookup_response.candidates[0]
 
 
-def build_deterministic_linked_response(
+def _build_linked_response(
     response: NerResponse,
     lookup_results: dict[str, LookupResponse],
+    selected_candidates: dict[str, LookupCandidate | None],
 ) -> LinkedNerResponse:
     entities: list[LinkedEntity] = []
     for mention, entity_type in response.root.items():
         lookup_response = lookup_results.get(mention)
-        candidate = select_deterministic_candidate(lookup_response) if lookup_response else None
+        candidate = selected_candidates.get(mention)
         entities.append(
             LinkedEntity(
                 mention=mention,
@@ -85,6 +82,14 @@ def build_deterministic_linked_response(
     return LinkedNerResponse(entities=entities)
 
 
+def build_deterministic_linked_response(
+    response: NerResponse,
+    lookup_results: dict[str, LookupResponse],
+) -> LinkedNerResponse:
+    selected_candidates = {mention: select_deterministic_candidate(result) for mention, result in lookup_results.items()}
+    return _build_linked_response(response, lookup_results, selected_candidates)
+
+
 def build_linking_instructions() -> str:
     return (
         "You are an entity linking system.\n\n"
@@ -95,7 +100,7 @@ def build_linking_instructions() -> str:
         "- Use the full source text and the entity type for disambiguation.\n"
         "- If none of the candidates fit confidently for a mention, return null for that mention.\n"
         '- Each value must be either one Wikidata QID string like "Q2283" or the JSON value null.\n'
-        '- Never combine a QID with null in one string.\n'
+        "- Never combine a QID with null in one string.\n"
         '- Never use separators such as "|", "/", ",", or the word "or" inside a value.\n'
         "- Return valid JSON only.\n\n"
         "Valid example:\n"
@@ -167,14 +172,12 @@ def parse_linking_decision_map(
     for mention, qid in decision_map.decisions.items():
         if mention not in allowed_qids_by_mention:
             raise InvalidLLMOutputError(
-                f"Response selected unsupported entity mention: {mention}. "
-                f"Allowed mentions: {', '.join(sorted(allowed_qids_by_mention))}"
+                f"Response selected unsupported entity mention: {mention}. Allowed mentions: {', '.join(sorted(allowed_qids_by_mention))}"
             )
         allowed_qids = allowed_qids_by_mention[mention]
         if qid is not None and qid not in allowed_qids:
             raise InvalidLLMOutputError(
-                f"Response selected unsupported Wikidata QID for {mention}: {qid}. "
-                f"Allowed QIDs: {', '.join(sorted(allowed_qids))}"
+                f"Response selected unsupported Wikidata QID for {mention}: {qid}. Allowed QIDs: {', '.join(sorted(allowed_qids))}"
             )
     return decision_map
 
@@ -187,8 +190,7 @@ async def select_llm_candidates(
     lookup_results: dict[str, LookupResponse],
 ) -> dict[str, LookupCandidate | None]:
     allowed_qids_by_mention = {
-        mention: {candidate.qid for candidate in lookup_response.candidates}
-        for mention, lookup_response in lookup_results.items()
+        mention: {candidate.qid for candidate in lookup_response.candidates} for mention, lookup_response in lookup_results.items()
     }
     decision_map = await create_and_parse_response(
         client=client,
@@ -226,23 +228,6 @@ async def build_llm_linked_response(
         )
     except Exception as exc:
         logger.warning("Entity linking batch failed: %s", exc)
-        selected_candidates = {mention: None for mention in response.root}
+        selected_candidates = {}
 
-    entities: list[LinkedEntity] = []
-    for mention, entity_type in response.root.items():
-        lookup_response = lookup_results.get(mention)
-        candidate = selected_candidates.get(mention)
-        entities.append(
-            LinkedEntity(
-                mention=mention,
-                type=entity_type,
-                wikidata_qid=candidate.qid if candidate else None,
-                wikidata_label=candidate.label if candidate else None,
-                wikidata_description=candidate.description if candidate else None,
-                matched_alias=candidate.matched_alias if candidate else None,
-                match_type=candidate.match_type if candidate else None,
-                score=candidate.score if candidate else None,
-                candidate_count=len(lookup_response.candidates) if lookup_response else 0,
-            )
-        )
-    return LinkedNerResponse(entities=entities)
+    return _build_linked_response(response, lookup_results, selected_candidates)

@@ -8,8 +8,8 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ClusterIds,
-    ClusterRequest,
     ClusterReason,
+    ClusterRequest,
     ClusterResponse,
     LLMClusterResponse,
     StoryClusterItem,
@@ -23,7 +23,6 @@ from llm_bot.tasks.llm_utils import (
 )
 from llm_bot.tasks.task_utils import truncate_text
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cluster.txt"
 
 
@@ -32,29 +31,14 @@ def load_cluster_prompt() -> str:
 
 
 def serialize_story_tags(tags: dict[str, StoryTag]) -> dict[str, str]:
-    serialized_tags = {
-        name: tag.tag_type
-        for name, tag in sorted(tags.items(), key=lambda item: (item[0], item[1].tag_type))
-    }
-    return serialized_tags
+    return {name: tag.tag_type for name, tag in sorted(tags.items())}
 
 
-def build_story_content(story: StoryClusterItem) -> str:
-    content_parts = [
-        truncate_text(news_item.content, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY)
-        for news_item in story.news_items
-    ]
-    return "\n\n".join(content_parts)
-
-
-def build_compact_story(story: StoryClusterItem) -> dict[str, object]:
-    source_languages = sorted({news_item.language for news_item in story.news_items if news_item.language})
+def build_llm_story(story: StoryClusterItem, llm_story_id: int) -> dict[str, object]:
     return {
-        "id": story.id,
-        "title": getattr(story, "title", "") or story.news_items[0].title,
+        "id": llm_story_id,
         "tags": serialize_story_tags(story.tags),
-        "source_languages": source_languages,
-        "content": build_story_content(story),
+        "summary": truncate_text(story.summary, Config.CLUSTER_MAX_CONTENT_CHARS_PER_STORY) if story.summary is not None else None,
     }
 
 
@@ -62,20 +46,8 @@ def build_story_id_map(stories: list[StoryClusterItem]) -> dict[int, str]:
     return {index: story.id for index, story in enumerate(stories, start=1)}
 
 
-def build_llm_story(story: StoryClusterItem, llm_story_id: int) -> dict[str, object]:
-    compact_story = build_compact_story(story)
-    compact_story["id"] = llm_story_id
-    return compact_story
-
-
 def build_cluster_messages(request: ClusterRequest) -> list[dict[str, str]]:
-    story_id_map = build_story_id_map(request.stories)
-    user_payload = {
-        "stories": [
-            build_llm_story(story, llm_story_id)
-            for llm_story_id, story in zip(story_id_map, request.stories, strict=True)
-        ]
-    }
+    user_payload = {"stories": [build_llm_story(story, llm_story_id) for llm_story_id, story in enumerate(request.stories, start=1)]}
     return [
         {"role": "system", "content": load_cluster_prompt()},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
@@ -104,22 +76,9 @@ def remap_cluster_response(
     *,
     story_id_map: dict[int, str],
 ) -> tuple[ClusterIds, list[ClusterReason], str]:
-    cluster_ids = ClusterIds.model_validate(
-        {
-            "event_clusters": [
-                remap_story_ids(cluster, story_id_map)
-                for cluster in response.cluster_ids.event_clusters
-            ]
-        }
-    )
+    cluster_ids = ClusterIds(event_clusters=[remap_story_ids(cluster, story_id_map) for cluster in response.cluster_ids.event_clusters])
     cluster_reasons = [
-        ClusterReason.model_validate(
-            {
-                "story_ids": remap_story_ids(reason.story_ids, story_id_map),
-                "reason": reason.reason,
-            }
-        )
-        for reason in response.cluster_reasons
+        ClusterReason(story_ids=remap_story_ids(reason.story_ids, story_id_map), reason=reason.reason) for reason in response.cluster_reasons
     ]
     return cluster_ids, cluster_reasons, response.message
 
@@ -131,32 +90,20 @@ def validate_cluster_response(
     *,
     expected_story_ids: set[str],
 ) -> ClusterResponse:
-    assigned_story_ids: list[str] = [
-        story_id
-        for cluster in cluster_ids.event_clusters
-        for story_id in cluster
-    ]
+    assigned_story_ids: list[str] = [story_id for cluster in cluster_ids.event_clusters for story_id in cluster]
     assigned_story_id_set = set(assigned_story_ids)
 
     if len(assigned_story_ids) != len(assigned_story_id_set):
-        duplicate_ids = sorted(
-            story_id for story_id, count in Counter(assigned_story_ids).items() if count > 1
-        )
-        raise InvalidLLMOutputError(
-            f"Duplicate story IDs in cluster output: {', '.join(duplicate_ids)}"
-        )
+        duplicate_ids = sorted(story_id for story_id, count in Counter(assigned_story_ids).items() if count > 1)
+        raise InvalidLLMOutputError(f"Duplicate story IDs in cluster output: {', '.join(duplicate_ids)}")
 
     missing_story_ids = sorted(expected_story_ids - assigned_story_id_set)
     if missing_story_ids:
-        raise InvalidLLMOutputError(
-            f"Missing story IDs in cluster output: {', '.join(missing_story_ids)}"
-        )
+        raise InvalidLLMOutputError(f"Missing story IDs in cluster output: {', '.join(missing_story_ids)}")
 
     unexpected_story_ids = sorted(assigned_story_id_set - expected_story_ids)
     if unexpected_story_ids:
-        raise InvalidLLMOutputError(
-            f"Unexpected story IDs in cluster output: {', '.join(unexpected_story_ids)}"
-        )
+        raise InvalidLLMOutputError(f"Unexpected story IDs in cluster output: {', '.join(unexpected_story_ids)}")
 
     non_singleton_clusters = {frozenset(cluster) for cluster in cluster_ids.event_clusters if len(cluster) >= 2}
     reason_clusters = [frozenset(reason.story_ids) for reason in cluster_reasons]
@@ -164,28 +111,13 @@ def validate_cluster_response(
     if len(reason_clusters) != len(set(reason_clusters)):
         raise InvalidLLMOutputError("Duplicate cluster_reasons entries in cluster output")
 
-    unexpected_reason_clusters = sorted(
-        sorted(cluster) for cluster in set(reason_clusters) - non_singleton_clusters
-    )
-    if unexpected_reason_clusters:
-        raise InvalidLLMOutputError(
-            "cluster_reasons contains entries that do not match any returned non-singleton cluster"
-        )
+    if set(reason_clusters) - non_singleton_clusters:
+        raise InvalidLLMOutputError("cluster_reasons contains entries that do not match any returned non-singleton cluster")
 
-    missing_reason_clusters = sorted(
-        sorted(cluster) for cluster in non_singleton_clusters - set(reason_clusters)
-    )
-    if missing_reason_clusters:
-        raise InvalidLLMOutputError(
-            "Missing cluster_reasons entries for returned non-singleton clusters"
-        )
+    if non_singleton_clusters - set(reason_clusters):
+        raise InvalidLLMOutputError("Missing cluster_reasons entries for returned non-singleton clusters")
 
-    return ClusterResponse.model_validate(
-        {
-            "cluster_ids": cluster_ids.model_dump(),
-            "message": message,
-        }
-    )
+    return ClusterResponse(cluster_ids=cluster_ids, message=message)
 
 
 def parse_cluster_response(

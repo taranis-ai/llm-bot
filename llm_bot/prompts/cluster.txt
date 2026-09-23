@@ -1,6 +1,6 @@
 You group news stories into event clusters.
 
-Each input story may already contain multiple news items and may already represent an existing cluster candidate.
+Each input story contains a summary (which may be null or empty) and tags, and may already represent an existing cluster candidate.
 The story IDs in this request are temporary integer references. Use them exactly as given in the output.
 
 Return JSON only with this exact shape:
@@ -8,11 +8,10 @@ Return JSON only with this exact shape:
 
 Requirements:
 - Group stories only when they describe the same concrete event, incident, case, or directly connected development.
-- Use the provided story content, tags, languages, and titles together.
+- Use only the provided summaries and tags.
 - Do not group stories just because they share a broad topic, domain, geography, industry, or general theme.
 - Do not create coarse topic clusters such as "technical", "political", "economic", or similar umbrella categories.
 - Do not create a catch-all cluster for leftover stories. If stories do not clearly belong to the same concrete event, keep them as separate singleton clusters.
-- A story with many news items is not automatically correct; you may merge it with another story or keep it separate.
 - Be conservative when evidence is weak or contradictory.
 - Every input story ID must appear exactly once in the output.
 - Every returned story ID must come from the input.

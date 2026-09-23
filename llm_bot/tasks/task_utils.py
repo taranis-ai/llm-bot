@@ -3,9 +3,10 @@ from collections import Counter
 from langcodes import Language
 from langcodes.tag_parser import LanguageTagError
 
-from llm_bot.schemas import StoryInputNewsItem, SummarizeRequest, TitleRequest
+from llm_bot.schemas import StoryInputNewsItem, StoryRequest
 
-def build_story_input_text(request: SummarizeRequest | TitleRequest) -> str:
+
+def build_story_input_text(request: StoryRequest) -> str:
     if request.news_items:
         formatted_items = []
         for index, news_item in enumerate(request.news_items, start=1):
@@ -28,21 +29,14 @@ def resolve_majority_language(news_items: list[StoryInputNewsItem] | None) -> st
         return None
 
     counts: Counter[str] = Counter()
-    first_seen_order: list[str] = []
-    seen_languages: set[str] = set()
     for news_item in news_items:
-        if not news_item.language or not news_item.language.strip():
-            continue
-        language = news_item.language.strip()
-        counts[language] += 1
-        if language not in seen_languages:
-            seen_languages.add(language)
-            first_seen_order.append(language)
+        if language := (news_item.language or "").strip():
+            counts[language] += 1
 
     if not counts:
         return None
 
-    return max(first_seen_order, key=lambda language: counts[language])
+    return counts.most_common(1)[0][0]
 
 
 def resolve_language_name(language_code: str) -> str:
@@ -59,7 +53,7 @@ def resolve_language_name(language_code: str) -> str:
 
 
 def build_output_language_instruction(
-    request: SummarizeRequest | TitleRequest,
+    request: StoryRequest,
     *,
     output_name: str,
 ) -> str:
@@ -71,6 +65,7 @@ def build_output_language_instruction(
         return f"- Write the {output_name} in {resolve_language_name(majority_language)}."
 
     return f"- Write the {output_name} in the same language as the input text."
+
 
 def truncate_text(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:

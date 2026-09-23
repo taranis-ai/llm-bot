@@ -24,21 +24,12 @@ def test_build_title_messages_formats_news_items():
     _, user_message = build_title_messages(request)
 
     assert user_message["content"] == (
-        "News item 1\n"
-        "Title: First title\n"
-        "Content:\n"
-        "First content\n\n"
-        "News item 2\n"
-        "Title: Second title\n"
-        "Content:\n"
-        "Second content"
+        "News item 1\nTitle: First title\nContent:\nFirst content\n\nNews item 2\nTitle: Second title\nContent:\nSecond content"
     )
 
 
 def test_build_title_messages_uses_explicit_language():
-    system_message, _ = build_title_messages(
-        TitleRequest(text="Story text", max_chars=150, language="de")
-    )
+    system_message, _ = build_title_messages(TitleRequest(text="Story text", max_chars=150, language="de"))
 
     assert "Write the title in German." in system_message["content"]
 
@@ -58,9 +49,7 @@ def test_build_title_messages_uses_majority_news_item_language():
 
 
 def test_build_title_messages_falls_back_to_language_code_for_unknown_language():
-    system_message, _ = build_title_messages(
-        TitleRequest(text="Story text", max_chars=150, language="xx")
-    )
+    system_message, _ = build_title_messages(TitleRequest(text="Story text", max_chars=150, language="xx"))
 
     assert 'Write the title in language code "xx".' in system_message["content"]
 
@@ -101,23 +90,18 @@ async def test_generate_title_formats_news_items_for_client():
 
     assert response == TitleResponse(title="Short title")
     assert client.calls[0]["user_input"] == (
-        "News item 1\n"
-        "Title: First title\n"
-        "Content:\n"
-        "First content\n\n"
-        "News item 2\n"
-        "Title: Second title\n"
-        "Content:\n"
-        "Second content"
+        "News item 1\nTitle: First title\nContent:\nFirst content\n\nNews item 2\nTitle: Second title\nContent:\nSecond content"
     )
 
 
 @pytest.mark.asyncio
 async def test_generate_title_retries_once_on_invalid_json():
-    client = StubLLMClient([
-        {"output_text": "Short title"},
-        {"output_text": '{"title":"Short title"}'},
-    ])
+    client = StubLLMClient(
+        [
+            {"output_text": "Short title"},
+            {"output_text": '{"title":"Short title"}'},
+        ]
+    )
 
     response = await generate_title(TitleRequest(text="Story text"), client=client)
 

@@ -36,7 +36,9 @@ class FakeSession:
 
 
 @pytest.mark.asyncio
-async def test_create_response_includes_reasoning_effort(monkeypatch):
+@pytest.mark.parametrize("api_key", ["test-key", ""])
+async def test_create_response_includes_reasoning_effort(monkeypatch, api_key):
+    monkeypatch.setattr("llm_bot.client.Config.LLM_API_KEY", "configured-key")
     session = FakeSession()
 
     def fake_async_session(*, base_url=None, headers=None):
@@ -48,7 +50,7 @@ async def test_create_response_includes_reasoning_effort(monkeypatch):
 
     client = LLMClient(
         base_url="https://example.invalid/v1",
-        api_key="test-key",
+        api_key=api_key,
         model="test-model",
         api_mode="responses",
         timeout=30,
@@ -58,6 +60,7 @@ async def test_create_response_includes_reasoning_effort(monkeypatch):
     response = await client.create_response("Return JSON only.", "Story text")
 
     assert response == {"ok": True}
+    assert session.headers.get("Authorization") == (f"Bearer {api_key}" if api_key else None)
     assert session.path == "/responses"
     assert session.timeout == 30
     assert session.json["input"] == [
@@ -183,11 +186,7 @@ async def test_create_response_falls_back_to_raw_upstream_error_text(monkeypatch
 
 @pytest.mark.asyncio
 async def test_create_response_uses_chat_completions_payload(monkeypatch):
-    session = FakeSession(
-        response=FakeResponse(
-            text='{"choices":[{"message":{"content":"{\\"summary\\":\\"Short summary\\"}"}}]}'
-        )
-    )
+    session = FakeSession(response=FakeResponse(text='{"choices":[{"message":{"content":"{\\"summary\\":\\"Short summary\\"}"}}]}'))
 
     def fake_async_session(*, base_url=None, headers=None):
         session.base_url = base_url

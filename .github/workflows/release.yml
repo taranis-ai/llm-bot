@@ -95,6 +95,6 @@ jobs:
           body_path: ${{ runner.temp }}/release_body.md
           files: |
             dist/*
-            openapi3_1.yml
+            llm_bot/openapi3_1.yml
             Containerfile
             ${{ runner.temp }}/sbom_${{ env.TAG_SAFE }}.json

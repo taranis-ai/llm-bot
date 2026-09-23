@@ -9,7 +9,6 @@ from llm_bot.schemas import NerRequest, NerResponse
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
 from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
 GENERAL_ENTITY_TYPES = {
     "PER",
@@ -167,11 +166,7 @@ def build_ner_messages(request: NerRequest) -> list[dict[str, str]]:
             f"Allowed labels for this request: {', '.join(entity_types)}."
         )
     else:
-        system_prompt = (
-            f"{system_prompt}\n"
-            f"Cybersecurity mode is disabled.\n"
-            f"Allowed labels for this request: {', '.join(entity_types)}."
-        )
+        system_prompt = f"{system_prompt}\nCybersecurity mode is disabled.\nAllowed labels for this request: {', '.join(entity_types)}."
 
     return [
         {"role": "system", "content": system_prompt},
@@ -187,10 +182,10 @@ def parse_ner_response(response_data: dict[str, Any], allowed_entity_types: list
 
 
 def _validate_ner_output(parsed_output: Any, allowed_entity_types: list[str]) -> NerResponse:
-    postprocessed_output = postprocess_entities(parsed_output)
-    logger.debug("Postprocessed NER output: %s", json.dumps(postprocessed_output, ensure_ascii=True, default=str))
+    response = NerResponse.model_validate(parsed_output)
+    response.root = postprocess_entities(response.root)
+    logger.debug("Postprocessed NER output: %s", json.dumps(response.root, ensure_ascii=True))
     logger.debug("Allowed NER entity types: %s", ", ".join(allowed_entity_types))
-    response = NerResponse.model_validate(postprocessed_output)
     invalid_entity_types = sorted({entity_type for entity_type in response.root.values() if entity_type not in allowed_entity_types})
     if invalid_entity_types:
         raise InvalidLLMOutputError(

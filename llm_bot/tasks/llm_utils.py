@@ -1,5 +1,6 @@
 import json
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -12,9 +13,6 @@ from llm_bot.reasoning import (
     extract_structured_reasoning,
     strip_reasoning_output,
 )
-
-
-T = TypeVar("T")
 
 
 class InvalidLLMOutputError(ValueError):
@@ -39,28 +37,17 @@ def extract_last_json_object(text: str) -> str:
     if end_index == -1:
         raise json.JSONDecodeError("No JSON object found", text, 0)
 
-    depth = 0
-    in_string = False
-    escaped = False
-    for index in range(end_index, -1, -1):
-        char = text[index]
-        if escaped:
-            escaped = False
+    decoder = json.JSONDecoder()
+    for start_index, char in enumerate(text[:end_index]):
+        if char != "{":
             continue
-        if char == "\\":
-            escaped = in_string
+        try:
+            _, parsed_end = decoder.raw_decode(text, start_index)
+        except json.JSONDecodeError:
             continue
-        if char == '"':
-            in_string = not in_string
-            continue
-        if in_string:
-            continue
-        if char == "}":
-            depth += 1
-        elif char == "{":
-            depth -= 1
-            if depth == 0:
-                return text[index : end_index + 1]
+        # Only accept a decoded object ending at the final closing brace.
+        if parsed_end == end_index + 1:
+            return text[start_index:parsed_end]
 
     raise json.JSONDecodeError("No balanced JSON object found", text, 0)
 
@@ -130,7 +117,7 @@ def _build_repair_instructions(instructions: str, error: Exception) -> str:
     )
 
 
-async def create_and_parse_response(
+async def create_and_parse_response[T](
     *,
     client: LLMClient,
     task_name: str,

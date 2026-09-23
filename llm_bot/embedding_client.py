@@ -31,9 +31,9 @@ class EmbeddingClient:
         api_key: str | None = None,
         model: str | None = None,
         timeout: int | None = None,
-    ):
+    ) -> None:
         self.base_url = (base_url or Config.EMBEDDING_BASE_URL).rstrip("/")
-        self.api_key = api_key or Config.EMBEDDING_API_KEY
+        self.api_key = Config.EMBEDDING_API_KEY if api_key is None else api_key
         self.model = model or Config.EMBEDDING_MODEL
         self.timeout = timeout or Config.EMBEDDING_TIMEOUT
 

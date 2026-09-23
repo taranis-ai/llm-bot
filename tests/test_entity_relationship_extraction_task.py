@@ -11,7 +11,6 @@ from llm_bot.tasks.entity_relationship_extraction import (
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from tests.test_helpers import StubLLMClient
 
-
 TEXT = "APT28 exploited CVE-2025-1234."
 REQUEST_PAYLOAD = {
     "text": TEXT,

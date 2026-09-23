@@ -13,6 +13,7 @@ from llm_bot.tasks.entity_linking import (
 )
 from tests.test_helpers import StubLLMClient, StubLookupClient
 
+
 def test_resolve_lookup_language_uses_request_language():
     request = LinkRequest.model_validate(
         {

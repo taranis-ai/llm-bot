@@ -6,7 +6,6 @@ from llm_bot.log import logger
 from llm_bot.schemas import CybersecClassificationRequest, CybersecClassificationResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cybersec_classification.txt"
 
 

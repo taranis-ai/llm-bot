@@ -6,8 +6,7 @@ from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
-from llm_bot.tasks.task_utils import build_output_language_instruction, truncate_text, build_story_input_text
-
+from llm_bot.tasks.task_utils import build_output_language_instruction, build_story_input_text, truncate_text
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summarize.txt"
 
@@ -31,6 +30,7 @@ def build_summary_messages(request: SummarizeRequest) -> list[dict[str, str]]:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": truncated_text},
     ]
+
 
 def parse_summary_response(response_data: dict[str, Any]) -> SummarizeResponse:
     output_text = get_output_text(response_data)

@@ -8,6 +8,7 @@ from llm_bot.tasks.sentiment import (
 )
 from tests.test_helpers import StubLLMClient
 
+
 def test_build_sentiment_messages_without_emotions():
     request = SentimentRequest(text="The report was factual and dry.")
 
@@ -41,9 +42,7 @@ def test_parse_sentiment_response_with_emotions():
         include_emotions=True,
     )
 
-    assert response == SentimentResponse.model_validate(
-        {"sentiment": {"label": "negative", "score": 0.91, "emotions": ["anger", "fear"]}}
-    )
+    assert response == SentimentResponse.model_validate({"sentiment": {"label": "negative", "score": 0.91, "emotions": ["anger", "fear"]}})
 
 
 @pytest.mark.asyncio
@@ -60,26 +59,26 @@ async def test_analyze_sentiment_calls_client_without_emotions():
 
 @pytest.mark.asyncio
 async def test_analyze_sentiment_calls_client_with_emotions():
-    client = StubLLMClient(
-        {"output_text": '{"sentiment":{"label":"negative","score":0.93,"emotions":["fear","anger"]}}'}
-    )
+    client = StubLLMClient({"output_text": '{"sentiment":{"label":"negative","score":0.93,"emotions":["fear","anger"]}}'})
 
     response = await analyze_sentiment(
         SentimentRequest(text="The attack left investors alarmed and furious.", include_emotions=True),
         client=client,
     )
 
-    assert response == SentimentResponse.model_validate(
-        {"sentiment": {"label": "negative", "score": 0.93, "emotions": ["fear", "anger"]}}
-    )
+    assert response == SentimentResponse.model_validate({"sentiment": {"label": "negative", "score": 0.93, "emotions": ["fear", "anger"]}})
     assert "emotions" in client.calls[0]["response_format"]["schema"]["properties"]["sentiment"]["properties"]
 
 
 @pytest.mark.asyncio
-async def test_analyze_sentiment_retries_once_on_invalid_output():
+@pytest.mark.parametrize(
+    "invalid_output",
+    ['{"sentiment":{"label":"positive","score":0.72,"emotions":["joy"]}}', "[]", "null", '"positive"'],
+)
+async def test_analyze_sentiment_retries_once_on_invalid_output(invalid_output):
     client = StubLLMClient(
         [
-            {"output_text": '{"sentiment":{"label":"positive","score":0.72,"emotions":["joy"]}}'},
+            {"output_text": invalid_output},
             {"output_text": '{"sentiment":{"label":"positive","score":0.72}}'},
         ]
     )
@@ -89,3 +88,18 @@ async def test_analyze_sentiment_retries_once_on_invalid_output():
     assert response == SentimentResponse.model_validate({"sentiment": {"label": "positive", "score": 0.72}})
     assert len(client.calls) == 2
     assert "Your previous response was invalid." in client.calls[1]["system_input"]
+
+
+@pytest.mark.asyncio
+async def test_analyze_sentiment_repairs_null_emotions_when_requested():
+    client = StubLLMClient(
+        [
+            {"output_text": '{"sentiment":{"label":"positive","score":0.72,"emotions":null}}'},
+            {"output_text": '{"sentiment":{"label":"positive","score":0.72,"emotions":[]}}'},
+        ]
+    )
+
+    response = await analyze_sentiment(SentimentRequest(text="Encouraging results.", include_emotions=True), client=client)
+
+    assert response.model_dump() == {"sentiment": {"label": "positive", "score": 0.72, "emotions": []}}
+    assert len(client.calls) == 2

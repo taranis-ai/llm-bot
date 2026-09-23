@@ -45,11 +45,14 @@ local_scheme = "no-local-version"
 packages = ["llm_bot", "llm_bot.prompts", "llm_bot.tasks"]
 
 [tool.setuptools.package-data]
-llm_bot = ["prompts/*.txt"]
+llm_bot = ["prompts/*.txt", "openapi3_1.yml"]
 
 [tool.ruff]
 line-length = 142
 target-version = "py313"
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "B"]
 
 [tool.pytest.ini_options]
 filterwarnings = [

@@ -31,6 +31,7 @@ uv run pytest tests/test_app.py::test_health_endpoint
 ```
 
 Run the full test suite and Ruff checks before handing off a code change. Run `uv build` when changing packaging, package data, or release inputs.
+Ruff also checks import order (`I`), Python modernization (`UP`), and common bugs (`B`).
 
 ## Local Startup
 
@@ -63,7 +64,7 @@ The API contract is represented in several places. When behavior changes, keep t
 
 - `llm_bot/schemas.py` for runtime validation and serialization
 - `llm_bot/routes.py` for routing, errors, `/info`, and Swagger/OpenAPI serving
-- `openapi3_1.yml` for the published contract
+- `llm_bot/openapi3_1.yml` for the published contract
 - `README.md` for operator-facing examples and configuration
 - `.env.example` for new or changed settings
 - focused tests under `tests/`
@@ -74,7 +75,8 @@ Prompt changes in `llm_bot/prompts/` are behavior changes. Update the correspond
 
 - Versioning is tag-driven through `setuptools_scm`; release tags use `X.Y.Z`.
 - `llm_bot.__version__` resolves the latest Git tag at runtime and falls back to `0.0.0` outside a Git checkout.
-- `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
+- `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `llm_bot/openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
+- The OpenAPI source lives inside `llm_bot` and is included as package data. After packaging changes, smoke-test `/health`, `/openapi.yaml`, and prompt loading from the built wheel outside the checkout. The release workflow uploads the same packaged source as its OpenAPI artifact.
 - `.github/workflows/test.yml` delegates Python validation to the shared Taranis AI workflow. The build workflow publishes multi-architecture images, and the release workflow retags the existing `latest` image and publishes build artifacts.
 
 ## Change Discipline

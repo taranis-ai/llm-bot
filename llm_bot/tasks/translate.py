@@ -6,7 +6,6 @@ from llm_bot.log import logger
 from llm_bot.schemas import TranslateRequest, TranslateResponse
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 
-
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "translate.txt"
 
 
@@ -17,17 +16,9 @@ def load_translate_prompt() -> str:
 def build_translate_messages(request: TranslateRequest) -> list[dict[str, str]]:
     system_prompt = load_translate_prompt()
     if request.source_language:
-        system_prompt = (
-            f"{system_prompt}\n"
-            f"- The source language is {request.source_language}.\n"
-            f"- Translate into {request.target_language}.\n"
-        )
+        system_prompt = f"{system_prompt}\n- The source language is {request.source_language}.\n- Translate into {request.target_language}.\n"
     else:
-        system_prompt = (
-            f"{system_prompt}\n"
-            "- Detect the source language from the input text.\n"
-            f"- Translate into {request.target_language}.\n"
-        )
+        system_prompt = f"{system_prompt}\n- Detect the source language from the input text.\n- Translate into {request.target_language}.\n"
 
     return [
         {"role": "system", "content": system_prompt},

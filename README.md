@@ -62,11 +62,16 @@ Interactive Swagger docs are available at `GET /docs`.
 The raw OpenAPI 3.1 document is available at `GET /openapi.yaml`.
 
 Upstream LLM transport:
+
 - `LLM_API_MODE=responses` sends requests to `/responses`
 - `LLM_API_MODE=chat_completions` sends requests to `/chat/completions`
 - structured outputs are requested via `text.format` in `responses` mode and `response_format` in `chat_completions` mode
 - LLM-backed request payloads may include an optional `reasoning_effort` field. The service forwards it upstream as `reasoning.effort` in `responses` mode and `reasoning_effort` in `chat_completions` mode.
 - LLM-backed request payloads may include an optional `thinking_budget_tokens` field, which the service forwards upstream unchanged as a provider-specific extension. This is intended for servers such as `llama.cpp`; other OpenAI-compatible servers may reject it.
+
+When using the Python clients directly, omitting `api_key` (or passing `None`)
+uses the configured key. Passing `api_key=""` explicitly disables the authorization
+header for that client.
 
 ### `POST /chat`
 
@@ -214,6 +219,7 @@ Response body with emotions:
 
 When `include_emotions` is `false` or omitted, the response must not contain an
 `emotions` field.
+When it is `true`, `emotions` must be an array; an empty array is valid, `null` is not.
 
 If `API_KEY` is configured, send it as:
 
@@ -349,6 +355,12 @@ Authorization: Bearer <API_KEY>
 
 ### `POST /cluster`
 
+Each story requires its original `id` and a name-keyed `tags` dictionary (which may
+be empty). `summary` is optional and may be `null` or empty. Clustering uses only
+summaries and tags; extra fields such as `news_items` and `title` are ignored.
+`CLUSTER_MAX_CONTENT_CHARS_PER_STORY` limits each summary sent to the model
+(default: 800 characters). Returned clusters contain the original story IDs.
+
 Request body:
 
 ```json
@@ -359,26 +371,14 @@ Request body:
       "tags": {
         "APT29": { "tag_type": "APT" }
       },
-      "news_items": [
-        {
-          "title": "APT29 targets Microsoft users",
-          "content": "APT29 targeted Microsoft users in Vienna.",
-          "language": "en"
-        }
-      ]
+      "summary": "APT29 targeted Microsoft users in Vienna."
     },
     {
       "id": "s2",
       "tags": {
         "Microsoft": { "tag_type": "Organization" }
       },
-      "news_items": [
-        {
-          "title": "Microsoft users targeted in Vienna",
-          "content": "Users in Vienna were targeted in an APT29 campaign.",
-          "language": "en"
-        }
-      ]
+      "summary": "Users in Vienna were targeted in an APT29 campaign."
     }
   ]
 }
@@ -548,6 +548,8 @@ Response body:
 Only standard unquoted identifiers are accepted in the supplied graph schema. Generated values
 must use named `$parameter` placeholders. Mutations, procedures, administration, external data
 loading, dynamic schema access, comments, multiple statements, and unbounded results are rejected.
+Every relationship must specify an allowed type, and `RETURN` must contain one
+expression aliased as `result` (which may be a map or a function call).
 Invalid model output receives the service's standard single repair attempt.
 
 ### `POST /ner-link`
@@ -584,6 +586,8 @@ Response body:
 ```
 
 This endpoint performs NER first and then links the extracted entities.
+When NER finds no entities, it returns `{"entities": []}` without making lookup
+or disambiguation requests.
 
 Deterministic example:
 
@@ -665,8 +669,14 @@ configuration, including:
 - active non-secret config such as the current reasoning profile and whether
   lookup/linking is configured
 
-## Tests
+## Development checks
 
 ```bash
-uv run --extra dev pytest tests
+uv sync --extra dev
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv build
 ```
+
+Ruff enforces import ordering, modern Python 3.13 syntax, and common bug checks.

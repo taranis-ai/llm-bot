@@ -3,7 +3,6 @@ from typing import Any
 
 from llm_bot.config import Config
 
-
 MINISTRAL_REASONING_PROMPT = """# HOW YOU SHOULD THINK AND ANSWER
 First draft your thinking process (inner monologue) until you arrive at a response.
 Format your response using Markdown, and use LaTeX for any mathematical equations.

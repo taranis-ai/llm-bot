@@ -21,9 +21,9 @@ class LLMClient:
         timeout: int | None = None,
         reasoning_effort: str | None = None,
         thinking_budget_tokens: int | None = None,
-    ):
+    ) -> None:
         self.base_url = (base_url or Config.LLM_BASE_URL).rstrip("/")
-        self.api_key = api_key or Config.LLM_API_KEY
+        self.api_key = Config.LLM_API_KEY if api_key is None else api_key
         self.model = model or Config.LLM_MODEL
         self.api_mode = api_mode or Config.LLM_API_MODE
         self.timeout = timeout or Config.LLM_TIMEOUT
@@ -36,7 +36,8 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    def _extract_error_message(self, response_text: str) -> str:
+    @staticmethod
+    def _extract_error_message(response_text: str) -> str:
         try:
             payload = json.loads(response_text)
         except json.JSONDecodeError:
@@ -109,7 +110,8 @@ class LLMClient:
             }
         return payload
 
-    def _normalize_chat_completions_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _normalize_chat_completions_response(response_data: dict[str, Any]) -> dict[str, Any]:
         choices = response_data.get("choices")
         if not isinstance(choices, list) or not choices:
             return response_data
@@ -118,11 +120,7 @@ class LLMClient:
         if isinstance(content, str):
             return {"output_text": content}
         if isinstance(content, list):
-            text_parts = [
-                str(item.get("text"))
-                for item in content
-                if isinstance(item, dict) and item.get("text")
-            ]
+            text_parts = [str(item.get("text")) for item in content if isinstance(item, dict) and item.get("text")]
             if text_parts:
                 return {"output_text": "".join(text_parts)}
         return response_data
@@ -134,9 +132,7 @@ class LLMClient:
         response_format: dict[str, Any] | None,
     ) -> tuple[str, dict[str, Any]]:
         if self.api_mode == "chat_completions":
-            return "/chat/completions", self._build_chat_completions_payload(
-                system_input, user_input, response_format
-            )
+            return "/chat/completions", self._build_chat_completions_payload(system_input, user_input, response_format)
         return "/responses", self._build_responses_payload(system_input, user_input, response_format)
 
     async def create_response(

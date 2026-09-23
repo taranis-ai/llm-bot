@@ -12,6 +12,9 @@ info:
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
   version: 0.0.0
+  contact:
+    name: Taranis AI
+    url: https://github.com/taranis-ai/llm-bot
   license:
     name: EUPL-1.2
     url: https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
@@ -26,6 +29,7 @@ paths:
       tags:
         - System
       summary: Interactive Swagger UI
+      description: Renders interactive API documentation using the service's OpenAPI document.
       operationId: swaggerDocs
       responses:
         "200":
@@ -40,6 +44,7 @@ paths:
       tags:
         - System
       summary: OpenAPI document
+      description: Returns the service's OpenAPI 3.1 specification in YAML with the running package version.
       operationId: openapiDocument
       responses:
         "200":
@@ -239,7 +244,7 @@ paths:
 
         When `include_emotions` is true, the response also includes zero or
         more Plutchik emotions that are compatible with the predicted
-        sentiment.
+        sentiment. The `emotions` value must be an array, never null.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -644,7 +649,8 @@ paths:
         the configured lookup service.
 
         This endpoint combines NER and linking in one call and returns the
-        structured linked-entity response.
+        structured linked-entity response. If NER finds no entities, it returns
+        an empty entities array without lookup or disambiguation requests.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -795,6 +801,11 @@ paths:
       description: |
         Accepts a batch of stories and returns event clusters in the shape
         expected by the existing Taranis story bot integration.
+        Each story requires its original ID and a name-keyed tags dictionary,
+        which may be empty. Clustering uses only summaries and tags; other story
+        fields are ignored. Summaries may be omitted, null, or empty and are
+        truncated to CLUSTER_MAX_CONTENT_CHARS_PER_STORY (default: 800 characters)
+        before being sent to the model. Returned clusters use the original IDs.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -816,18 +827,12 @@ paths:
                       tags:
                         APT29:
                           tag_type: "APT"
-                      news_items:
-                        - title: "APT29 targets Microsoft users"
-                          content: "APT29 targeted Microsoft users in Vienna."
-                          language: "en"
+                      summary: "APT29 targeted Microsoft users in Vienna."
                     - id: "s2"
                       tags:
                         Microsoft:
                           tag_type: "Organization"
-                      news_items:
-                        - title: "Microsoft users targeted in Vienna"
-                          content: "Users in Vienna were targeted in an APT29 campaign."
-                          language: "en"
+                      summary: "Users in Vienna were targeted in an APT29 campaign."
                   reasoning_effort: "high"
                   thinking_budget_tokens: 256
       responses:
@@ -935,7 +940,9 @@ paths:
         Generates AGE-compatible read-only Cypher and a separate parameters object
         from a natural-language question and caller-supplied graph schema. The
         service validates labels, relationship directions, properties, parameters,
-        prohibited clauses, and the bounded LIMIT. It does not execute the query,
+        prohibited clauses, and the bounded LIMIT. Every relationship must have
+        an explicit allowed type, and RETURN must contain one expression aliased
+        as result. It does not execute the query,
         access PostgreSQL, or persist data. `graph_name` is passed to the model only
         as caller context and is never embedded in the generated Cypher.
 
@@ -1010,6 +1017,7 @@ paths:
       tags:
         - System
       summary: Health check endpoint
+      description: Returns the service's liveness status without checking upstream dependencies.
       operationId: healthCheck
       responses:
         "200":
@@ -1031,6 +1039,7 @@ paths:
       tags:
         - System
       summary: Runtime information
+      description: Returns the package version, available endpoints, supported modes, and active non-secret configuration.
       operationId: serviceInfo
       responses:
         "200":
@@ -1905,30 +1914,12 @@ components:
         tag_type:
           type: string
       additionalProperties: true
-    StoryNewsItem:
-      type: object
-      additionalProperties: true
-      required:
-        - title
-        - content
-        - language
-      properties:
-        title:
-          type: string
-        content:
-          type: string
-        review:
-          type: string
-          nullable: true
-        language:
-          type: string
     StoryClusterItem:
       type: object
       additionalProperties: true
       required:
         - id
         - tags
-        - news_items
       properties:
         id:
           type: string
@@ -1937,11 +1928,9 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/StoryTag"
-        news_items:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/StoryNewsItem"
+        summary:
+          type: [string, "null"]
+          default: null
     ClusterRequest:
       type: object
       additionalProperties: false
@@ -2000,6 +1989,8 @@ tags:
     description: Text embedding operations
   - name: Sentiment
     description: Sentiment analysis operations
+  - name: Classification
+    description: Cybersecurity text classification operations
   - name: Title
     description: Title generation operations
   - name: Translation
@@ -2012,6 +2003,8 @@ tags:
     description: Entity linking operations
   - name: Clustering
     description: Story clustering operations
+  - name: Entity Relationship Extraction
+    description: Schema-constrained entity and relationship extraction operations
   - name: Graph Query Generation
     description: Stateless schema-constrained Cypher generation
   - name: System
