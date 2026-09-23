@@ -679,7 +679,9 @@ async def test_cluster_endpoint_rejects_invalid_payload(app):
 async def test_entity_relationship_extraction_endpoint(app, monkeypatch):
     async def fake_extract_entity_relationships(request_model):
         assert request_model.text == "APT28 exploited CVE-2025-1234."
-        assert request_model.schema.entity_types[0].name == "ThreatActor"
+        assert request_model.extraction_schema.entity_types[0].name == "ThreatActor"
+        assert request_model.model_dump()["schema"]["entity_types"][0]["name"] == "ThreatActor"
+        assert "extraction_schema" not in request_model.model_dump()
         return EntityRelationshipExtractionResponse.model_validate(
             {
                 "entities": [
@@ -737,7 +739,9 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
     async def fake_generate_graph_query(request_model):
         assert request_model.question == "Which organization employs Alice?"
         assert request_model.graph_name == "knowledge_graph"
-        assert request_model.schema.maximum_limit == 100
+        assert request_model.graph_schema.maximum_limit == 100
+        assert request_model.model_dump()["schema"]["maximum_limit"] == 100
+        assert "graph_schema" not in request_model.model_dump()
         return GraphQueryGenerationResponse.model_validate(
             {
                 "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),

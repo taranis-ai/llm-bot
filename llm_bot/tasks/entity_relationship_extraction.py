@@ -28,7 +28,7 @@ def build_entity_relationship_extraction_messages(
 ) -> list[dict[str, str]]:
     user_payload = {
         "text": request.text,
-        "schema": request.schema.model_dump(),
+        "schema": request.extraction_schema.model_dump(),
     }
     return [
         {"role": "system", "content": load_entity_relationship_extraction_prompt()},
@@ -40,8 +40,8 @@ def validate_entity_relationship_extraction(
     response: EntityRelationshipExtractionResponse,
     request: EntityRelationshipExtractionRequest,
 ) -> EntityRelationshipExtractionResponse:
-    allowed_entity_types = {entity_type.name for entity_type in request.schema.entity_types}
-    relation_types = {relation_type.name: relation_type for relation_type in request.schema.relation_types}
+    allowed_entity_types = {entity_type.name for entity_type in request.extraction_schema.entity_types}
+    relation_types = {relation_type.name: relation_type for relation_type in request.extraction_schema.relation_types}
 
     entity_ids = [entity.id for entity in response.entities]
     duplicate_ids = sorted(entity_id for entity_id, count in Counter(entity_ids).items() if count > 1)
@@ -81,8 +81,8 @@ def parse_entity_relationship_extraction_response(
 def get_entity_relationship_extraction_response_format(
     request: EntityRelationshipExtractionRequest,
 ) -> dict[str, Any]:
-    entity_types = [entity_type.name for entity_type in request.schema.entity_types]
-    relation_types = [relation_type.name for relation_type in request.schema.relation_types]
+    entity_types = [entity_type.name for entity_type in request.extraction_schema.entity_types]
+    relation_types = [relation_type.name for relation_type in request.extraction_schema.relation_types]
     return {
         "type": "json_schema",
         "name": "entity_relationship_extraction_response",
