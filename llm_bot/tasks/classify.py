@@ -1,5 +1,6 @@
 from llm_bot.local_inference import LayaRuntime, runtime
 from llm_bot.schemas import ClassificationResponse, LocalTextRequest
+from llm_bot.tasks.language import require_english_text
 from llm_bot.tasks.local_analysis import choice_probabilities
 
 TOPICS = {
@@ -23,6 +24,7 @@ TOPIC_QUESTION = {
 
 
 async def classify_text(request: LocalTextRequest, inference: LayaRuntime | None = None) -> ClassificationResponse:
+    await require_english_text(request.text)
     result = await (inference or runtime).predict(request.text, {"topic": TOPIC_QUESTION})
     scores = choice_probabilities(result, "topic", TOPICS)
     return ClassificationResponse(category=result["answers"]["topic"]["choice"], scores=scores)

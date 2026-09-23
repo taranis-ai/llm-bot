@@ -46,8 +46,8 @@ The root `app.py` is the ASGI entry point and delegates construction to `llm_bot
 The service needs an OpenAI-compatible backend for LLM routes. `LLM_API_MODE` selects either the Responses API (`/responses`) or Chat Completions (`/chat/completions`). Entity-linking routes additionally need the lookup service configured through `LOOKUP_*` settings.
 
 Before serving, prepare the pinned local models using
-`uv run python -m llm_bot.local_inference --download`. Startup preloads both Laya
-checkpoints offline by default; `/ready` reports their readiness and `/health`
+`uv run python -m llm_bot.local_inference --download`. Startup preloads the English Laya
+checkpoint offline by default; `/ready` reports its readiness and `/health`
 remains liveness. For HTTP development without model tasks, `LAYA_PRELOAD=false`
 skips startup loading. See [deployment](../deployment.md) for memory and storage.
 Unit tests inject inference and must not download weights. Real model evaluation

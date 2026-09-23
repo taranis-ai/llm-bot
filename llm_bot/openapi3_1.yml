@@ -7,7 +7,7 @@ info:
     The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
     extraction, graph query generation, general chat, grounded HRAG answering, and
-    cybersecurity classification. Topic, relevance and sentiment use embedded Laya;
+    cybersecurity classification. Topic, relevance and sentiment require English and use embedded Laya;
     language detection uses local Lingua. Other tasks use OpenAI-compatible APIs.
 
     Canonical paths are documented without a trailing slash. The service
@@ -28,16 +28,16 @@ paths:
   /ready:
     get:
       tags: [System]
-      summary: Readiness of both embedded Laya checkpoints
+      summary: Readiness of the embedded English Laya checkpoint
       responses:
         "200":
-          description: Both checkpoints are resident
+          description: The English checkpoint is resident
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadinessResponse"
         "503":
-          description: Models are not loaded
+          description: The English checkpoint is not loaded
           content:
             application/json:
               schema:
@@ -48,12 +48,18 @@ paths:
       summary: Classify the primary topic
       operationId: classifyText
       description: |
+        English text is required with either backend. Local language detection runs before
+        inference; non-English or inconclusive (und) input returns 400. Short fragments,
+        identifiers and mixed-language text may be inconclusive. Call /translate with
+        target_language="en" first and submit its translation as text. Translation is never
+        automatic and requires the configured LLM backend. Supply more English prose when
+        detection is inconclusive. The response format is unchanged.
         Six competing primary categories with scores summing to one. Main focus decides overlaps:
         a newly disclosed flaw is vulnerabilities, campaign analysis is attacks, and a hospital
         reporting a breach is incidents. Cybersecurity legislation is politics and a security
         company acquisition is business. Relevance is assessed separately by /cybersec-classification.
         Uses embedded Laya. Rejects inputs exceeding LOCAL_MAX_INPUT_CHARS (default 50000) or the
-        selected model token budget including question overhead (512 English, 1024 multilingual).
+        English model token budget including question overhead (512 total tokens).
         No silent truncation. Only the text field is accepted.
       security:
         - bearerAuth: []
@@ -71,7 +77,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ClassificationResponse"
         "400":
-          description: Invalid, blank or overlong input
+          description: Invalid, blank, overlong, non-English or inconclusive input
           content:
             application/json:
               schema:
@@ -336,9 +342,15 @@ paths:
         - Sentiment
       summary: Analyze sentiment for input text
       description: |
+        English text is required with either backend. Local language detection runs before
+        inference; non-English or inconclusive (und) input returns 400. Short fragments,
+        identifiers and mixed-language text may be inconclusive. Call /translate with
+        target_language="en" first and submit its translation as text. Translation is never
+        automatic and requires the configured LLM backend. Supply more English prose when
+        detection is inconclusive. The response format is unchanged.
         Uses in-process Laya by default (TEXT_ANALYSIS_BACKEND=laya). Existing reasoning
         options are accepted but ignored locally. Blank/overlong inputs return 400;
-        the selected checkpoint's full token budget includes task question overhead.
+        the English checkpoint's 512-token budget includes task question overhead.
         No truncation or remote fallback occurs. TEXT_ANALYSIS_BACKEND=llm restores
         the previous upstream implementation. Probabilities are estimates and may be miscalibrated.
         Accepts input text and returns a high-level sentiment label with a
@@ -380,7 +392,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SentimentResponse"
         "400":
-          description: Invalid request payload
+          description: Invalid input, or text is non-English or cannot be identified as English
           content:
             application/json:
               schema:
@@ -416,15 +428,19 @@ paths:
         - Classification
       summary: Classify whether input text is cybersecurity-related
       description: |
+        English text is required with either backend. Local language detection runs before
+        inference; non-English or inconclusive (und) input returns 400. Short fragments,
+        identifiers and mixed-language text may be inconclusive. Call /translate with
+        target_language="en" first and submit its translation as text. Translation is never
+        automatic and requires the configured LLM backend. Supply more English prose when
+        detection is inconclusive. The response format is unchanged.
         Uses in-process Laya by default (TEXT_ANALYSIS_BACKEND=laya). Existing reasoning
         options are accepted but ignored locally. Blank/overlong inputs return 400;
-        the selected checkpoint's full token budget includes task question overhead.
+        the English checkpoint's 512-token budget includes task question overhead.
         No truncation or remote fallback occurs. TEXT_ANALYSIS_BACKEND=llm restores
         the previous upstream implementation. Probabilities are estimates and may be miscalibrated.
         Accepts plain text and returns scores for `cybersecurity` and
         `non-cybersecurity`.
-
-        This endpoint is backed by the configured upstream LLM.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -452,7 +468,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CybersecClassificationResponse"
         "400":
-          description: Invalid request payload
+          description: Invalid input, or text is non-English or cannot be identified as English
           content:
             application/json:
               schema:
@@ -562,8 +578,9 @@ paths:
         Accepts plain text and returns a faithful translation into the requested
         target language.
 
-        When `source_language` is omitted, the model is instructed to detect
-        the source language from the input text.
+        When `source_language` is omitted, local detection supplies the source language;
+        inconclusive detection leaves identification to the translation model. Use target_language="en"
+        before calling /classify, /sentiment or /cybersec-classification. Translation requires LLM_* settings.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -1420,7 +1437,7 @@ components:
         text:
           type: string
           minLength: 1
-          description: Text to analyze for sentiment
+          description: English text to analyze for sentiment; translate other languages first
         include_emotions:
           type: boolean
           default: false
@@ -1439,7 +1456,7 @@ components:
         text:
           type: string
           minLength: 1
-          description: Text to classify for cybersecurity relevance
+          description: English text to classify for cybersecurity relevance; translate other languages first
         reasoning_effort:
           $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
@@ -1535,6 +1552,14 @@ components:
         current:
           type: object
           additionalProperties: true
+          properties:
+            text_analysis_languages:
+              type: array
+              items:
+                type: string
+                enum: [en]
+              description: Languages accepted by topic, sentiment and cybersecurity analysis.
+              example: [en]
 
     StoryInputNewsItem:
       type: object
@@ -1615,7 +1640,7 @@ components:
           type: string
           nullable: true
           minLength: 1
-          description: Optional source language code. When omitted, the model is instructed to detect it.
+          description: Optional source language code. When omitted, local detection supplies it, with model detection for inconclusive text.
         reasoning_effort:
           $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:

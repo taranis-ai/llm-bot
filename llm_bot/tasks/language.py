@@ -2,7 +2,7 @@ import asyncio
 import re
 from functools import lru_cache
 
-from llm_bot.local_inference import validate_local_text
+from llm_bot.local_inference import LocalInputError, validate_local_text
 from llm_bot.schemas import LanguageResponse, LocalTextRequest
 
 
@@ -10,7 +10,7 @@ from llm_bot.schemas import LanguageResponse, LocalTextRequest
 def _detector():
     from lingua import LanguageDetectorBuilder
 
-    return LanguageDetectorBuilder.from_all_languages().with_low_accuracy_mode().with_minimum_relative_distance(0.2).build()
+    return LanguageDetectorBuilder.from_all_languages().with_minimum_relative_distance(0.2).build()
 
 
 def identify_language(text: str) -> str:
@@ -42,3 +42,17 @@ def identify_language(text: str) -> str:
 
 async def detect_language(request: LocalTextRequest) -> LanguageResponse:
     return LanguageResponse(language=await asyncio.to_thread(identify_language, request.text))
+
+
+class EnglishTextRequiredError(LocalInputError):
+    pass
+
+
+async def require_english_text(text: str) -> None:
+    language = await asyncio.to_thread(identify_language, text)
+    if language != "en":
+        raise EnglishTextRequiredError(
+            f"English text is required (detected language: {language}). "
+            "Use /translate with target_language='en' for other languages; "
+            "provide more English prose if detection is inconclusive."
+        )

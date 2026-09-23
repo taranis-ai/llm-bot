@@ -170,6 +170,7 @@ def build_info_response() -> dict[str, object]:
         },
         "current": {
             "text_analysis_backend": Config.TEXT_ANALYSIS_BACKEND,
+            "text_analysis_languages": ["en"],
             "laya_device": Config.LAYA_DEVICE,
             "laya_model_revision": Config.LAYA_MODEL_REVISION,
             "laya_ready": runtime.ready,

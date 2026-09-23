@@ -92,25 +92,59 @@ async def test_local_language_policy(text, expected):
     assert (await detect_language(LocalTextRequest(text=text))).language == expected
 
 
-async def test_translation_uses_detected_language_without_mutating_request():
+async def test_translation_supplies_english_analysis_without_mutating_request():
     client = StubLLMClient({"output_text": '{"translation":"The hospital reported an attack."}'})
     request = TranslateRequest(text="Das Krankenhaus meldete einen Angriff auf seine Computersysteme.", target_language="en")
-    await translate_text(request, client=client)
+    translated = await translate_text(request, client=client)
     assert "The source language is de." in client.calls[0]["system_input"]
     assert request.source_language is None
+    inference = StubInference({"topic": {key: 1.0 if key == "incidents" else 0.0 for key in TOPICS}})
+    result = await classify_text(LocalTextRequest(text=translated.translation), inference=inference)
+    assert result.category == "incidents"
+    assert inference.calls[0][0] == "The hospital reported an attack."
 
 
-async def test_runtime_reuses_models_and_keeps_lock_after_cancellation(monkeypatch):
+@pytest.mark.parametrize(
+    ("task", "request_model"),
+    [(classify_text, LocalTextRequest), (analyze_sentiment, SentimentRequest), (classify_cybersecurity_text, CybersecClassificationRequest)],
+)
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Das Krankenhaus meldete einen Angriff auf seine Computersysteme.",
+        "The hospital reported a breach affecting patient records. Das Krankenhaus meldete einen Angriff auf seine Computersysteme.",
+        "Bonjour",
+    ],
+)
+async def test_analysis_tasks_require_english_before_inference(task, request_model, text):
+    inference = StubInference({})
+    with pytest.raises(LocalInputError, match="English text is required"):
+        await task(request_model(text=text), inference=inference)
+    assert inference.calls == []
+
+
+@pytest.mark.parametrize("path", ["/classify", "/sentiment", "/cybersec-classification"])
+@pytest.mark.parametrize("backend", ["laya", "llm"])
+async def test_analysis_http_requires_english_for_either_backend(app, monkeypatch, path, backend):
+    monkeypatch.setattr(Config, "TEXT_ANALYSIS_BACKEND", backend)
+    response = await app.test_client().post(path, json={"text": "Das Krankenhaus meldete einen Angriff auf seine Computersysteme."})
+    assert response.status_code == 400
+    error = (await response.get_json())["error"]
+    assert "English text is required" in error
+    assert "/translate" in error
+    assert "target_language='en'" in error
+
+
+async def test_runtime_reuses_model_and_keeps_lock_after_cancellation(monkeypatch):
     runtime = LayaRuntime()
     started, release, finished = Event(), Event(), Event()
     loaded = []
 
-    def load(language):
-        loaded.append(language)
+    def load():
+        loaded.append(True)
         started.set()
         assert release.wait(5)
-        if language == "multilingual":
-            finished.set()
+        finished.set()
         return object()
 
     monkeypatch.setattr(runtime, "_load_agent", load)
@@ -128,14 +162,14 @@ async def test_runtime_reuses_models_and_keeps_lock_after_cancellation(monkeypat
     await asyncio.to_thread(runtime._lock.acquire)
     runtime._lock.release()
     await runtime.preload()
-    assert loaded == ["en", "multilingual"]
+    assert loaded == [True]
     assert runtime.ready
 
 
 async def test_failed_loading_can_retry(monkeypatch):
     runtime = LayaRuntime()
 
-    def fail(language):
+    def fail():
         raise OSError("private local path")
 
     monkeypatch.setattr(runtime, "_load_agent", fail)
@@ -143,7 +177,7 @@ async def test_failed_loading_can_retry(monkeypatch):
         await runtime.preload()
     assert "private" not in str(error.value)
     assert not runtime.ready
-    monkeypatch.setattr(runtime, "_load_agent", lambda language: object())
+    monkeypatch.setattr(runtime, "_load_agent", lambda: object())
     await runtime.preload()
     assert runtime.ready
 
@@ -170,20 +204,14 @@ async def test_token_limit_uses_actual_laya_prompt_and_never_calls_truncated_inf
 
     agent = AgentBoundary()
     runtime = LayaRuntime()
-    languages = []
+    monkeypatch.setattr(runtime, "_load_agent", lambda: agent)
 
-    def load(language):
-        languages.append(language)
-        return agent
-
-    monkeypatch.setattr(runtime, "_load_agent", load)
     questions = {"test": {"type": "choice", "instructions": "Topic?", "criteria": {"a": "", "b": ""}}}
     await runtime.predict("The hospital reported an attack on its computers.", questions)
-    await runtime.predict("Das Krankenhaus meldete einen Angriff auf seine Computersysteme.", questions)
+    await runtime.predict("The police are investigating the attack on the hospital.", questions)
     with pytest.raises(LocalInputError, match="token budget"):
         await runtime.predict("The hospital reported an attack. " * 20, questions)
     assert agent.calls == 2
-    assert languages == ["en", "multilingual"]
 
 
 @pytest.mark.parametrize("path", ["/classify", "/language", "/sentiment", "/cybersec-classification", "/translate"])
@@ -215,13 +243,14 @@ async def test_local_http_success_failure_and_readiness(app, monkeypatch):
     response = await client.post("/sentiment", json={"text": "A hospital reported a breach."})
     assert await response.get_json() == {"sentiment": {"label": "neutral", "score": 0.8}}
     inference.scores = {"topic": {"other": 8.0}}
-    assert (await client.post("/classify", json={"text": "Test"})).status_code == 502
+    assert (await client.post("/classify", json={"text": "The hospital reported an attack on its computers."})).status_code == 502
     fresh = LayaRuntime()
     monkeypatch.setattr(routes, "runtime", fresh)
     assert (await client.get("/ready")).status_code == 503
-    fresh._agents = {"en": object(), "multilingual": object()}
+    fresh._model = object()
     assert (await client.get("/ready")).status_code == 200
-    assert (await client.get("/info")).status_code == 200
+    info = await client.get("/info")
+    assert (await info.get_json())["current"]["text_analysis_languages"] == ["en"]
 
 
 async def test_local_http_unavailable(app, monkeypatch):
@@ -244,11 +273,11 @@ async def test_startup_preloads_or_fails(monkeypatch):
 
     runtime = LayaRuntime()
     monkeypatch.setattr("llm_bot.app.runtime", runtime)
-    monkeypatch.setattr(runtime, "_load_agent", lambda language: object())
+    monkeypatch.setattr(runtime, "_load_agent", lambda: object())
     async with create_app().test_app():
         assert runtime.ready
 
-    def fail(language):
+    def fail():
         raise OSError("Unavailable checkpoint")
 
     runtime = LayaRuntime()
@@ -280,13 +309,14 @@ def test_loader_pins_revision_and_stays_offline(tmp_path, monkeypatch):
     monkeypatch.setattr("laya.load", load)
     monkeypatch.setattr(Config, "LAYA_ALLOW_DOWNLOAD", False)
     monkeypatch.setattr(Config, "LAYA_DEVICE", "cpu")
-    LayaRuntime()._load_agent("en")
+    LayaRuntime()._load_agent()
     assert calls[0][0] == "convaiinnovations/laya"
     assert calls[0][1]["revision"] == Config.LAYA_MODEL_REVISION
     assert calls[0][1]["local_files_only"] is True
+    assert calls[0][1]["allow_patterns"] == ["rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*"]
     monkeypatch.setattr(Config, "LAYA_DEVICE", "cuda")
     with pytest.raises(RuntimeError, match="configured device"):
-        LayaRuntime()._load_agent("en")
+        LayaRuntime()._load_agent()
 
 
 def test_evaluation_metrics_count_errors_and_calibration():

@@ -185,12 +185,12 @@ class TranslateResponse(BaseModel):
 
 
 class SentimentRequest(LLMRequest):
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, description="English text; translate other languages before analysis")
     include_emotions: bool = False
 
 
 class CybersecClassificationRequest(LLMRequest):
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, description="English text; translate other languages before analysis")
 
 
 class LocalTextRequest(BaseModel):

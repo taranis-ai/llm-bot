@@ -18,7 +18,7 @@ from llm_bot.local_inference import LocalInputError, runtime
 from llm_bot.schemas import CybersecClassificationRequest, LocalTextRequest, SentimentRequest
 from llm_bot.tasks.classify import TOPICS, classify_text
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
-from llm_bot.tasks.language import detect_language
+from llm_bot.tasks.language import EnglishTextRequiredError, detect_language
 from llm_bot.tasks.sentiment import analyze_sentiment
 
 
@@ -84,6 +84,8 @@ async def evaluate(args):
             before = perf_counter()
             try:
                 response = await call()
+                if task != "language" and (case["language"] != "en" or (case.get("local_rejection") and not baseline)):
+                    raise AssertionError("Expected input rejection, but analysis succeeded")
                 elapsed = perf_counter() - before
                 row = {"id": case["id"], "task": task, "expected": case[task], "seconds": elapsed}
                 if task == "language":
@@ -109,7 +111,11 @@ async def evaluate(args):
                         "task": task,
                         "error": type(exc).__name__,
                         "expected_rejection": bool(
-                            case.get("local_rejection") and isinstance(exc, LocalInputError) and not baseline and task != "language"
+                            task != "language"
+                            and (
+                                (case["language"] != "en" and isinstance(exc, EnglishTextRequiredError))
+                                or (case.get("local_rejection") and isinstance(exc, LocalInputError) and not baseline)
+                            )
                         ),
                     }
                 )
@@ -136,6 +142,7 @@ async def evaluate(args):
     report = {
         "provenance": dataset["provenance"],
         "backend": args.backend,
+        "analysis_languages": ["en"],
         "model_revision": Config.LAYA_MODEL_REVISION,
         "platform": platform.platform(),
         "python": sys.version.split()[0],

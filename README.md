@@ -55,6 +55,8 @@ Local tasks accept an injectable `inference=` object with async `predict(text, q
 `language.detect_language(LocalTextRequest(text=...))` returns a language code.
 For sentiment and cybersecurity, explicitly passing `client=LLMClient(...)` selects
 the previous LLM implementation for comparison. Otherwise Laya is the default.
+Topic, sentiment and cybersecurity task entry points require English text with
+either backend, including when a client or inference dependency is injected.
 
 To embed the HTTP service, import `create_app` from `llm_bot.app` and expose
 `app = create_app()` in your ASGI entry point.
@@ -82,8 +84,8 @@ cp .env.example .env
 uv run python -m llm_bot.local_inference --download
 ```
 
-The last command downloads and verifies both pinned models once. Normal startup is offline
-and preloads them before serving. See [embedded runtime deployment](docs/deployment.md)
+The last command downloads and verifies the pinned English model once. Normal startup is offline
+and preloads it before serving. See [embedded runtime deployment](docs/deployment.md)
 for storage, memory, device selection, readiness and rollback. Each process has its own models.
 
 Configure the following values in `.env`:
@@ -248,6 +250,27 @@ Authorization: Bearer <API_KEY>
 
 ### Local text analysis
 
+**`/classify`, `/sentiment` and `/cybersec-classification` require English text.**
+The service checks language locally before calling either analysis backend. Non-English
+or inconclusive (`und`) input returns 400 with translation guidance. Short fragments,
+identifier-only text and substantially mixed-language articles may be inconclusive;
+provide enough English prose to identify the language. `/language` and `/translate`
+continue to accept other languages. `/info` advertises `text_analysis_languages: ["en"]`.
+
+For another language, call `POST /translate` first:
+
+```json
+{
+  "text": "Das Krankenhaus meldete einen Angriff auf seine Computersysteme.",
+  "source_language": "de",
+  "target_language": "en"
+}
+```
+
+Then submit the returned `translation` as `text` to the analysis endpoint.
+Translation requires the configured `LLM_*` backend and is an explicit caller step;
+analysis endpoints do not translate automatically.
+
 `POST /classify` accepts `{"text":"..."}` and returns, for example:
 
 ```json
@@ -273,15 +296,14 @@ to avoid false switches on shared vocabulary. This policy is conservative and
 does not identify language switches within a sentence. Empty or
 whitespace-only text returns 400.
 
-Local inference selects the English checkpoint only for `en`; all other languages,
-including `und`, use the multilingual checkpoint. Translation uses detected language
+Local inference uses only the English checkpoint. Translation uses detected language
 when `source_language` is absent; `und` leaves source identification to the translator.
 Explicit `source_language` always wins. Detection examines the full input without
 truncation; translation without an explicit source is subject to the same character limit.
 
 All local analysis rejects input exceeding `LOCAL_MAX_INPUT_CHARS` (default 50,000).
-Laya additionally rejects text that will not fit its selected checkpoint's token
-budget **including the task question** (512 English / 1024 multilingual total
+Laya additionally rejects text that will not fit its English checkpoint's token
+budget **including the task question** (512 total
 tokens at the pinned revision). Rejection is 400, before any forward pass. There
 is no automatic truncation or chunk averaging; long articles must be shortened
 explicitly by the caller. These stricter limits change what existing sentiment
@@ -367,8 +389,9 @@ Response body:
 }
 ```
 
-This endpoint is LLM-backed and supports the same optional `reasoning_effort` and
-`thinking_budget_tokens` fields as the other LLM routes.
+This endpoint requires English text and uses Laya by default. The optional
+`reasoning_effort` and `thinking_budget_tokens` fields are ignored locally and
+forwarded only when `TEXT_ANALYSIS_BACKEND=llm`.
 
 If `API_KEY` is configured, send it as:
 
@@ -428,7 +451,9 @@ Response body:
 }
 ```
 
-`source_language` is optional. When omitted, the model is instructed to detect the source language from the input. `target_language` is required.
+`source_language` is optional. When omitted, local detection supplies the source
+language; inconclusive detection leaves it to the translation model. `target_language`
+is required. Use `en` before calling the English-only analysis endpoints.
 
 If `API_KEY` is configured, send it as:
 

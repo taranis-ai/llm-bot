@@ -1,9 +1,8 @@
-"""One reusable pair of Laya checkpoints per process; no inference service."""
+"""One reusable English Laya checkpoint per process; no inference service."""
 
 import asyncio
 from pathlib import Path
 from threading import Lock
-from typing import Any
 
 from llm_bot.config import Config
 from llm_bot.log import logger
@@ -26,28 +25,27 @@ def validate_local_text(text: str) -> None:
 
 class LayaRuntime:
     def __init__(self):
-        self._agents: dict[str, Any] = {}
+        self._model = None
         self._lock = Lock()
 
     @property
     def ready(self) -> bool:
-        return set(self._agents) == {"en", "multilingual"}
+        return self._model is not None
 
-    def _load_agent(self, language: str):
+    def _load_agent(self):
         import laya
         import torch
         from huggingface_hub import snapshot_download
 
         torch.set_num_threads(Config.LAYA_CPU_THREADS)
-        prefix = "" if language == "en" else "multilingual/"
         snapshot = snapshot_download(
             "convaiinnovations/laya",
             revision=Config.LAYA_MODEL_REVISION,
             cache_dir=str(Path(Config.LAYA_CACHE_DIR).expanduser()),
             local_files_only=not Config.LAYA_ALLOW_DOWNLOAD,
-            allow_patterns=[prefix + name for name in ("rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*")],
+            allow_patterns=["rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*"],
         )
-        model_dir = Path(snapshot) / prefix
+        model_dir = Path(snapshot)
         # Require bundled configuration/tokenizers, so Laya cannot fall back to hub downloads.
         for name in ("rl_agent_config.json", "model.safetensors", "tokenizer/tokenizer.json", "encoder/config.json"):
             if not (model_dir / name).is_file():
@@ -55,14 +53,13 @@ class LayaRuntime:
         agent = laya.load(str(model_dir.resolve()), device=Config.LAYA_DEVICE)
         if agent.device.type != Config.LAYA_DEVICE:
             raise RuntimeError("Laya could not use the configured device")
-        logger.info("Loaded Laya %s revision %s on %s", language, Config.LAYA_MODEL_REVISION, agent.device)
+        logger.info("Loaded English Laya revision %s on %s", Config.LAYA_MODEL_REVISION, agent.device)
         return agent
 
-    def _agent(self, language: str):
-        key = "en" if language == "en" else "multilingual"
-        if key not in self._agents:
-            self._agents[key] = self._load_agent(key)
-        return self._agents[key]
+    def _agent(self):
+        if self._model is None:
+            self._model = self._load_agent()
+        return self._model
 
     async def _run(self, operation, *args):
         # The worker owns the lock: cancelling an HTTP request cannot release a running model.
@@ -82,22 +79,17 @@ class LayaRuntime:
         return await asyncio.to_thread(run)
 
     async def preload(self):
-        def load():
-            self._agent("en")
-            self._agent("multilingual")
-
-        await self._run(load)
+        await self._run(self._agent)
 
     async def predict(self, text: str, questions: dict) -> dict:
+        """Run English text; task entry points enforce language before dispatch."""
         validate_local_text(text)
         return await self._run(self._predict, text, questions)
 
     def _predict(self, text: str, questions: dict) -> dict:
         from laya.common import build_sequence
 
-        from llm_bot.tasks.language import identify_language
-
-        agent = self._agent(identify_language(text))
+        agent = self._agent()
         max_len = agent.cfg.get("max_len", 512)
         head_max_len = agent.cfg.get("head_max_len", 192)
         tokens = agent.tok(text.replace(agent.tok.mask_token, " "), add_special_tokens=False)["input_ids"]
@@ -115,7 +107,7 @@ runtime = LayaRuntime()
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Prepare and verify both pinned Laya checkpoints")
+    parser = argparse.ArgumentParser(description="Prepare and verify the pinned English Laya checkpoint")
     parser.add_argument("--download", action="store_true", help="Allow downloading pinned weights into LAYA_CACHE_DIR")
     args = parser.parse_args()
     Config.LAYA_ALLOW_DOWNLOAD = args.download

@@ -12,8 +12,8 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
 - `llm_bot/embedding_client.py`: asynchronous OpenAI-compatible embedding transport.
-- `llm_bot/local_inference.py`: pinned, cached in-process Laya models, thread dispatch, concurrency and token-limit checks.
-- `llm_bot/tasks/language.py`: local Lingua detection used by language requests, translation and checkpoint selection.
+- `llm_bot/local_inference.py`: pinned, cached in-process English Laya model, thread dispatch, concurrency and token-limit checks.
+- `llm_bot/tasks/language.py`: local Lingua detection used by language requests, translation and English input validation.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
 - `llm_bot/tasks/`: task orchestration, prompt construction, structured-output definitions, parsing, validation, and post-processing.
@@ -48,8 +48,14 @@ The optional incoming `API_KEY` protects POST routes, including local analysis.
 `/health`, `/ready`, `/info`, `/docs`, and `/openapi.yaml` stay public. The upstream
 `LLM_API_KEY` and lookup API key are separate credentials.
 
-Local tasks bypass `LLMClient` and JSON repair. `LayaRuntime.predict()` detects
-language, selects a pinned checkpoint, rejects inputs before token truncation,
+Topic, sentiment and cybersecurity task entry points call `require_english_text()`
+before either backend, including injected dependencies. Non-English and inconclusive
+input raises `EnglishTextRequiredError` (a `LocalInputError`), returned as 400 with
+guidance to translate to English. Translation remains an explicit caller step.
+Language detection runs off the event loop; `/language` and `/translate` remain multilingual.
+
+Local tasks bypass `LLMClient` and JSON repair. `LayaRuntime.predict()` uses
+the pinned English checkpoint, rejects inputs before token truncation,
 and calls Laya in a worker thread under one process-local lock. Cancellation
 does not release the worker's lock. Busy/load/inference failures map to 503;
 local input errors map to 400; invalid probability output maps to generic 502.

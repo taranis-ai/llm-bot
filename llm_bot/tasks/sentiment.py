@@ -12,6 +12,7 @@ from llm_bot.schemas import (
     SentimentRequest,
     SentimentResponse,
 )
+from llm_bot.tasks.language import require_english_text
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
     create_and_parse_response,
@@ -114,6 +115,7 @@ async def analyze_sentiment(
     *,
     inference: LayaRuntime | None = None,
 ) -> SentimentResponse:
+    await require_english_text(request.text)
     if inference is not None or (client is None and Config.TEXT_ANALYSIS_BACKEND == "laya"):
         return await local_sentiment(request, inference or runtime)
     llm_client = client or LLMClient(

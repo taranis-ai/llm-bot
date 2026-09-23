@@ -4,6 +4,9 @@ Local topic, relevance and sentiment tasks use embedded Laya instead of these
 generative JSON/repair steps. Keep choice definitions in their task modules,
 validate probabilities and response models, and inject `inference=` for network-free
 tests. Reuse `local_inference.py` for loading, concurrency and token-budget checks.
+All three public analysis task entry points require English using the shared
+`require_english_text()` check before dispatch to either backend. Keep that policy
+outside injectable inference dependencies so tests and library callers cannot bypass it.
 Local language detection uses Lingua and does not require a Laya checkpoint.
 Question changes also require a real evaluation run: prompt token budgets and
 choice calibration can change. Do not substitute SDK entropy confidence for
