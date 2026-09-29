@@ -27,6 +27,7 @@ Documentation = "https://github.com/taranis-ai/llm-bot#readme"
 
 [project.optional-dependencies]
 dev = [
+    "pre-commit>=4.6.2",
     "pytest",
     "pytest-asyncio",
     "python-dotenv",

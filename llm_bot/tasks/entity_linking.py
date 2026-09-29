@@ -226,7 +226,8 @@ async def build_llm_linked_response(
             response=response,
             lookup_results=lookup_results,
         )
-    except Exception as exc:
+    # LLM disambiguation is optional; any failure leaves candidates unresolved.
+    except Exception as exc:  # noqa: BLE001
         logger.warning("Entity linking batch failed: %s", exc)
         selected_candidates = {}
 

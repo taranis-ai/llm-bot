@@ -121,7 +121,8 @@ async def _handle_model_request[RequestModel: BaseModel](
     except (UpstreamLLMError, UpstreamEmbeddingError) as exc:
         logger.error("%s upstream error: %s", log_prefix, exc)
         return {"error": f"{processing_error_message}: {exc}"}, 502
-    except Exception:
+    # Keep unexpected task failures out of HTTP responses.
+    except Exception:  # noqa: BLE001
         logger.exception(processing_error_message)
         return {"error": processing_error_message}, 502
 

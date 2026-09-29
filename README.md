@@ -30,9 +30,7 @@ from llm_bot.tasks.summarize import summarize
 
 
 async def main():
-    result = await summarize(
-        SummarizeRequest(text="Text to summarize", language="en", max_words=80)
-    )
+    result = await summarize(SummarizeRequest(text="Text to summarize", language="en", max_words=80))
     print(result.summary)
     # result.model_dump() returns a dictionary.
 
@@ -725,8 +723,12 @@ configuration, including:
 ## Development checks
 
 ```bash
+uv sync --locked --extra dev
+uv run pre-commit install
 ./scripts/check.sh
 ```
 
 [The script](scripts/check.sh) installs development dependencies, checks lint and
-formatting, and runs the full test suite.
+formatting, and runs the full test suite. The installed pre-commit hook runs the
+same Ruff lint and format checks before each commit; run
+`uv run pre-commit run --all-files` to check them manually.
