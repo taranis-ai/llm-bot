@@ -19,6 +19,7 @@ async def main() -> None:
         assert __version__ == sys.argv[1], (__version__, sys.argv[1])
 
     prompts = files("llm_bot").joinpath("prompts")
+    assert files("llm_bot").joinpath("py.typed").is_file()
     for name in (
         "chat",
         "cluster",

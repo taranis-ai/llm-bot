@@ -76,6 +76,7 @@ Prompt changes in `llm_bot/prompts/` are behavior changes. Update the correspond
 - Versioning is tag-driven through `setuptools_scm`; release tags use `X.Y.Z`.
 - `llm_bot.__version__` reads the installed distribution metadata and falls back to `0.0.0` only when distribution metadata is unavailable. Git is needed for release builds, not at runtime. Release tags support multi-digit `X.Y.Z` components.
 - `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `llm_bot/openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
+- `llm_bot/py.typed` marks the package's inline annotations as available to type checkers. Keep it in the wheel when changing package data.
 - The OpenAPI source lives inside `llm_bot` and is included as package data. After packaging changes, smoke-test `/health`, `/openapi.yaml`, and prompt loading from the built wheel outside the checkout. The release workflow uploads the same packaged source as its OpenAPI artifact.
 - `.github/workflows/test.yml` delegates Python validation to the shared Taranis AI workflow. The build workflow publishes multi-architecture images on branch pushes.
 - `.github/workflows/release.yml` handles image and Python releases on `X.Y.Z` tag pushes. It runs `scripts/check.sh`, builds and checks wheel/sdist metadata, smoke-tests the installed wheel outside the checkout, and verifies its version matches the tag. It then retags the existing `latest` image and creates the GitHub release with the build artifacts.

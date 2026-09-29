@@ -49,7 +49,7 @@ local_scheme = "no-local-version"
 packages = ["llm_bot", "llm_bot.prompts", "llm_bot.tasks"]
 
 [tool.setuptools.package-data]
-llm_bot = ["prompts/*.txt", "openapi3_1.yml"]
+llm_bot = ["prompts/*.txt", "openapi3_1.yml", "py.typed"]
 
 [tool.ruff]
 line-length = 142
