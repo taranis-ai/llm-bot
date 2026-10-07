@@ -12,6 +12,8 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
 - `llm_bot/embedding_client.py`: asynchronous OpenAI-compatible embedding transport.
+- `llm_bot/local_inference.py`: pinned, cached in-process English Laya model, thread dispatch, concurrency and token-limit checks.
+- `llm_bot/tasks/language.py`: local Lingua detection used by language requests, translation and English input validation.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
 - `llm_bot/tasks/`: task orchestration, prompt construction, structured-output definitions, parsing, validation, and post-processing.
@@ -44,7 +46,27 @@ HTTP request
 
 `llm_bot.routes._handle_model_request()` owns the common HTTP behavior: request validation failures and supported client errors are `400`, upstream provider failures are `502` with their message, and unexpected processing failures are logged and returned as a generic `502`. Keep task code independent of Quart request/response objects.
 
-The optional incoming `API_KEY` protects only the LLM-backed POST routes. `/health`, `/info`, `/docs`, and `/openapi.yaml` stay public. The upstream `LLM_API_KEY` and lookup API key are separate credentials.
+The optional incoming `API_KEY` protects POST routes, including local analysis.
+`/health`, `/ready`, `/info`, `/docs`, and `/openapi.yaml` stay public. The upstream
+`LLM_API_KEY` and lookup API key are separate credentials.
+
+Topic, sentiment and cybersecurity task entry points call `require_english_text()`
+before either backend, including injected dependencies. Non-English and inconclusive
+input raises `EnglishTextRequiredError` (a `LocalInputError`), returned as 400 with
+guidance to translate to English. Translation remains an explicit caller step.
+Language detection runs off the event loop; `/language` and `/translate` remain multilingual.
+
+Local tasks bypass `LLMClient` and JSON repair. `LayaRuntime.predict()` uses
+the pinned English checkpoint, rejects inputs before token truncation,
+and calls Laya in a worker thread under one process-local lock. Cancellation
+does not release the worker's lock. Busy/load/inference failures map to 503;
+local input errors map to 400; invalid probability output maps to generic 502.
+Topic, relevance and sentiment are separate choice questions. Scores use
+normalized option probabilities, not Laya's entropy-based confidence. Only
+four-decimal rounding drift is normalized. Response models still validate output.
+Sentiment and cybersecurity default to Laya; `TEXT_ANALYSIS_BACKEND=llm` or an
+explicit injected LLM client enables the previous implementation for rollback
+and evaluation. Injecting `inference=` explicitly selects local inference.
 
 ## Upstream LLM Boundary
 
@@ -88,7 +110,10 @@ The lookup service supplies candidates. Deterministic mode selects the first can
 
 `Config` is a module-level `Settings` instance created during import. Code reads it directly, and tests commonly monkeypatch its attributes. New configuration should have a safe default and should not cause network access or secret validation at import time.
 
-The service is stateless: it has no database or queue. Its external state boundaries are the LLM provider and, for linking, the lookup service.
+The service has no database or job queue. Its persistent local state is the pinned
+model cache; each process owns resident Laya and Lingua models. The Hugging Face
+Hub is used only when model downloads are explicitly allowed. Generative tasks
+use the LLM provider and linking uses the lookup service. See [deployment](../deployment.md).
 The embedding provider is a separate external boundary configured through `EMBEDDING_*`
 settings. `/embed` sends one text to its OpenAI-compatible `/embeddings` path and
 returns the first validated vector.

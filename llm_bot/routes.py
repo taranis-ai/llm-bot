@@ -11,6 +11,7 @@ from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
 from llm_bot.embedding_client import UpstreamEmbeddingError
+from llm_bot.local_inference import LocalInferenceUnavailable, LocalInputError, runtime
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ChatRequest,
@@ -21,6 +22,7 @@ from llm_bot.schemas import (
     GraphQueryGenerationRequest,
     HragRequest,
     LinkRequest,
+    LocalTextRequest,
     NerLinkRequest,
     NerRequest,
     SentimentRequest,
@@ -29,6 +31,7 @@ from llm_bot.schemas import (
     TranslateRequest,
 )
 from llm_bot.tasks.chat import chat
+from llm_bot.tasks.classify import classify_text
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
 from llm_bot.tasks.embed import embed_text
@@ -36,6 +39,7 @@ from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
 from llm_bot.tasks.graph_query_generation import generate_graph_query
 from llm_bot.tasks.hrag import answer_with_hrag
+from llm_bot.tasks.language import detect_language
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
 from llm_bot.tasks.ner_link import extract_and_link
@@ -115,6 +119,10 @@ async def _handle_model_request[RequestModel: BaseModel](
 
     try:
         response_model = await task(request_model)
+    except LocalInputError as exc:
+        return {"error": str(exc)}, 400
+    except LocalInferenceUnavailable as exc:
+        return {"error": str(exc)}, 503
     except client_error_exceptions as exc:
         logger.warning("%s client error: %s", log_prefix, exc)
         return {"error": str(exc)}, 400
@@ -144,6 +152,9 @@ def build_info_response() -> dict[str, object]:
             "docs": "/docs",
             "openapi": "/openapi.yaml",
             "sentiment": "/sentiment",
+            "classify": "/classify",
+            "language": "/language",
+            "ready": "/ready",
             "cybersec_classification": "/cybersec-classification",
             "summarize": "/summarize",
             "title": "/title",
@@ -159,6 +170,14 @@ def build_info_response() -> dict[str, object]:
             "hrag": "/hrag",
         },
         "current": {
+            "text_analysis_backend": Config.TEXT_ANALYSIS_BACKEND,
+            "text_analysis_languages": ["en"],
+            "laya_device": Config.LAYA_DEVICE,
+            "laya_model_revision": Config.LAYA_MODEL_REVISION,
+            "laya_ready": runtime.ready,
+            "laya_preload": Config.LAYA_PRELOAD,
+            "laya_allow_download": Config.LAYA_ALLOW_DOWNLOAD,
+            "local_max_input_chars": Config.LOCAL_MAX_INPUT_CHARS,
             "llm_base_url": Config.LLM_BASE_URL,
             "llm_model": Config.LLM_MODEL,
             "llm_api_mode": Config.LLM_API_MODE,
@@ -184,6 +203,32 @@ def create_api_blueprint() -> Blueprint:
     @api.get("/health")
     async def health() -> tuple[dict[str, Any], int]:
         return {"status": "ok"}, 200
+
+    @api.get("/ready")
+    async def ready() -> tuple[dict[str, Any], int]:
+        return {"status": "ok" if runtime.ready else "loading", "laya_ready": runtime.ready}, 200 if runtime.ready else 503
+
+    @api.post("/classify")
+    @api_key_required
+    async def classify_view():
+        return await _handle_model_request(
+            log_prefix="Topic classification",
+            validation_error_message="Invalid classification request payload",
+            processing_error_message="Failed to classify text",
+            request_model_factory=LocalTextRequest.model_validate,
+            task=classify_text,
+        )
+
+    @api.post("/language")
+    @api_key_required
+    async def language_view():
+        return await _handle_model_request(
+            log_prefix="Language detection",
+            validation_error_message="Invalid language request payload",
+            processing_error_message="Failed to detect language",
+            request_model_factory=LocalTextRequest.model_validate,
+            task=detect_language,
+        )
 
     @api.get("/openapi.yaml")
     async def openapi_spec() -> Response:

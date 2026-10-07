@@ -4,7 +4,9 @@ Async Python library and LLM-backed bot service.
 
 The current implementation exposes stateless chat and grounded HRAG answering, embeddings, sentiment analysis,
 title generation, summary, named entity recognition, entity relationship extraction, graph query generation,
-translation, linking, clustering, and cybersecurity classification endpoints backed by OpenAI-compatible APIs.
+translation, linking and clustering through OpenAI-compatible APIs. Topic classification,
+cybersecurity relevance and sentiment use embedded Laya models by default; language detection
+uses Lingua locally. No separate inference service is needed for these four tasks.
 
 ## Requirements
 
@@ -72,7 +74,12 @@ images and the PyPI package on tag pushes; see [PyPI setup](docs/agents/developm
 uv sync --locked --extra dev --extra server
 ./scripts/check.sh
 cp .env.example .env
+uv run python -m llm_bot.local_inference --download
 ```
+
+The last command downloads and verifies the pinned English model once. Normal startup is offline
+and preloads it before serving. See [embedded runtime deployment](docs/deployment.md)
+for storage, memory, device selection, readiness and rollback. Each process has its own models.
 
 Configure the following values in `.env`:
 
@@ -83,7 +90,7 @@ Configure the following values in `.env`:
 
 Optional:
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/classify`, `/language`, `/cybersec-classification`, `/chat`, `/hrag`, `/embed`, `/sentiment`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
@@ -237,7 +244,11 @@ Authorization: Bearer <API_KEY>
 
 ### `POST /sentiment`
 
-Sentiment analysis endpoint.
+Embedded Laya sentiment analysis. The score is the selected label's probability,
+not Laya's entropy-based confidence field. It is an estimate, not a calibrated
+guarantee. Tone is separate from event severity: factual negative-event reporting
+should be neutral. Optional emotions are independently assessed and filtered through
+the existing sentiment/emotion compatibility rules.
 
 Request body:
 
@@ -303,8 +314,9 @@ Response body:
 }
 ```
 
-This endpoint is LLM-backed and supports the same optional `reasoning_effort` and
-`thinking_budget_tokens` fields as the other LLM routes.
+This endpoint requires English text and uses Laya by default. The optional
+`reasoning_effort` and `thinking_budget_tokens` fields are ignored locally and
+forwarded only when `TEXT_ANALYSIS_BACKEND=llm`.
 
 If `API_KEY` is configured, send it as:
 
@@ -364,7 +376,9 @@ Response body:
 }
 ```
 
-`source_language` is optional. When omitted, the model is instructed to detect the source language from the input. `target_language` is required.
+`source_language` is optional. When omitted, local detection supplies the source
+language; inconclusive detection leaves it to the translation model. `target_language`
+is required. Use `en` before calling the English-only analysis endpoints.
 
 If `API_KEY` is configured, send it as:
 

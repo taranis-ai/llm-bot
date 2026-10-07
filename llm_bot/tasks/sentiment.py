@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
+from llm_bot.local_inference import LayaRuntime, runtime
 from llm_bot.log import logger
 from llm_bot.schemas import (
     PLUTCHIK_8,
@@ -10,12 +12,14 @@ from llm_bot.schemas import (
     SentimentRequest,
     SentimentResponse,
 )
+from llm_bot.tasks.language import require_english_text
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
     create_and_parse_response,
     get_output_text,
     loads_json_output,
 )
+from llm_bot.tasks.local_analysis import local_sentiment
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "sentiment.txt"
 
@@ -108,7 +112,12 @@ def get_sentiment_response_format(include_emotions: bool) -> dict[str, Any]:
 async def analyze_sentiment(
     request: SentimentRequest,
     client: LLMClient | None = None,
+    *,
+    inference: LayaRuntime | None = None,
 ) -> SentimentResponse:
+    await require_english_text(request.text)
+    if inference is not None or (client is None and Config.TEXT_ANALYSIS_BACKEND == "laya"):
+        return await local_sentiment(request, inference or runtime)
     llm_client = client or LLMClient(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,

@@ -2,8 +2,10 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.local_inference import validate_local_text
 from llm_bot.log import logger
-from llm_bot.schemas import TranslateRequest, TranslateResponse
+from llm_bot.schemas import LocalTextRequest, TranslateRequest, TranslateResponse
+from llm_bot.tasks.language import detect_language
 from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "translate.txt"
@@ -56,6 +58,11 @@ async def translate_text(
     request: TranslateRequest,
     client: LLMClient | None = None,
 ) -> TranslateResponse:
+    if not request.source_language:
+        validate_local_text(request.text)
+        detected = await detect_language(LocalTextRequest(text=request.text))
+        if detected.language != "und":
+            request = request.model_copy(update={"source_language": detected.language})
     llm_client = client or LLMClient(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
