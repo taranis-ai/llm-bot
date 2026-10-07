@@ -14,7 +14,7 @@ ENV UV_COMPILE_BYTECODE=1
 
 RUN uv venv && \
     export PATH="/app/.venv/bin:$PATH" && \
-    uv sync --frozen
+    uv sync --frozen --extra server
 
 FROM python:3.13-slim
 

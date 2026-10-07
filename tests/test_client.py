@@ -13,7 +13,6 @@ class FakeResponse:
     def raise_for_status(self):
         if self.error is not None:
             raise self.error
-        return None
 
 
 class FakeSession:
