@@ -685,12 +685,10 @@ wheels = [
 name = "taranis-llm-bot"
 source = { editable = "." }
 dependencies = [
-    { name = "granian" },
     { name = "langcodes", extra = ["data"] },
     { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "quart" },
 ]
 
 [package.optional-dependencies]
@@ -701,10 +699,14 @@ dev = [
     { name = "python-dotenv" },
     { name = "ruff" },
 ]
+server = [
+    { name = "granian" },
+    { name = "quart" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "granian" },
+    { name = "granian", marker = "extra == 'server'" },
     { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
     { name = "niquests" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },
@@ -713,10 +715,10 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-dotenv", marker = "extra == 'dev'" },
-    { name = "quart", specifier = ">=0.20.0" },
+    { name = "quart", marker = "extra == 'server'", specifier = ">=0.20.0" },
     { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["server", "dev"]
 
 [[package]]
 name = "typing-extensions"

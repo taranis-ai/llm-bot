@@ -15,6 +15,7 @@ translation, linking, clustering, and cybersecurity classification endpoints bac
 
 Install a published release into a Python 3.13 project with `uv add taranis-llm-bot`.
 The PyPI distribution is `taranis-llm-bot`; Python imports use `llm_bot`.
+This base install contains the reusable task library without the HTTP server runtime.
 Before publishing, install a locally built wheel with
 `uv add /absolute/path/to/taranis_llm_bot-VERSION-py3-none-any.whl`.
 
@@ -46,8 +47,9 @@ import it from `llm_bot.client`. Inputs and outputs are Pydantic models, and err
 propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embeddings
 use `EMBEDDING_*`.
 
-To embed the HTTP service, import `create_app` from `llm_bot.app` and expose
-`app = create_app()` in your ASGI entry point.
+For the HTTP service, install the `server` extra with
+`uv add "taranis-llm-bot[server]"`. Then import `create_app` from `llm_bot.app`
+and expose `app = create_app()` in your ASGI entry point.
 
 ## Build and upload
 
@@ -67,6 +69,7 @@ images and the PyPI package on tag pushes; see [PyPI setup](docs/agents/developm
 ## Setup
 
 ```bash
+uv sync --locked --extra dev --extra server
 ./scripts/check.sh
 cp .env.example .env
 ```
@@ -101,6 +104,7 @@ Optional:
 ## Run
 
 ```bash
+uv sync --locked --extra server
 uv run granian --interface asgi app:app --port 5500
 ```
 
@@ -723,7 +727,7 @@ configuration, including:
 ## Development checks
 
 ```bash
-uv sync --locked --extra dev
+uv sync --locked --extra dev --extra server
 uv run pre-commit install
 ./scripts/check.sh
 ```

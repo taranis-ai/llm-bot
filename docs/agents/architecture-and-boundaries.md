@@ -27,7 +27,9 @@ The installed Python library exposes the same async task functions under
 `llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
 validated request models directly to tasks, optionally inject clients, and receive
 response models or exceptions. No Quart application or HTTP request context is
-required. Set environment or `.env` configuration before importing task modules.
+required. Quart and Granian are available through the optional `server` dependency
+extra and are not installed for library-only consumers. Set environment or `.env`
+configuration before importing task modules.
 
 ```text
 HTTP request
