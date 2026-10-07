@@ -12,12 +12,10 @@ classifiers = [
 ]
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "granian",
     "langcodes[data]>=3.5.1",
     "niquests",
     "pydantic>=2.11.0",
     "pydantic-settings",
-    "quart>=0.20.0",
 ]
 dynamic = ["version"]
 
@@ -26,6 +24,10 @@ Repository = "https://github.com/taranis-ai/llm-bot"
 Documentation = "https://github.com/taranis-ai/llm-bot#readme"
 
 [project.optional-dependencies]
+server = [
+    "granian",
+    "quart>=0.20.0",
+]
 dev = [
     "pre-commit>=4.6.2",
     "pytest",
