@@ -75,8 +75,11 @@ jobs:
         working-directory: ${{ runner.temp }}
         shell: bash
         run: |
-          uv run --no-project --python 3.13 --with "$GITHUB_WORKSPACE"/dist/*.whl \
+          wheels=("$GITHUB_WORKSPACE"/dist/*.whl)
+          uv run --no-project --python 3.13 --with "${wheels[0]}" \
             python -I "$GITHUB_WORKSPACE/tests/smoke_distribution.py" "$TAG"
+          uv run --no-project --python 3.13 --with "${wheels[0]}[server]" \
+            python -I "$GITHUB_WORKSPACE/tests/smoke_distribution.py" "$TAG" --server
 
       - name: Upload Python distributions
         uses: actions/upload-artifact@v4
@@ -88,7 +91,7 @@ jobs:
       - name: Generate SBOM
         shell: bash
         run: |
-          uv export --format cyclonedx1.5 > "${RUNNER_TEMP}/sbom_${TAG_SAFE}.json"
+          uv export --extra server --format cyclonedx1.5 > "${RUNNER_TEMP}/sbom_${TAG_SAFE}.json"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -7,8 +7,8 @@ Read this before editing application code, tests, configuration, packaging, CI, 
 ## Environment
 
 - The project targets Python 3.13 and uses `uv` for dependency management. Do not use `pip` or edit `uv.lock` by hand.
-- Runtime and development dependencies are declared in `pyproject.toml`; `scripts/check.sh` installs them from the lockfile before running checks.
-- Install the local Git pre-commit hook with `uv sync --locked --extra dev && uv run pre-commit install`. It runs the same repository-wide Ruff lint and format checks as `scripts/check.sh` before each commit. Run it manually with `uv run pre-commit run --all-files`.
+- Runtime and development dependencies are declared in `pyproject.toml`. The default installation contains only library dependencies; the `server` extra adds Granian and Quart. `scripts/check.sh` installs the `server` and `dev` extras from the lockfile before running checks.
+- Install the local Git pre-commit hook with `uv sync --locked --extra server --extra dev && uv run pre-commit install`. It runs the same repository-wide Ruff lint and format checks as `scripts/check.sh` before each commit. Run it manually with `uv run pre-commit run --all-files`.
 - Copy `.env.example` to `.env` for local configuration. Never commit secrets or copy values from an existing `.env` into documentation, tests, or logs.
 - Settings are loaded by `llm_bot.config.Config` from the process environment and `.env`. When adding a setting, update `Settings`, `.env.example`, and the relevant README/API metadata together.
 
@@ -39,7 +39,7 @@ Ruff also checks import order (`I`), Python modernization (`UP`), and common bug
 Start the development server with:
 
 ```bash
-uv run granian --interface asgi app:app --port 5500
+uv run --extra server granian --interface asgi app:app --port 5500
 ```
 
 The root `app.py` is the ASGI entry point and delegates construction to `llm_bot.app.create_app()`. Container startup uses `granian app` and the environment defaults in `Containerfile`.
@@ -78,11 +78,11 @@ Prompt changes in `llm_bot/prompts/` are behavior changes. Update the correspond
 - `llm_bot.__version__` reads the installed distribution metadata and falls back to `0.0.0` only when distribution metadata is unavailable. Git is needed for release builds, not at runtime. Release tags support multi-digit `X.Y.Z` components.
 - `Containerfile` creates the runtime image. Ensure every runtime file, especially prompts and `llm_bot/openapi3_1.yml`, is present in both the installed distribution and container path when packaging changes.
 - `llm_bot/py.typed` marks the package's inline annotations as available to type checkers. Keep it in the wheel when changing package data.
-- The OpenAPI source lives inside `llm_bot` and is included as package data. After packaging changes, smoke-test `/health`, `/openapi.yaml`, and prompt loading from the built wheel outside the checkout. The release workflow uploads the same packaged source as its OpenAPI artifact.
+- The OpenAPI source lives inside `llm_bot` and is included as package data. After packaging changes, smoke-test library imports and prompt loading without server dependencies, then `/health` and `/openapi.yaml` with the `server` extra, from the built wheel outside the checkout. The release workflow uploads the same packaged source as its OpenAPI artifact.
 - `.github/workflows/test.yml` delegates Python validation to the shared Taranis AI workflow. The build workflow publishes multi-architecture images on branch pushes.
 - `.github/workflows/release.yml` handles image and Python releases on `X.Y.Z` tag pushes. It runs `scripts/check.sh`, builds and checks wheel/sdist metadata, smoke-tests the installed wheel outside the checkout, and verifies its version matches the tag. It then retags the existing `latest` image and creates the GitHub release with the build artifacts.
 - The dependent PyPI publish job runs after the image/GitHub release succeeds and any `pypi` environment approval. It receives only the tested distributions and OIDC permission, and does not rebuild the package.
-- For a local distribution smoke test, run from a temporary directory: `uv run --no-project --python 3.13 --with /absolute/path/to/dist/package.whl python -I /absolute/path/to/tests/smoke_distribution.py`. An optional final argument checks the expected release version. No live LLM or lookup service is required.
+- For a local library distribution smoke test, run from a temporary directory: `uv run --no-project --python 3.13 --with /absolute/path/to/dist/package.whl python -I /absolute/path/to/tests/smoke_distribution.py`. Repeat with `--with '/absolute/path/to/dist/package.whl[server]'` and pass `--server` to the smoke script to test the HTTP service. An optional positional argument checks the expected release version. No live LLM or lookup service is required.
 
 To configure automated PyPI releases:
 
