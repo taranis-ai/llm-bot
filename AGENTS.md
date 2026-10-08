@@ -4,7 +4,7 @@ Project guidance for coding agents working on llm-bot.
 
 ## Project Overview
 
-llm-bot is a small asynchronous Quart service that exposes LLM-backed text-processing endpoints for Taranis AI. See [README.md](README.md) for the public API and configuration reference.
+llm-bot is a small asynchronous Quart service that exposes LLM-backed text-processing endpoints for Taranis AI. Start with [README.md](README.md); detailed guides cover the [public API](docs/api.md), [configuration](docs/configuration.md), and [batch processing](docs/batch-processing.md).
 
 ## Required Reading
 

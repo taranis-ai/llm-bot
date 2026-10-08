@@ -13,7 +13,7 @@ Follow the existing vertical slice:
 3. Implement the task in `llm_bot/tasks/` with separate prompt loading, message building, response-format construction, parsing, and async orchestration functions.
 4. Use `create_and_parse_response()` so reasoning profiles, output extraction, validation repair, and retry semantics remain consistent.
 5. Register the request model and task in `llm_bot/routes.py`. Use `_handle_model_request()` unless the endpoint genuinely needs different HTTP semantics.
-6. Update `/info`, `llm_bot/openapi3_1.yml`, `README.md`, and configuration examples as applicable.
+6. Update `/info`, `llm_bot/openapi3_1.yml`, `docs/api.md`, and configuration examples in `docs/configuration.md` as applicable. Update `README.md` when quickstart instructions change and `docs/batch-processing.md` when batch usage changes.
 7. Add focused task tests plus route and schema coverage.
 
 ## Structured Output Rules

@@ -18,6 +18,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/prompts/`: task-specific system prompts loaded at request time.
 - `llm_bot/config.py`: environment-backed application settings.
 - `llm_bot/openapi3_1.yml`: published OpenAPI 3.1 contract served at `/openapi.yaml`.
+- `README.md` and `docs/`: quickstart and user guides for the API, configuration, batch processing, and publishing; `docs/agents/` contains development guidance.
 - `tests/`: route, client, schema, prompt-building, parsing, retry, and task orchestration coverage.
 - `Containerfile` and `.github/workflows/`: image construction, test, build, and tagged-release automation.
 
