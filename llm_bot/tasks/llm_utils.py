@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,6 +35,8 @@ class LLMTask[T]:
     response_format: dict[str, Any] | None
     parse_response: Callable[[dict[str, Any]], T]
     recover_response: Callable[[dict[str, Any]], T] | None = None
+    reasoning_effort: str | None = None
+    thinking_budget_tokens: int | None = None
 
     async def run(self, client: LLMClient) -> T:
         return await create_and_parse_response(
@@ -47,6 +50,11 @@ class LLMTask[T]:
         )
 
     def build_request(self, client: LLMClient) -> dict[str, Any]:
+        client = copy(client)
+        if self.reasoning_effort is not None:
+            client.reasoning_effort = self.reasoning_effort
+        if self.thinking_budget_tokens is not None:
+            client.thinking_budget_tokens = self.thinking_budget_tokens
         _, body = client._request_target(apply_reasoning_profile(self.system_input), self.user_input, self.response_format)
         return body
 

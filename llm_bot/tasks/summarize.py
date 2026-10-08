@@ -64,6 +64,8 @@ def prepare_summary(request: SummarizeRequest) -> LLMTask[SummarizeResponse]:
     system_message, user_message = build_summary_messages(request)
     return LLMTask(
         task_name="summary",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_summary_response_format(),

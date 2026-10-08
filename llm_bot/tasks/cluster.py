@@ -199,6 +199,8 @@ def prepare_cluster(request: ClusterRequest) -> LLMTask[ClusterResponse]:
     expected_story_ids = {story.id for story in request.stories}
     return LLMTask(
         task_name="cluster",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_cluster_response_format(),

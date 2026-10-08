@@ -106,22 +106,26 @@ async def test_analyze_sentiment_repairs_null_emotions_when_requested():
 
 
 @pytest.mark.parametrize("api_mode", ["responses", "chat_completions"])
-async def test_prepared_sentiment_matches_immediate_request_and_result(monkeypatch, api_mode):
+@pytest.mark.parametrize("reasoning_settings", [{}, {"reasoning_effort": "high", "thinking_budget_tokens": 0}])
+async def test_prepared_sentiment_matches_immediate_request_and_result(monkeypatch, api_mode, reasoning_settings):
     from llm_bot.client import LLMClient
     from llm_bot.tasks.sentiment import prepare_sentiment
 
-    client = LLMClient(base_url="https://model.test/v1", api_key="test-key", model="test-model", api_mode=api_mode)
-    task = prepare_sentiment(SentimentRequest(text="The launch was a success."))
+    monkeypatch.setattr("llm_bot.client.Config.LLM_API_MODE", api_mode)
+    monkeypatch.setattr("llm_bot.client.Config.LLM_MODEL", "test-model")
+    client = LLMClient(base_url="https://model.test/v1", api_key="test-key")
+    request = SentimentRequest(text="The launch was a success.", **reasoning_settings)
+    task = prepare_sentiment(request)
     output = '{"sentiment":{"label":"positive","score":0.88}}'
     calls = []
 
-    async def create_response(system_input, user_input, response_format):
-        _, body = client._request_target(system_input, user_input, response_format)
+    async def create_response(self, system_input, user_input, response_format):
+        _, body = self._request_target(system_input, user_input, response_format)
         calls.append(body)
         return {"output_text": output}
 
-    monkeypatch.setattr(client, "create_response", create_response)
-    immediate = await task.run(client)
+    monkeypatch.setattr(LLMClient, "create_response", create_response)
+    immediate = await analyze_sentiment(request)
     assert task.build_request(client) == calls[0]
     batch_body = {"choices": [{"message": {"content": output}}]} if api_mode == "chat_completions" else {"output_text": output}
     assert task.parse_result(batch_body, client) == immediate

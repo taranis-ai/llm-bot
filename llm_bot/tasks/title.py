@@ -60,6 +60,8 @@ def prepare_title(request: TitleRequest) -> LLMTask[TitleResponse]:
     system_message, user_message = build_title_messages(request)
     return LLMTask(
         task_name="title",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_title_response_format(),

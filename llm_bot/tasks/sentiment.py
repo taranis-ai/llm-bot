@@ -109,6 +109,8 @@ def prepare_sentiment(request: SentimentRequest) -> LLMTask[SentimentResponse]:
     system_message, user_message = build_sentiment_messages(request)
     return LLMTask(
         task_name="sentiment",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_sentiment_response_format(request.include_emotions),

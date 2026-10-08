@@ -58,6 +58,8 @@ def prepare_cybersec_classification(request: CybersecClassificationRequest) -> L
     system_message, user_message = build_cybersec_classification_messages(request)
     return LLMTask(
         task_name="cybersec classification",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_cybersec_classification_response_format(),

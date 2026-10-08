@@ -273,6 +273,8 @@ def prepare_ner(request: NerRequest) -> LLMTask[NerResponse]:
     allowed_entity_types = resolve_entity_types(request)
     return LLMTask(
         task_name="NER",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_ner_response_format(allowed_entity_types),

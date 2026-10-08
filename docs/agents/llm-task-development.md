@@ -63,11 +63,18 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 
 Summary, title, NER, sentiment, classification, and clustering expose `prepare_*`
 functions returning an `LLMTask` without performing inference. The prepared task
-owns its prompt, output schema, and parser. `build_request(client)` produces the
-selected API payload with the same reasoning profile as immediate execution;
+owns its prompt, output schema, parser, and per-request reasoning settings.
+`build_request(client)` produces the selected API payload with the same reasoning
+profile as immediate execution;
 `parse_result(body, client)` normalizes a provider result and applies the task's
 validation. Batch callers own submission, polling, and correlation of results.
 Invalid batch output raises without issuing a synchronous repair request.
+
+Explicit task reasoning settings override the client's defaults during batch
+serialization without changing the client; unset settings retain its defaults.
+Immediate execution still uses the supplied client's settings, preserving client
+injection behavior. To match batch and immediate payloads when injecting a client,
+configure that client with the same reasoning settings as the request.
 
 The existing async entry points call the prepared task's `run(client)`, which
 retains `create_and_parse_response()` and its one repair attempt. Preserve these
