@@ -95,6 +95,6 @@ uv run pre-commit install
 ```
 
 [The script](scripts/check.sh) installs development dependencies, checks lint and
-formatting, and runs the full test suite. The installed pre-commit hook runs the
-same Ruff lint and format checks before each commit; run
-`uv run pre-commit run --all-files` to check them manually.
+formatting (including Python examples in Markdown), and runs the full test suite.
+The installed pre-commit hook, pull request CI, and release validation all run
+this same script. Run `uv run pre-commit run --all-files` to check manually.

@@ -12,5 +12,24 @@ permissions:
 
 jobs:
   test:
-    name: Run Python Tests
-    uses: taranis-ai/github-actions/.github/workflows/python-uv.yml@master
+    # Keep the existing required status check name for branch protection.
+    name: Run Python Tests / pytest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Validate source
+        run: ./scripts/check.sh

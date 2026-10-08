@@ -44,10 +44,7 @@ client = LLMClient(base_url="https://openrouter.ai/api/v1", api_mode="chat_compl
 if not client.model:
     raise ValueError("Set LLM_MODEL to an OpenRouter model slug with batch support")
 endpoint = "/v1/chat/completions"
-tasks = {
-    story_id: prepare_ner(NerRequest(text=text, cybersecurity=True))
-    for story_id, text in stories.items()
-}
+tasks = {story_id: prepare_ner(NerRequest(text=text, cybersecurity=True)) for story_id, text in stories.items()}
 session = Session()
 if client.api_key:
     session.headers["Authorization"] = f"Bearer {client.api_key}"
@@ -57,10 +54,7 @@ submission = session.post(
         "endpoint": endpoint,
         "model": client.model,
         "completion_window": "24h",
-        "requests": [
-            {"custom_id": story_id, "body": task.build_request(client)}
-            for story_id, task in tasks.items()
-        ],
+        "requests": [{"custom_id": story_id, "body": task.build_request(client)} for story_id, task in tasks.items()],
     },
     timeout=client.timeout,
 )
