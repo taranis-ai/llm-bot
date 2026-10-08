@@ -4,7 +4,7 @@ from typing import Any
 from llm_bot.client import LLMClient
 from llm_bot.log import logger
 from llm_bot.schemas import CybersecClassificationRequest, CybersecClassificationResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.llm_utils import LLMTask, get_output_text, loads_json_output
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cybersec_classification.txt"
 
@@ -54,6 +54,19 @@ def get_cybersec_classification_response_format() -> dict[str, Any]:
     }
 
 
+def prepare_cybersec_classification(request: CybersecClassificationRequest) -> LLMTask[CybersecClassificationResponse]:
+    system_message, user_message = build_cybersec_classification_messages(request)
+    return LLMTask(
+        task_name="cybersec classification",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+        user_input=user_message["content"],
+        system_input=system_message["content"],
+        response_format=get_cybersec_classification_response_format(),
+        parse_response=parse_cybersec_classification_response,
+    )
+
+
 async def classify_cybersecurity_text(
     request: CybersecClassificationRequest,
     client: LLMClient | None = None,
@@ -62,12 +75,4 @@ async def classify_cybersecurity_text(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
     )
-    system_message, user_message = build_cybersec_classification_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
-        task_name="cybersec classification",
-        user_input=user_message["content"],
-        system_input=system_message["content"],
-        response_format=get_cybersec_classification_response_format(),
-        parse_response=parse_cybersec_classification_response,
-    )
+    return await prepare_cybersec_classification(request).run(llm_client)

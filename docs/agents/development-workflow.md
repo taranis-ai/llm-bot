@@ -67,7 +67,7 @@ The API contract is represented in several places. When behavior changes, keep t
 - `llm_bot/schemas.py` for runtime validation and serialization
 - `llm_bot/routes.py` for routing, errors, `/info`, and Swagger/OpenAPI serving
 - `llm_bot/openapi3_1.yml` for the published contract
-- `README.md` for operator-facing examples and configuration
+- `README.md` for quickstart instructions; `docs/api.md`, `docs/configuration.md`, and `docs/batch-processing.md` for detailed examples and configuration
 - `.env.example` for new or changed settings
 - focused tests under `tests/`
 

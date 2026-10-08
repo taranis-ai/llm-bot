@@ -6,7 +6,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import NerRequest, NerResponse
-from llm_bot.tasks.llm_utils import InvalidLLMOutputError, create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.llm_utils import InvalidLLMOutputError, LLMTask, get_output_text, loads_json_output
 from llm_bot.tasks.ner_postprocessing import postprocess_entities
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "ner.txt"
@@ -268,19 +268,24 @@ def get_ner_response_format(allowed_entity_types: list[str]) -> dict[str, Any]:
     }
 
 
-async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
-    llm_client = client or LLMClient(
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-    )
+def prepare_ner(request: NerRequest) -> LLMTask[NerResponse]:
     system_message, user_message = build_ner_messages(request)
     allowed_entity_types = resolve_entity_types(request)
-    return await create_and_parse_response(
-        client=llm_client,
+    return LLMTask(
         task_name="NER",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_ner_response_format(allowed_entity_types),
         parse_response=lambda response_data: parse_ner_response(response_data, allowed_entity_types),
         recover_response=lambda response_data: recover_ner_response(response_data, allowed_entity_types),
     )
+
+
+async def extract_entities(request: NerRequest, client: LLMClient | None = None) -> NerResponse:
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
+    return await prepare_ner(request).run(llm_client)

@@ -17,7 +17,7 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
-    create_and_parse_response,
+    LLMTask,
     get_output_text,
     loads_json_output,
 )
@@ -193,17 +193,14 @@ def get_cluster_response_format() -> dict[str, Any]:
     }
 
 
-async def cluster_stories(request: ClusterRequest, client: LLMClient | None = None) -> ClusterResponse:
-    llm_client = client or LLMClient(
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-    )
+def prepare_cluster(request: ClusterRequest) -> LLMTask[ClusterResponse]:
     story_id_map = build_story_id_map(request.stories)
     system_message, user_message = build_cluster_messages(request)
     expected_story_ids = {story.id for story in request.stories}
-    return await create_and_parse_response(
-        client=llm_client,
+    return LLMTask(
         task_name="cluster",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_cluster_response_format(),
@@ -213,3 +210,11 @@ async def cluster_stories(request: ClusterRequest, client: LLMClient | None = No
             story_id_map=story_id_map,
         ),
     )
+
+
+async def cluster_stories(request: ClusterRequest, client: LLMClient | None = None) -> ClusterResponse:
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
+    return await prepare_cluster(request).run(llm_client)

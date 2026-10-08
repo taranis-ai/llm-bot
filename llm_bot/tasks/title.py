@@ -5,7 +5,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import TitleRequest, TitleResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.llm_utils import LLMTask, get_output_text, loads_json_output
 from llm_bot.tasks.task_utils import build_output_language_instruction, build_story_input_text, truncate_text
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "title.txt"
@@ -56,17 +56,22 @@ def get_title_response_format() -> dict[str, Any]:
     }
 
 
-async def generate_title(request: TitleRequest, client: LLMClient | None = None) -> TitleResponse:
-    llm_client = client or LLMClient(
+def prepare_title(request: TitleRequest) -> LLMTask[TitleResponse]:
+    system_message, user_message = build_title_messages(request)
+    return LLMTask(
+        task_name="title",
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
-    )
-    system_message, user_message = build_title_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
-        task_name="title",
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_title_response_format(),
         parse_response=parse_title_response,
     )
+
+
+async def generate_title(request: TitleRequest, client: LLMClient | None = None) -> TitleResponse:
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
+    return await prepare_title(request).run(llm_client)

@@ -12,7 +12,7 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
-    create_and_parse_response,
+    LLMTask,
     get_output_text,
     loads_json_output,
 )
@@ -105,6 +105,19 @@ def get_sentiment_response_format(include_emotions: bool) -> dict[str, Any]:
     }
 
 
+def prepare_sentiment(request: SentimentRequest) -> LLMTask[SentimentResponse]:
+    system_message, user_message = build_sentiment_messages(request)
+    return LLMTask(
+        task_name="sentiment",
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+        user_input=user_message["content"],
+        system_input=system_message["content"],
+        response_format=get_sentiment_response_format(request.include_emotions),
+        parse_response=lambda response_data: parse_sentiment_response(response_data, request.include_emotions),
+    )
+
+
 async def analyze_sentiment(
     request: SentimentRequest,
     client: LLMClient | None = None,
@@ -113,12 +126,4 @@ async def analyze_sentiment(
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
     )
-    system_message, user_message = build_sentiment_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
-        task_name="sentiment",
-        user_input=user_message["content"],
-        system_input=system_message["content"],
-        response_format=get_sentiment_response_format(request.include_emotions),
-        parse_response=lambda response_data: parse_sentiment_response(response_data, request.include_emotions),
-    )
+    return await prepare_sentiment(request).run(llm_client)

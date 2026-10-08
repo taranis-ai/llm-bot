@@ -13,7 +13,7 @@ Follow the existing vertical slice:
 3. Implement the task in `llm_bot/tasks/` with separate prompt loading, message building, response-format construction, parsing, and async orchestration functions.
 4. Use `create_and_parse_response()` so reasoning profiles, output extraction, validation repair, and retry semantics remain consistent.
 5. Register the request model and task in `llm_bot/routes.py`. Use `_handle_model_request()` unless the endpoint genuinely needs different HTTP semantics.
-6. Update `/info`, `llm_bot/openapi3_1.yml`, `README.md`, and configuration examples as applicable.
+6. Update `/info`, `llm_bot/openapi3_1.yml`, `docs/api.md`, and configuration examples in `docs/configuration.md` as applicable. Update `README.md` when quickstart instructions change and `docs/batch-processing.md` when batch usage changes.
 7. Add focused task tests plus route and schema coverage.
 
 ## Structured Output Rules
@@ -58,3 +58,24 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 - Cluster output must include every input story exactly once, use no unknown or duplicate IDs, and provide exactly one reason for every non-singleton cluster. Only the validated cluster IDs and message are public in the final response.
 - Summary text is truncated to `SUMMARY_MAX_OUTPUT_CHARS` after parsing. Title generation only instructs the model to honor `max_chars`; it does not truncate its response.
 - Explicit output language wins; otherwise title and summary use the majority news-item language, with first-seen order breaking ties, then fall back to the input language.
+
+## Preparing tasks for batch processing
+
+Summary, title, NER, sentiment, classification, and clustering expose `prepare_*`
+functions returning an `LLMTask` without performing inference. The prepared task
+owns its prompt, output schema, parser, and per-request reasoning settings.
+`build_request(client)` produces the selected API payload with the same reasoning
+profile as immediate execution;
+`parse_result(body, client)` normalizes a provider result and applies the task's
+validation. Batch callers own submission, polling, and correlation of results.
+Invalid batch output raises without issuing a synchronous repair request.
+
+Explicit task reasoning settings override the client's defaults during batch
+serialization without changing the client; unset settings retain its defaults.
+Immediate execution still uses the supplied client's settings, preserving client
+injection behavior. To match batch and immediate payloads when injecting a client,
+configure that client with the same reasoning settings as the request.
+
+The existing async entry points call the prepared task's `run(client)`, which
+retains `create_and_parse_response()` and its one repair attempt. Preserve these
+entry points and optional client injection for HTTP routes and immediate callers.

@@ -1,5 +1,7 @@
 import json
 from collections.abc import Callable
+from copy import copy
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import ValidationError
@@ -21,6 +23,45 @@ class InvalidLLMOutputError(ValueError):
 
 class MissingOutputTextError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class LLMTask[T]:
+    """A prepared task that can run immediately or be submitted to a batch API."""
+
+    task_name: str
+    user_input: str
+    system_input: str
+    response_format: dict[str, Any] | None
+    parse_response: Callable[[dict[str, Any]], T]
+    recover_response: Callable[[dict[str, Any]], T] | None = None
+    reasoning_effort: str | None = None
+    thinking_budget_tokens: int | None = None
+
+    async def run(self, client: LLMClient) -> T:
+        return await create_and_parse_response(
+            client=client,
+            task_name=self.task_name,
+            user_input=self.user_input,
+            system_input=self.system_input,
+            response_format=self.response_format,
+            parse_response=self.parse_response,
+            recover_response=self.recover_response,
+        )
+
+    def build_request(self, client: LLMClient) -> dict[str, Any]:
+        client = copy(client)
+        if self.reasoning_effort is not None:
+            client.reasoning_effort = self.reasoning_effort
+        if self.thinking_budget_tokens is not None:
+            client.thinking_budget_tokens = self.thinking_budget_tokens
+        _, body = client._request_target(apply_reasoning_profile(self.system_input), self.user_input, self.response_format)
+        return body
+
+    def parse_result(self, response_data: dict[str, Any], client: LLMClient) -> T:
+        if client.api_mode == "chat_completions":
+            response_data = client._normalize_chat_completions_response(response_data)
+        return self.parse_response(response_data)
 
 
 def _log_response_payload(task_name: str, response_data: dict[str, Any], *, attempt: str = "initial") -> None:
