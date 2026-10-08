@@ -58,3 +58,17 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 - Cluster output must include every input story exactly once, use no unknown or duplicate IDs, and provide exactly one reason for every non-singleton cluster. Only the validated cluster IDs and message are public in the final response.
 - Summary text is truncated to `SUMMARY_MAX_OUTPUT_CHARS` after parsing. Title generation only instructs the model to honor `max_chars`; it does not truncate its response.
 - Explicit output language wins; otherwise title and summary use the majority news-item language, with first-seen order breaking ties, then fall back to the input language.
+
+## Preparing tasks for batch processing
+
+Summary, title, NER, sentiment, classification, and clustering expose `prepare_*`
+functions returning an `LLMTask` without performing inference. The prepared task
+owns its prompt, output schema, and parser. `build_request(client)` produces the
+selected API payload with the same reasoning profile as immediate execution;
+`parse_result(body, client)` normalizes a provider result and applies the task's
+validation. Batch callers own submission, polling, and correlation of results.
+Invalid batch output raises without issuing a synchronous repair request.
+
+The existing async entry points call the prepared task's `run(client)`, which
+retains `create_and_parse_response()` and its one repair attempt. Preserve these
+entry points and optional client injection for HTTP routes and immediate callers.

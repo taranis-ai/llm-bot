@@ -5,7 +5,7 @@ from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import SummarizeRequest, SummarizeResponse
-from llm_bot.tasks.llm_utils import create_and_parse_response, get_output_text, loads_json_output
+from llm_bot.tasks.llm_utils import LLMTask, get_output_text, loads_json_output
 from llm_bot.tasks.task_utils import build_output_language_instruction, build_story_input_text, truncate_text
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summarize.txt"
@@ -60,17 +60,20 @@ def get_summary_response_format() -> dict[str, Any]:
     }
 
 
-async def summarize(request: SummarizeRequest, client: LLMClient | None = None) -> SummarizeResponse:
-    llm_client = client or LLMClient(
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-    )
+def prepare_summary(request: SummarizeRequest) -> LLMTask[SummarizeResponse]:
     system_message, user_message = build_summary_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
+    return LLMTask(
         task_name="summary",
         user_input=user_message["content"],
         system_input=system_message["content"],
         response_format=get_summary_response_format(),
         parse_response=parse_summary_response,
     )
+
+
+async def summarize(request: SummarizeRequest, client: LLMClient | None = None) -> SummarizeResponse:
+    llm_client = client or LLMClient(
+        reasoning_effort=request.reasoning_effort,
+        thinking_budget_tokens=request.thinking_budget_tokens,
+    )
+    return await prepare_summary(request).run(llm_client)

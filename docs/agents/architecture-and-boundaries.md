@@ -29,7 +29,10 @@ validated request models directly to tasks, optionally inject clients, and recei
 response models or exceptions. No Quart application or HTTP request context is
 required. Quart and Granian are available through the optional `server` dependency
 extra and are not installed for library-only consumers. Set environment or `.env`
-configuration before importing task modules.
+configuration before importing task modules. The six content-processing tasks also
+expose `prepare_*` functions returning `LLMTask` objects. Batch callers serialize
+these tasks and later parse correlated provider results without rerunning
+inference; see [LLM Task Development](llm-task-development.md#preparing-tasks-for-batch-processing).
 
 ```text
 HTTP request
