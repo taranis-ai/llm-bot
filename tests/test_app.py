@@ -69,6 +69,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["docs"] == "/docs"
     assert body["endpoints"]["openapi"] == "/openapi.yaml"
     assert body["endpoints"]["sentiment"] == "/sentiment"
+    assert body["endpoints"]["classify"] == "/classify"
     assert body["endpoints"]["cybersec_classification"] == "/cybersec-classification"
     assert body["endpoints"]["title"] == "/title"
     assert body["endpoints"]["translate"] == "/translate"
@@ -140,6 +141,7 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "openapi: 3.1.0" in body
     assert "version: 9.9.9" in body
     assert "/docs:" in body
+    assert "/classify:" in body
     assert "/entity-relation-extraction:" in body
     assert "/graph-query-generation:" in body
 
@@ -251,6 +253,32 @@ async def test_hrag_endpoint_rejects_duplicate_evidence_ids(app):
 
     assert response.status_code == 400
     assert body == {"error": "Invalid HRAG request payload"}
+
+
+@pytest.mark.parametrize("payload", [{}, {"text": ""}, {"text": " \n\t"}, {"text": "News", "reasoning_effort": "high"}])
+async def test_classify_endpoint_rejects_invalid_payload(app, monkeypatch, payload):
+    monkeypatch.setattr("llm_bot.config.Config.API_KEY", "")
+    response = await app.test_client().post("/classify", json=payload)
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Invalid classify request payload"}
+
+
+async def test_classify_requires_configured_api_key(app, monkeypatch):
+    monkeypatch.setattr("llm_bot.config.Config.API_KEY", "incoming-key")
+    response = await app.test_client().post("/classify", json={"text": "News"})
+
+    assert response.status_code == 401
+    assert await response.get_json() == {"error": "Unauthorized"}
+
+
+async def test_classify_without_decisions_url_returns_processing_error(app, monkeypatch):
+    monkeypatch.setattr("llm_bot.config.Config.API_KEY", "")
+    monkeypatch.setattr("llm_bot.config.Config.DECISIONS_URL", "")
+    response = await app.test_client().post("/classify", json={"text": "News"})
+
+    assert response.status_code == 502
+    assert await response.get_json() == {"error": "Failed to classify text"}
 
 
 async def test_cybersec_classification_endpoint(app, monkeypatch):

@@ -23,6 +23,10 @@ translation and probability validation. Cybersecurity classification is the firs
 example. Its prepared function accepts `client=` to explicitly select a transport,
 otherwise selects decisions when `DECISIONS_URL` is configured. Preserve the public
 response shape and cover both payload modes with mocked providers.
+`classify.py` provides a decisions-only example with a prompt file, fixed category
+descriptions, and `prepare_classify()`. Its `ClassifyRequest` accepts only text;
+the probabilities describe alternative main topics, and disinformation labels
+topic coverage rather than the truthfulness of the input.
 
 ## Structured Output Rules
 
@@ -69,9 +73,10 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 
 ## Preparing tasks for batch processing
 
-Summary, title, NER, sentiment, classification, and clustering expose `prepare_*`
-functions returning an `LLMTask` without performing inference. Classification
-returns a `DecisionsTask` when decisions routing is selected. The prepared task
+Summary, title, NER, sentiment, cybersecurity classification, and clustering expose
+`prepare_*` functions returning an `LLMTask` without performing inference.
+Cybersecurity classification returns a `DecisionsTask` when decisions routing is
+selected; fine-grained `prepare_classify()` always returns a `DecisionsTask`. The prepared task
 owns its prompt, output schema, parser, and per-request reasoning settings.
 `build_request(client)` produces the selected API payload with the same reasoning
 profile as immediate execution;

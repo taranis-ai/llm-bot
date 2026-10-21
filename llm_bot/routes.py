@@ -14,6 +14,7 @@ from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ChatRequest,
+    ClassifyRequest,
     ClusterRequest,
     CybersecClassificationRequest,
     EmbedRequest,
@@ -29,6 +30,7 @@ from llm_bot.schemas import (
     TranslateRequest,
 )
 from llm_bot.tasks.chat import chat
+from llm_bot.tasks.classify import classify_text
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
 from llm_bot.tasks.embed import embed_text
@@ -144,6 +146,7 @@ def build_info_response() -> dict[str, object]:
             "docs": "/docs",
             "openapi": "/openapi.yaml",
             "sentiment": "/sentiment",
+            "classify": "/classify",
             "cybersec_classification": "/cybersec-classification",
             "summarize": "/summarize",
             "title": "/title",
@@ -243,6 +246,17 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to create embedding",
             request_model_factory=EmbedRequest.model_validate,
             task=embed_text,
+        )
+
+    @api.post("/classify")
+    @api_key_required
+    async def classify_view() -> tuple[dict[str, Any], int]:
+        return await _handle_model_request(
+            log_prefix="Classification",
+            validation_error_message="Invalid classify request payload",
+            processing_error_message="Failed to classify text",
+            request_model_factory=ClassifyRequest.model_validate,
+            task=classify_text,
         )
 
     @api.post("/cybersec-classification")

@@ -165,16 +165,32 @@ async def test_missing_url_fails_before_transport(transport):
 
 
 @pytest.mark.parametrize("failure", [None, "upstream", "invalid"])
-async def test_classification_route_uses_decisions_and_maps_errors(app, transport, monkeypatch, failure):
+@pytest.mark.parametrize("endpoint", ["/cybersec-classification", "/classify"])
+async def test_classification_route_uses_decisions_and_maps_errors(app, transport, monkeypatch, failure, endpoint):
     _, session, response = transport
     monkeypatch.setattr("llm_bot.config.Config.DECISIONS_URL", "https://decisions.example/decisions")
     monkeypatch.setattr("llm_bot.config.Config.DECISIONS_MODEL", "decision-model")
     monkeypatch.setattr("llm_bot.config.Config.DECISIONS_API_MODE", "systemone")
     monkeypatch.setattr("llm_bot.config.Config.API_KEY", "incoming-key")
     probabilities = {"cybersecurity": 0.9, "non-cybersecurity": 0.1}
-    response.text = json.dumps(
-        {"answers": {"cybersecurity_relevance": {**ANSWER, "choice": "cybersecurity", "probabilities": probabilities}}}
-    )
+    question_name, choice = "cybersecurity_relevance", "cybersecurity"
+    payload = {"text": "APT29 used Mimikatz.", "reasoning_effort": "high", "thinking_budget_tokens": 256}
+    error_prefix = "Failed to classify text for cybersecurity relevance"
+    if endpoint == "/classify":
+        probabilities = {
+            "disinformation": 0.01,
+            "security incident": 0.8,
+            "vulnerability": 0.04,
+            "threat intelligence": 0.05,
+            "security policy": 0.02,
+            "security news": 0.03,
+            "general news": 0.03,
+            "other": 0.02,
+        }
+        question_name, choice = "category", "security incident"
+        payload = {"text": "A ransomware attack shut down a hospital."}
+        error_prefix = "Failed to classify text"
+    response.text = json.dumps({"answers": {question_name: {**ANSWER, "choice": choice, "probabilities": probabilities}}})
     if failure == "upstream":
         response.text = '{"error":{"message":"Unknown decisions model"}}'
         response.raise_for_status.side_effect = HTTPError("bad request")
@@ -182,18 +198,15 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
         response.text = '{"answers":{}}'
 
     result = await app.test_client().post(
-        "/cybersec-classification",
-        json={"text": "APT29 used Mimikatz.", "reasoning_effort": "high", "thinking_budget_tokens": 256},
+        endpoint,
+        json=payload,
         headers={"Authorization": "Bearer incoming-key"},
     )
 
     assert result.status_code == (502 if failure else 200)
     body = await result.get_json()
     if failure:
-        assert body == {
-            "error": "Failed to classify text for cybersecurity relevance: "
-            + ("Unknown decisions model" if failure == "upstream" else "Invalid decisions response")
-        }
+        assert body == {"error": error_prefix + ": " + ("Unknown decisions model" if failure == "upstream" else "Invalid decisions response")}
     else:
         assert body == probabilities
     assert session.post.call_count == 1

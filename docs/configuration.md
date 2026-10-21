@@ -15,8 +15,9 @@ For Python library use, set configuration before importing task modules.
 ## Decisions connection
 
 `/cybersec-classification` uses an independent decision model when `DECISIONS_URL`
-is nonempty. Other tasks continue to use `LLM_*`. With no decisions URL,
-classification retains its existing generative LLM behavior. A configured
+is nonempty. `/classify` always uses this connection and requires `DECISIONS_URL`;
+with no URL it returns `502`. Other tasks continue to use `LLM_*`. With no decisions URL,
+`/cybersec-classification` retains its existing generative LLM behavior. A configured
 decisions service failure returns `502`; it never falls back to the generative model.
 
 - `DECISIONS_URL`: **full endpoint URL**, including its path; no path is appended
@@ -39,8 +40,10 @@ The two formats have different request and response shapes. See the
 and [OpenAI reference](https://developers.openai.com/api/reference/resources/decisions/methods/create).
 This client currently supports named choice questions with string labels.
 
-Decisions classification asks one choice question with the labels `cybersecurity`
-and `non-cybersecurity`, then returns the provider's probabilities without rounding
+`/cybersec-classification` asks one choice question with the labels `cybersecurity`
+and `non-cybersecurity`. `/classify` asks one `category` question with the eight
+labels defined in the [API reference](api.md#post-classify).
+Both return the provider's probabilities without rounding
 or renormalizing. Labels must match exactly, probabilities must be finite numbers
 in `[0, 1]`, and their sum must be one within `0.00001`. Duplicate JSON keys,
 question names, or choice values are rejected. Invalid output and refusals
@@ -63,13 +66,17 @@ for the key; the application reads `DECISIONS_API_KEY`. Automated tests mock the
 transport and require no token or live provider. `/info` reports the decisions
 model, mode, timeout, and whether the URL is configured; it omits the URL and key.
 
-For rollout, set these variables and restart the service, verify `/health`, check
-`/info`, and submit a classification request. To roll back routing, clear
-`DECISIONS_URL` and restart; the existing `LLM_*` configuration remains available.
+For rollout, set these variables, pull the latest published service image, and
+restart the service. Verify `/health`, check `/info` for `/classify` and
+`decisions_url_configured: true`, then submit a classification request and check
+that all eight probabilities are present and sum to one. `/health` alone does
+not test provider readiness. Keep the previous image reference for rollback.
+To roll back the endpoint, restore that image and restart. Clearing `DECISIONS_URL`
+restores generative routing only for `/cybersec-classification`; it disables `/classify`.
 
 ## Other optional settings
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output

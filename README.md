@@ -4,7 +4,7 @@ Async Python library and LLM-backed bot service.
 
 The current implementation exposes stateless chat and grounded HRAG answering, embeddings, sentiment analysis,
 title generation, summary, named entity recognition, entity relationship extraction, graph query generation,
-translation, linking, clustering, and cybersecurity classification endpoints backed by OpenAI-compatible APIs.
+translation, linking, clustering, and classification endpoints backed by OpenAI-compatible APIs and a decisions API.
 
 ## Requirements
 
@@ -48,6 +48,8 @@ propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embedd
 use `EMBEDDING_*`. Cybersecurity classification uses the independent `DECISIONS_*`
 connection when `DECISIONS_URL` is set; you can inject a `DecisionsClient` from
 `llm_bot.decisions_client` or an `LLMClient` to explicitly select either transport.
+Fine-grained classification uses `ClassifyRequest` and `llm_bot.tasks.classify.classify_text`,
+always with a `DecisionsClient` and the `DECISIONS_*` connection.
 
 For the HTTP service, install the `server` extra with
 `uv add "taranis-llm-bot[server]"`. Then import `create_app` from `llm_bot.app`
@@ -75,6 +77,13 @@ to the full endpoint URL, `DECISIONS_MODEL`, and `DECISIONS_API_KEY` if required
 `DECISIONS_API_MODE=systemone` (default) supports OpenRouter's
 `https://openrouter.ai/api/alpha/decisions` and llama.cpp/vLLM `/v1/systemone`;
 use `openai` for `/v1/decisions`. The public classification response stays unchanged.
+
+`POST /classify` requires the same decisions configuration. Send `{"text":"Article text"}`
+to receive probabilities for disinformation, security incident, vulnerability,
+threat intelligence, security policy, security news, general news, and other.
+These describe the main topic; disinformation is a topic label, not a truth verdict.
+See the [classification API](docs/api.md#post-classify) for category definitions.
+The [live evaluation](docs/classify-evaluation.md) records 24 examples and how to rerun them.
 
 ## Run
 

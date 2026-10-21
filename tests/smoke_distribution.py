@@ -10,7 +10,8 @@ from unittest.mock import AsyncMock
 from llm_bot import __version__
 from llm_bot.client import LLMClient
 from llm_bot.decisions_client import DecisionsClient
-from llm_bot.schemas import CybersecClassificationRequest, SummarizeRequest
+from llm_bot.schemas import ClassifyRequest, CybersecClassificationRequest, SummarizeRequest
+from llm_bot.tasks.classify import prepare_classify
 from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
 from llm_bot.tasks.summarize import summarize
 
@@ -25,6 +26,7 @@ async def main() -> None:
     assert files("llm_bot").joinpath("py.typed").is_file()
     for name in (
         "chat",
+        "classify",
         "cluster",
         "cybersec_classification",
         "entity_relationship_extraction",
@@ -53,6 +55,9 @@ async def main() -> None:
         decisions_client,
     )
     assert decisions_result.model_dump() == probabilities
+
+    task = prepare_classify(ClassifyRequest(text="A ransomware campaign."))
+    assert "security incident" in task.build_request(decisions_client)["questions"]["category"]["criteria"]
 
     checked = "tasks and prompts"
     if "--server" in sys.argv:

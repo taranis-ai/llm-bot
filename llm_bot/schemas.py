@@ -192,6 +192,25 @@ class CybersecClassificationRequest(LLMRequest):
     text: str = Field(min_length=1)
 
 
+class ClassifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, pattern=r"\S")
+
+
+class ClassifyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, serialize_by_alias=True)
+
+    disinformation: float = Field(ge=0, le=1, strict=True)
+    security_incident: float = Field(alias="security incident", ge=0, le=1, strict=True)
+    vulnerability: float = Field(ge=0, le=1, strict=True)
+    threat_intelligence: float = Field(alias="threat intelligence", ge=0, le=1, strict=True)
+    security_policy: float = Field(alias="security policy", ge=0, le=1, strict=True)
+    security_news: float = Field(alias="security news", ge=0, le=1, strict=True)
+    general_news: float = Field(alias="general news", ge=0, le=1, strict=True)
+    other: float = Field(ge=0, le=1, strict=True)
+
+
 class CybersecClassificationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, serialize_by_alias=True)
 

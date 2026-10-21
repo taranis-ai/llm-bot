@@ -174,6 +174,55 @@ If `API_KEY` is configured, send it as:
 Authorization: Bearer <API_KEY>
 ```
 
+## `POST /classify`
+
+Classifies the main topic using the independent [decisions connection](configuration.md#decisions-connection).
+The only request field is `text`, which must contain at least one non-whitespace character:
+
+```json
+{"text": "A ransomware attack shut down a hospital."}
+```
+
+Example response (all eight keys are always present):
+
+```json
+{
+  "disinformation": 0.01,
+  "security incident": 0.8,
+  "vulnerability": 0.04,
+  "threat intelligence": 0.05,
+  "security policy": 0.02,
+  "security news": 0.03,
+  "general news": 0.03,
+  "other": 0.02
+}
+```
+
+| Category | Main subject |
+| --- | --- |
+| `disinformation` | Disinformation, misinformation, propaganda, fact-checking, or influence campaigns. This labels coverage of the topic; it does not judge the submitted text's truthfulness or establish deceptive intent. |
+| `security incident` | A concrete cyberattack, breach, compromise, or its impact and response. |
+| `vulnerability` | A flaw, CVE, exploitability analysis, patch, or remediation advisory. |
+| `threat intelligence` | Threat actors, malware, campaigns, techniques, or indicators, rather than primarily reporting one incident. |
+| `security policy` | Cybersecurity laws, regulations, standards, governance, compliance, or government security strategy. |
+| `security news` | Other cybersecurity coverage: industry developments, products, research, or defensive practices. |
+| `general news` | Other substantive news outside cybersecurity and disinformation coverage. |
+| `other` | Non-news material, advertisements, unrelated instructions, or insufficient context. |
+
+Security categories refer to cybersecurity and information security. The model is
+instructed to prefer the most specific category fitting the main topic. Scores form
+one distribution over alternative main topics, not independent multi-label scores.
+Consumers can take the highest score or apply their own confidence threshold.
+The scores are provider estimates, not calibrated guarantees.
+
+`DECISIONS_URL` is required. Both configured decisions API modes are supported;
+there is no generative fallback or repair. Probabilities are returned unchanged,
+must be finite numbers in `[0, 1]`, and must sum to one within `0.00001`.
+Invalid requests (including extra fields or reasoning settings) return `400`.
+Missing configuration, invalid provider output, or upstream failures return `502`.
+If `API_KEY` is configured, send `Authorization: Bearer <API_KEY>`; unauthorized
+requests return `401`. `/cybersec-classification` remains available with its existing contract.
+
 ## `POST /cybersec-classification`
 
 Request body:

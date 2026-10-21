@@ -7,7 +7,7 @@ info:
     The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
     extraction, graph query generation, general chat, grounded HRAG answering, and
-    cybersecurity classification routes backed by an OpenAI-compatible API.
+    classification routes backed by OpenAI-compatible APIs and a decisions API.
 
     Canonical paths are documented without a trailing slash. The service
     accepts both forms.
@@ -300,6 +300,74 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to analyze sentiment"
+
+  /classify:
+    post:
+      tags:
+        - Classification
+      summary: Classify the main topic into fine-grained categories
+      description: |
+        Requires DECISIONS_URL and uses the independent decisions service in
+        either supported API mode. Returns one probability distribution over
+        eight alternative main topics, without rounding or renormalizing.
+        Security categories refer to cybersecurity and information security.
+        Disinformation labels coverage of that topic, not the truthfulness of
+        the submitted text. The most specific category fitting the main topic
+        is preferred over broader security news or general news.
+        No generative fallback, repair, or reasoning settings are supported.
+        Missing configuration, invalid provider output, and upstream failures
+        return 502. API_KEY optionally protects this route with a bearer token.
+      operationId: classifyText
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifyRequest"
+            example:
+              text: "A ransomware attack shut down a hospital."
+      responses:
+        "200":
+          description: Main-topic probabilities; all eight categories are present
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassifyResponse"
+              example:
+                disinformation: 0.01
+                security incident: 0.8
+                vulnerability: 0.04
+                threat intelligence: 0.05
+                security policy: 0.02
+                security news: 0.03
+                general news: 0.03
+                other: 0.02
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid classify request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Missing decisions configuration, upstream failure, or invalid probabilities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to classify text"
 
   /cybersec-classification:
     post:
@@ -1249,6 +1317,75 @@ components:
           $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
           $ref: "#/components/schemas/ThinkingBudgetTokens"
+    ClassifyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: Text to classify; must contain at least one non-whitespace character
+    ClassifyResponse:
+      type: object
+      additionalProperties: false
+      description: |
+        Provider probabilities for alternative main topics, not independent
+        multi-label scores or calibrated guarantees. All probabilities must be
+        finite and sum to one within 0.00001. Consumers may select the highest
+        score or apply their own confidence threshold.
+      required:
+        - disinformation
+        - security incident
+        - vulnerability
+        - threat intelligence
+        - security policy
+        - security news
+        - general news
+        - other
+      properties:
+        disinformation:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Coverage of disinformation, misinformation, propaganda, fact-checking, or influence campaigns; not a truth verdict
+        security incident:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: A concrete cyberattack, breach, compromise, or its impact and response
+        vulnerability:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: A security flaw, CVE, exploitability analysis, patch, or remediation advisory
+        threat intelligence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Threat actors, malware, campaigns, techniques, or indicators, rather than primarily one incident
+        security policy:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Cybersecurity laws, regulations, standards, governance, compliance, or government security strategy
+        security news:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Other cybersecurity industry developments, products, research, or defensive practices
+        general news:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Substantive news outside cybersecurity and disinformation coverage
+        other:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Non-news material, advertisements, unrelated instructions, or insufficient context
     CybersecClassificationRequest:
       type: object
       additionalProperties: false
@@ -1995,7 +2132,7 @@ tags:
   - name: Sentiment
     description: Sentiment analysis operations
   - name: Classification
-    description: Cybersecurity text classification operations
+    description: Fine-grained topic and cybersecurity relevance classification
   - name: Title
     description: Title generation operations
   - name: Translation

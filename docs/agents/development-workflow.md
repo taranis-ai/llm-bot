@@ -34,6 +34,12 @@ uv run pytest tests/test_app.py::test_health_endpoint
 Run the full test suite and Ruff checks before handing off a code change. Run `uv build` when changing packaging, package data, or release inputs.
 Ruff also checks import order (`I`), Python modernization (`UP`), and common bugs (`B`).
 
+For an explicitly requested live classification check, configure `DECISIONS_*` and
+run `uv run python -m scripts.evaluate_classify --output /tmp/classify-results.json`.
+This sends the 24 synthetic inputs in `tests/fixtures/classify_examples.json` to
+the real provider through the local `/classify` route. It is separate from the
+network-free test suite; see [the evaluation report](../classify-evaluation.md).
+
 ## Local Startup
 
 Start the development server with:
@@ -46,7 +52,8 @@ uv run granian --interface asgi app:app --port 5500
 The root `app.py` is the ASGI entry point and delegates construction to `llm_bot.app.create_app()`. Container startup uses `granian app` and the environment defaults in `Containerfile`.
 
 The service needs an OpenAI-compatible backend for LLM routes. `LLM_API_MODE` selects either the Responses API (`/responses`) or Chat Completions (`/chat/completions`). Entity-linking routes additionally need the lookup service configured through `LOOKUP_*` settings.
-Cybersecurity classification can instead use independent `DECISIONS_*` settings:
+`/classify` requires independent `DECISIONS_*` settings; cybersecurity classification
+can optionally use them:
 `DECISIONS_URL` is the full endpoint URL, and `DECISIONS_API_MODE` selects
 `systemone` or `openai` payloads. Tests mock this provider; no OpenRouter token is
 required. See [configuration](../configuration.md#decisions-connection).

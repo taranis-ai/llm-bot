@@ -4,6 +4,21 @@
 
 ## Prepared decisions classification
 
+`prepare_classify(request)` always returns a `DecisionsTask` for the eight-category
+classifier. Prepare and parse it with the same `DecisionsClient`:
+
+```python
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import ClassifyRequest
+from llm_bot.tasks.classify import prepare_classify
+
+client = DecisionsClient()
+task = prepare_classify(ClassifyRequest(text="A ransomware attack shut down a hospital."))
+body = task.build_request(client)
+# Submit body to client.url using your provider's supported submission method.
+# Later: result = task.parse_result(provider_response_body, client)
+```
+
 `prepare_cybersec_classification(request)` returns a `DecisionsTask` when
 `DECISIONS_URL` is configured, otherwise an `LLMTask`. Its `build_request(client)`
 and `parse_result(body, client)` methods follow the same pattern as other prepared

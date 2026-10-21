@@ -31,9 +31,9 @@ validated request models directly to tasks, optionally inject clients, and recei
 response models or exceptions. No Quart application or HTTP request context is
 required. Quart and Granian are available through the optional `server` dependency
 extra and are not installed for library-only consumers. Set environment or `.env`
-configuration before importing task modules. The six content-processing tasks also
+configuration before importing task modules. The content-processing tasks also
 expose `prepare_*` functions returning `LLMTask` objects (or `DecisionsTask` for
-classification in decisions mode). Batch callers serialize
+cybersecurity classification in decisions mode and always for `classify`). Batch callers serialize
 these tasks and later parse correlated provider results without rerunning
 inference; see [LLM Task Development](llm-task-development.md#preparing-tasks-for-batch-processing).
 
@@ -67,12 +67,15 @@ or OpenAI Decisions (`input`/question list), and validates both response formats
 into named probability distributions. It rejects missing/extra labels, invalid
 probabilities, duplicates, and refusals. It never applies reasoning profiles or
 generative repair. Cybersecurity classification selects it when `DECISIONS_URL`
-is set; an explicitly injected client overrides that selection. No other task
-automatically switches transport. A configured provider failure never falls back.
+is set; an explicitly injected client overrides that selection. Fine-grained
+classification (`/classify`) always uses decisions and requires `DECISIONS_URL`.
+No other task automatically switches transport. A configured provider failure never falls back.
 
 `llm_bot.tasks.decision_utils.DecisionsTask` provides the prepared-task methods
 for decisions requests. `prepare_cybersec_classification()` returns this type
 in decisions mode and retains `LLMTask` for generative mode.
+`prepare_classify()` always returns a `DecisionsTask` containing one eight-category
+choice question; its request accepts only text, without generative reasoning settings.
 
 `llm_bot.tasks.llm_utils.create_and_parse_response()` applies the configured reasoning profile, makes the request, and retries exactly once when JSON decoding, Pydantic validation, or an `InvalidLLMOutputError` rejects model output. The retry includes the invalid output and validation error. Do not add independent retry loops to tasks without an explicit contract change.
 
