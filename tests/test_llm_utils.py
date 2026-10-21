@@ -49,7 +49,10 @@ def test_noisy_json_does_not_salvage_nested_object_from_invalid_final_object():
         (prepare_title, TitleRequest, {"text": "Story"}),
     ],
 )
-def test_prepared_tasks_reasoning_settings_preserve_shared_client(api_mode, reasoning_settings, prepare, request_type, input_data):
+def test_prepared_tasks_reasoning_settings_preserve_shared_client(
+    monkeypatch, api_mode, reasoning_settings, prepare, request_type, input_data
+):
+    monkeypatch.setattr("llm_bot.config.Config.DECISIONS_URL", "")
     client = LLMClient(api_mode=api_mode, model="batch-model", reasoning_effort="low", thinking_budget_tokens=256)
     task = prepare(request_type(**input_data, **reasoning_settings))
 

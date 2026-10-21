@@ -2,8 +2,11 @@ from pathlib import Path
 from typing import Any
 
 from llm_bot.client import LLMClient
+from llm_bot.config import Config
+from llm_bot.decisions_client import ChoiceProbabilities, ChoiceQuestion, DecisionsClient
 from llm_bot.log import logger
 from llm_bot.schemas import CybersecClassificationRequest, CybersecClassificationResponse
+from llm_bot.tasks.decision_utils import DecisionsTask
 from llm_bot.tasks.llm_utils import LLMTask, get_output_text, loads_json_output
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "cybersec_classification.txt"
@@ -54,7 +57,35 @@ def get_cybersec_classification_response_format() -> dict[str, Any]:
     }
 
 
-def prepare_cybersec_classification(request: CybersecClassificationRequest) -> LLMTask[CybersecClassificationResponse]:
+def parse_cybersec_decision(probabilities: ChoiceProbabilities) -> CybersecClassificationResponse:
+    return CybersecClassificationResponse.model_validate(probabilities["cybersecurity_relevance"])
+
+
+def prepare_cybersec_classification(
+    request: CybersecClassificationRequest,
+    *,
+    client: LLMClient | DecisionsClient | None = None,
+) -> LLMTask[CybersecClassificationResponse] | DecisionsTask[CybersecClassificationResponse]:
+    if isinstance(client, DecisionsClient) or (client is None and Config.DECISIONS_URL):
+        return DecisionsTask(
+            state=request.text,
+            questions={
+                "cybersecurity_relevance": ChoiceQuestion(
+                    instructions=(
+                        "Classify the main subject of the text. Focus on the main subject, not isolated keywords. "
+                        "Mentions of software vendors, products, or infrastructure are not enough by themselves."
+                    ),
+                    criteria={
+                        "cybersecurity": (
+                            "The text is substantially about cyber threats, incidents, malware, vulnerabilities, exploits, "
+                            "threat actors, attacks, defenses, security tooling, security operations, or cyber policy."
+                        ),
+                        "non-cybersecurity": "The text is not mainly about cybersecurity, even if it contains incidental technical words.",
+                    },
+                ),
+            },
+            parse_response=parse_cybersec_decision,
+        )
     system_message, user_message = build_cybersec_classification_messages(request)
     return LLMTask(
         task_name="cybersec classification",
@@ -69,10 +100,12 @@ def prepare_cybersec_classification(request: CybersecClassificationRequest) -> L
 
 async def classify_cybersecurity_text(
     request: CybersecClassificationRequest,
-    client: LLMClient | None = None,
+    client: LLMClient | DecisionsClient | None = None,
 ) -> CybersecClassificationResponse:
-    llm_client = client or LLMClient(
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-    )
-    return await prepare_cybersec_classification(request).run(llm_client)
+    if client is None:
+        client = (
+            DecisionsClient()
+            if Config.DECISIONS_URL
+            else LLMClient(reasoning_effort=request.reasoning_effort, thinking_budget_tokens=request.thinking_budget_tokens)
+        )
+    return await prepare_cybersec_classification(request, client=client).run(client)

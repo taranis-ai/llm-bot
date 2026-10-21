@@ -195,8 +195,13 @@ Response body:
 }
 ```
 
-This endpoint is LLM-backed and supports the same optional `reasoning_effort` and
-`thinking_budget_tokens` fields as the other LLM routes.
+When `DECISIONS_URL` is configured, this endpoint sends a single choice question
+to the separate decisions service and returns its class probabilities in the
+same response shape. The optional `reasoning_effort` and `thinking_budget_tokens`
+fields are accepted for compatibility and ignored in decisions mode. Invalid
+decisions output or upstream failures return `502`, without repair or fallback.
+With no decisions URL, the endpoint retains the generative LLM behavior and both
+reasoning settings apply. See [decisions configuration](configuration.md#decisions-connection).
 
 If `API_KEY` is configured, send it as:
 
@@ -615,3 +620,4 @@ configuration, including:
 - canonical endpoint paths
 - active non-secret config such as the current reasoning profile and whether
   lookup/linking is configured
+- decisions URL configured status, model, payload mode, and timeout (URL and key omitted)

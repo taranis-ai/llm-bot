@@ -2,6 +2,32 @@
 
 [Back to README](../README.md) · [Configuration](configuration.md)
 
+## Prepared decisions classification
+
+`prepare_cybersec_classification(request)` returns a `DecisionsTask` when
+`DECISIONS_URL` is configured, otherwise an `LLMTask`. Its `build_request(client)`
+and `parse_result(body, client)` methods follow the same pattern as other prepared
+tasks, using a `DecisionsClient` for decisions payloads. Pass `client=` to the
+prepare function to explicitly choose a `DecisionsClient` or the existing
+`LLMClient` regardless of environment configuration. Pass the same client when
+building and parsing. Decisions output is validated without repair.
+
+```python
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import CybersecClassificationRequest
+from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
+
+client = DecisionsClient()
+task = prepare_cybersec_classification(CybersecClassificationRequest(text="A ransomware campaign targeted hospitals."), client=client)
+body = task.build_request(client)
+# Submit body to client.url using your provider's supported submission method.
+# Later: result = task.parse_result(provider_response_body, client)
+```
+
+Preparing several questions in one decisions call differs from a provider batch
+job. Provider batch support for decisions endpoints is not assumed; do not submit
+these bodies to the Chat Completions batch endpoint in the NER example below.
+
 ## NER for multiple stories
 
 For 20 Taranis stories, prepare **one NER task per story** and submit all 20

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +19,11 @@ class Settings(BaseSettings):
     LLM_REASONING_PROFILE: str = "none"
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
+    DECISIONS_URL: str = ""
+    DECISIONS_API_KEY: str = ""
+    DECISIONS_MODEL: str = ""
+    DECISIONS_API_MODE: Literal["systemone", "openai"] = "systemone"
+    DECISIONS_TIMEOUT: int = 120
     EMBEDDING_BASE_URL: str = ""
     EMBEDDING_API_KEY: str = ""
     EMBEDDING_MODEL: str = ""

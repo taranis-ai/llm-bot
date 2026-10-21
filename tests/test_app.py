@@ -52,6 +52,9 @@ async def test_info_endpoint(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.EMBEDDING_BASE_URL", "https://embeddings.example")
     monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
     monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
+    monkeypatch.setattr("llm_bot.routes.Config.DECISIONS_URL", "https://private.example/decisions?key=url-secret")
+    monkeypatch.setattr("llm_bot.routes.Config.DECISIONS_API_KEY", "decision-secret")
+    monkeypatch.setattr("llm_bot.routes.Config.DECISIONS_MODEL", "decision-model")
     monkeypatch.setattr("llm_bot.routes.__version__", "9.9.9")
 
     test_client = app.test_client()
@@ -78,6 +81,10 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
     assert body["current"]["embedding_base_url_configured"] is True
+    assert body["current"]["decisions_url_configured"] is True
+    assert body["current"]["decisions_model"] == "decision-model"
+    assert "decision-secret" not in str(body)
+    assert "url-secret" not in str(body)
 
 
 async def test_embed_endpoint(app, monkeypatch):

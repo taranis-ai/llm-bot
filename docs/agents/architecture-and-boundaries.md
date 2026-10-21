@@ -11,6 +11,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/routes.py`: HTTP boundary, optional bearer authentication, common validation/error mapping, health/docs/info endpoints, and task dispatch.
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
+- `llm_bot/decisions_client.py`: independent decisions transport for named choice questions, translating System One and OpenAI formats.
 - `llm_bot/embedding_client.py`: asynchronous OpenAI-compatible embedding transport.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
@@ -31,7 +32,8 @@ response models or exceptions. No Quart application or HTTP request context is
 required. Quart and Granian are available through the optional `server` dependency
 extra and are not installed for library-only consumers. Set environment or `.env`
 configuration before importing task modules. The six content-processing tasks also
-expose `prepare_*` functions returning `LLMTask` objects. Batch callers serialize
+expose `prepare_*` functions returning `LLMTask` objects (or `DecisionsTask` for
+classification in decisions mode). Batch callers serialize
 these tasks and later parse correlated provider results without rerunning
 inference; see [LLM Task Development](llm-task-development.md#preparing-tasks-for-batch-processing).
 
@@ -39,9 +41,9 @@ inference; see [LLM Task Development](llm-task-development.md#preparing-tasks-fo
 HTTP request
   -> Quart route and optional API-key check
   -> Pydantic request model
-  -> task builds system/user input and JSON Schema
-  -> LLMClient sends Responses or Chat Completions request
-  -> common output/reasoning normalization
+  -> task builds system/user input and JSON Schema, or choice questions
+  -> LLMClient sends Responses/Chat Completions, or DecisionsClient sends decisions
+  -> output/reasoning normalization, or probability validation
   -> task parser and Pydantic response validation
   -> serialized JSON response
 ```
@@ -58,6 +60,19 @@ The optional incoming `API_KEY` protects only the LLM-backed POST routes. `/heal
 - `messages`, `response_format.json_schema`, and `reasoning_effort` for Chat Completions mode
 
 Provider-specific `thinking_budget_tokens` is forwarded unchanged in either mode. Chat Completions responses are normalized to `output_text` before task parsing. Keep transport translation in the client rather than branching on API mode inside individual tasks.
+
+`DecisionsClient` uses independent `DECISIONS_*` settings and a full endpoint URL.
+It translates named `ChoiceQuestion` objects to System One (`state`/question map)
+or OpenAI Decisions (`input`/question list), and validates both response formats
+into named probability distributions. It rejects missing/extra labels, invalid
+probabilities, duplicates, and refusals. It never applies reasoning profiles or
+generative repair. Cybersecurity classification selects it when `DECISIONS_URL`
+is set; an explicitly injected client overrides that selection. No other task
+automatically switches transport. A configured provider failure never falls back.
+
+`llm_bot.tasks.decision_utils.DecisionsTask` provides the prepared-task methods
+for decisions requests. `prepare_cybersec_classification()` returns this type
+in decisions mode and retains `LLMTask` for generative mode.
 
 `llm_bot.tasks.llm_utils.create_and_parse_response()` applies the configured reasoning profile, makes the request, and retries exactly once when JSON decoding, Pydantic validation, or an `InvalidLLMOutputError` rejects model output. The retry includes the invalid output and validation error. Do not add independent retry loops to tasks without an explicit contract change.
 

@@ -46,6 +46,10 @@ uv run granian --interface asgi app:app --port 5500
 The root `app.py` is the ASGI entry point and delegates construction to `llm_bot.app.create_app()`. Container startup uses `granian app` and the environment defaults in `Containerfile`.
 
 The service needs an OpenAI-compatible backend for LLM routes. `LLM_API_MODE` selects either the Responses API (`/responses`) or Chat Completions (`/chat/completions`). Entity-linking routes additionally need the lookup service configured through `LOOKUP_*` settings.
+Cybersecurity classification can instead use independent `DECISIONS_*` settings:
+`DECISIONS_URL` is the full endpoint URL, and `DECISIONS_API_MODE` selects
+`systemone` or `openai` payloads. Tests mock this provider; no OpenRouter token is
+required. See [configuration](../configuration.md#decisions-connection).
 
 ## Test Conventions
 

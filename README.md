@@ -45,7 +45,9 @@ in `llm_bot.tasks` (for example, `ner.extract_entities` and `translate.translate
 An optional `client=LLMClient(...)` argument overrides the LLM connection for a call;
 import it from `llm_bot.client`. Inputs and outputs are Pydantic models, and errors
 propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embeddings
-use `EMBEDDING_*`.
+use `EMBEDDING_*`. Cybersecurity classification uses the independent `DECISIONS_*`
+connection when `DECISIONS_URL` is set; you can inject a `DecisionsClient` from
+`llm_bot.decisions_client` or an `LLMClient` to explicitly select either transport.
 
 For the HTTP service, install the `server` extra with
 `uv add "taranis-llm-bot[server]"`. Then import `create_app` from `llm_bot.app`
@@ -67,6 +69,12 @@ Configure the following values in `.env`:
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
 See [Configuration](docs/configuration.md) for optional settings.
+
+To route `/cybersec-classification` to a decision model, also set `DECISIONS_URL`
+to the full endpoint URL, `DECISIONS_MODEL`, and `DECISIONS_API_KEY` if required.
+`DECISIONS_API_MODE=systemone` (default) supports OpenRouter's
+`https://openrouter.ai/api/alpha/decisions` and llama.cpp/vLLM `/v1/systemone`;
+use `openai` for `/v1/decisions`. The public classification response stays unchanged.
 
 ## Run
 

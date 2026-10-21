@@ -9,7 +9,9 @@ from unittest.mock import AsyncMock
 
 from llm_bot import __version__
 from llm_bot.client import LLMClient
-from llm_bot.schemas import SummarizeRequest
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import CybersecClassificationRequest, SummarizeRequest
+from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
 from llm_bot.tasks.summarize import summarize
 
 
@@ -41,6 +43,16 @@ async def main() -> None:
     result = await summarize(SummarizeRequest(text="Text to summarize.", language="en"), client=client)
     assert result.model_dump() == {"summary": "A short summary."}
     client.create_response.assert_awaited_once()
+
+    decisions_client = DecisionsClient(api_mode="systemone", model="decision-model")
+    task = prepare_cybersec_classification(CybersecClassificationRequest(text="A ransomware campaign."), client=decisions_client)
+    assert task.build_request(decisions_client)["state"] == "A ransomware campaign."
+    probabilities = {"cybersecurity": 0.9, "non-cybersecurity": 0.1}
+    decisions_result = task.parse_result(
+        {"answers": {"cybersecurity_relevance": {"type": "choice", "choice": "cybersecurity", "probabilities": probabilities}}},
+        decisions_client,
+    )
+    assert decisions_result.model_dump() == probabilities
 
     checked = "tasks and prompts"
     if "--server" in sys.argv:

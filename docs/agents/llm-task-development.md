@@ -16,6 +16,14 @@ Follow the existing vertical slice:
 6. Update `/info`, `llm_bot/openapi3_1.yml`, `docs/api.md`, and configuration examples in `docs/configuration.md` as applicable. Update `README.md` when quickstart instructions change and `docs/batch-processing.md` when batch usage changes.
 7. Add focused task tests plus route and schema coverage.
 
+For decision-model tasks, use `ChoiceQuestion`, `DecisionsClient`, and
+`DecisionsTask` instead of generative JSON schemas and repair. The task owns
+question instructions and label descriptions; the client owns wire-format
+translation and probability validation. Cybersecurity classification is the first
+example. Its prepared function accepts `client=` to explicitly select a transport,
+otherwise selects decisions when `DECISIONS_URL` is configured. Preserve the public
+response shape and cover both payload modes with mocked providers.
+
 ## Structured Output Rules
 
 - Keep the task's JSON Schema aligned with its Pydantic response model: required fields, aliases, enums, bounds, array uniqueness, and `additionalProperties` must agree.
@@ -62,7 +70,8 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 ## Preparing tasks for batch processing
 
 Summary, title, NER, sentiment, classification, and clustering expose `prepare_*`
-functions returning an `LLMTask` without performing inference. The prepared task
+functions returning an `LLMTask` without performing inference. Classification
+returns a `DecisionsTask` when decisions routing is selected. The prepared task
 owns its prompt, output schema, parser, and per-request reasoning settings.
 `build_request(client)` produces the selected API payload with the same reasoning
 profile as immediate execution;
@@ -76,6 +85,7 @@ Immediate execution still uses the supplied client's settings, preserving client
 injection behavior. To match batch and immediate payloads when injecting a client,
 configure that client with the same reasoning settings as the request.
 
-The existing async entry points call the prepared task's `run(client)`, which
-retains `create_and_parse_response()` and its one repair attempt. Preserve these
+The existing async entry points call the prepared task's `run(client)`.
+Generative tasks retain `create_and_parse_response()` and its one repair attempt;
+decisions tasks validate probabilities without repair. Preserve these
 entry points and optional client injection for HTTP routes and immediate callers.

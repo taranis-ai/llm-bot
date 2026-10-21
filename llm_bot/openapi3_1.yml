@@ -309,6 +309,11 @@ paths:
       description: |
         Accepts plain text and returns scores for `cybersecurity` and
         `non-cybersecurity`.
+        When DECISIONS_URL is configured, uses the separate decisions service
+        and returns its class probabilities. Reasoning settings are accepted
+        but ignored in decisions mode. Invalid decisions output or upstream
+        failures return 502 without repair or generative fallback. With no
+        decisions URL, uses the existing generative LLM connection.
 
         This endpoint is backed by the configured upstream LLM.
 
