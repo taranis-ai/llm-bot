@@ -27,6 +27,10 @@ response shape and cover both payload modes with mocked providers.
 descriptions, and `prepare_classify()`. Its `ClassifyRequest` accepts only text;
 the probabilities describe alternative main topics, and disinformation labels
 topic coverage rather than the truthfulness of the input.
+`sentiment.py` is also decisions-only and preserves its response shape. It combines
+one sentiment question with optional independent emotion questions, uses the
+winning sentiment probability as the score, and filters emotions above 0.5 through
+the shared compatibility map. Legacy reasoning settings are accepted but ignored.
 
 ## Structured Output Rules
 
@@ -73,10 +77,10 @@ Use small fake clients from `tests/test_helpers.py` where suitable. Assert the s
 
 ## Preparing tasks for batch processing
 
-Summary, title, NER, sentiment, cybersecurity classification, and clustering expose
+Summary, title, NER, cybersecurity classification, and clustering expose
 `prepare_*` functions returning an `LLMTask` without performing inference.
 Cybersecurity classification returns a `DecisionsTask` when decisions routing is
-selected; fine-grained `prepare_classify()` always returns a `DecisionsTask`. The prepared task
+selected; `prepare_classify()` and `prepare_sentiment()` always return a `DecisionsTask`. The prepared task
 owns its prompt, output schema, parser, and per-request reasoning settings.
 `build_request(client)` produces the selected API payload with the same reasoning
 profile as immediate execution;

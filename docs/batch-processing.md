@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) · [Configuration](configuration.md)
 
-## Prepared decisions classification
+## Prepared decisions tasks
 
 `prepare_classify(request)` always returns a `DecisionsTask` for the eight-category
 classifier. Prepare and parse it with the same `DecisionsClient`:
@@ -14,6 +14,24 @@ from llm_bot.tasks.classify import prepare_classify
 
 client = DecisionsClient()
 task = prepare_classify(ClassifyRequest(text="A ransomware attack shut down a hospital."))
+body = task.build_request(client)
+# Submit body to client.url using your provider's supported submission method.
+# Later: result = task.parse_result(provider_response_body, client)
+```
+
+`prepare_sentiment(request)` also always returns a `DecisionsTask`; use a
+`DecisionsClient` to build and parse it. It contains one sentiment choice question
+and, when requested, eight independent emotion yes/no questions. Parsing preserves
+the public sentiment response shape and applies the emotion compatibility rules.
+Reasoning settings are accepted but ignored; invalid output fails without repair.
+
+```python
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import SentimentRequest
+from llm_bot.tasks.sentiment import prepare_sentiment
+
+client = DecisionsClient()
+task = prepare_sentiment(SentimentRequest(text="The launch was a success.", include_emotions=True))
 body = task.build_request(client)
 # Submit body to client.url using your provider's supported submission method.
 # Later: result = task.parse_result(provider_response_body, client)

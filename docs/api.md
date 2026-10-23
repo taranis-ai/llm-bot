@@ -129,15 +129,18 @@ Authorization: Bearer <API_KEY>
 
 ## `POST /sentiment`
 
-Sentiment analysis endpoint.
+Analyzes sentiment using the independent [decisions connection](configuration.md#decisions-connection).
+`DECISIONS_URL` is required. Both `systemone` and `openai` modes are supported.
+The label is the most probable of `positive`, `negative`, and `neutral`; `score`
+is that label's probability, without rounding or renormalizing. Ties prefer
+`neutral`, then `positive`, then `negative`.
 
 Request body:
 
 ```json
 {
   "text": "The launch was a success.",
-  "include_emotions": true,
-  "thinking_budget_tokens": 256
+  "include_emotions": true
 }
 ```
 
@@ -159,7 +162,7 @@ Response body with emotions:
   "sentiment": {
     "label": "negative",
     "score": 0.91,
-    "emotions": ["anger", "fear"]
+    "emotions": ["fear", "anger"]
   }
 }
 ```
@@ -167,6 +170,16 @@ Response body with emotions:
 When `include_emotions` is `false` or omitted, the response must not contain an
 `emotions` field.
 When it is `true`, `emotions` must be an array; an empty array is valid, `null` is not.
+Each of the eight Plutchik emotions is assessed with an independent yes/no question
+in the same provider request. An emotion is included only when its `yes` probability
+exceeds `0.5` and it is compatible with the winning sentiment: joy/trust for positive,
+fear/sadness/disgust/anger for negative, and surprise/anticipation for any sentiment.
+The array follows Plutchik order: joy, trust, fear, surprise, sadness, disgust, anger,
+anticipation, with no duplicates.
+
+The existing `reasoning_effort` and `thinking_budget_tokens` fields are accepted
+for compatibility and ignored. Missing configuration, invalid decisions output,
+and upstream failures return `502`, without repair or generative fallback.
 
 If `API_KEY` is configured, send it as:
 

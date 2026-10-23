@@ -165,7 +165,7 @@ async def test_missing_url_fails_before_transport(transport):
 
 
 @pytest.mark.parametrize("failure", [None, "upstream", "invalid"])
-@pytest.mark.parametrize("endpoint", ["/cybersec-classification", "/classify"])
+@pytest.mark.parametrize("endpoint", ["/cybersec-classification", "/classify", "/sentiment"])
 async def test_classification_route_uses_decisions_and_maps_errors(app, transport, monkeypatch, failure, endpoint):
     _, session, response = transport
     monkeypatch.setattr("llm_bot.config.Config.DECISIONS_URL", "https://decisions.example/decisions")
@@ -190,12 +190,30 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
         question_name, choice = "category", "security incident"
         payload = {"text": "A ransomware attack shut down a hospital."}
         error_prefix = "Failed to classify text"
-    response.text = json.dumps({"answers": {question_name: {**ANSWER, "choice": choice, "probabilities": probabilities}}})
+    if endpoint == "/sentiment":
+        probabilities = {"positive": 0.02, "negative": 0.93, "neutral": 0.05}
+        question_name, choice = "sentiment", "negative"
+        payload["include_emotions"] = True
+        error_prefix = "Failed to analyze sentiment"
+    answers = {question_name: {**ANSWER, "choice": choice, "probabilities": probabilities}}
+    if endpoint == "/sentiment":
+        for emotion in ("joy", "trust", "fear", "surprise", "sadness", "disgust", "anger", "anticipation"):
+            present = emotion in {"fear", "anger"}
+            answers[emotion] = {
+                "type": "choice",
+                "choice": "yes" if present else "no",
+                "probabilities": {"yes": 0.9, "no": 0.1} if present else {"yes": 0.1, "no": 0.9},
+            }
+    response.text = json.dumps({"answers": answers})
     if failure == "upstream":
         response.text = '{"error":{"message":"Unknown decisions model"}}'
         response.raise_for_status.side_effect = HTTPError("bad request")
     elif failure == "invalid":
-        response.text = '{"answers":{}}'
+        if endpoint == "/sentiment":
+            del answers["fear"]
+            response.text = json.dumps({"answers": answers})
+        else:
+            response.text = '{"answers":{}}'
 
     result = await app.test_client().post(
         endpoint,
@@ -207,6 +225,8 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
     body = await result.get_json()
     if failure:
         assert body == {"error": error_prefix + ": " + ("Unknown decisions model" if failure == "upstream" else "Invalid decisions response")}
+    elif endpoint == "/sentiment":
+        assert body == {"sentiment": {"label": "negative", "score": 0.93, "emotions": ["fear", "anger"]}}
     else:
         assert body == probabilities
     assert session.post.call_count == 1
