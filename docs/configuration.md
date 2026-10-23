@@ -15,8 +15,8 @@ For Python library use, set configuration before importing task modules.
 ## Decisions connection
 
 `/cybersec-classification` uses an independent decision model when `DECISIONS_URL`
-is nonempty. `/classify` always uses this connection and requires `DECISIONS_URL`;
-with no URL it returns `502`. Other tasks continue to use `LLM_*`. With no decisions URL,
+is nonempty. `/classify` and `/sentiment` always use this connection and require `DECISIONS_URL`;
+with no URL both return `502`. Other tasks continue to use `LLM_*`. With no decisions URL,
 `/cybersec-classification` retains its existing generative LLM behavior. A configured
 decisions service failure returns `502`; it never falls back to the generative model.
 
@@ -43,12 +43,19 @@ This client currently supports named choice questions with string labels.
 `/cybersec-classification` asks one choice question with the labels `cybersecurity`
 and `non-cybersecurity`. `/classify` asks one `category` question with the eight
 labels defined in the [API reference](api.md#post-classify).
-Both return the provider's probabilities without rounding
+Both classification endpoints return the provider's probabilities without rounding
 or renormalizing. Labels must match exactly, probabilities must be finite numbers
 in `[0, 1]`, and their sum must be one within `0.00001`. Duplicate JSON keys,
 question names, or choice values are rejected. Invalid output and refusals
 fail with `502` without a generative repair request. Reasoning profiles,
 `reasoning_effort`, and `thinking_budget_tokens` do not apply in decisions mode.
+
+`/sentiment` asks one three-label `sentiment` question and returns its winning
+label and probability. With `include_emotions: true`, it adds eight independent
+yes/no questions to the same request. Emotions need a `yes` probability above
+`0.5` and must be compatible with the selected sentiment. The same probability
+validation applies to every question; missing emotion answers fail the request.
+Sentiment always uses decisions, including when legacy reasoning fields are supplied.
 
 For a manual OpenRouter check, export the connection before starting the service
 or importing the library:
@@ -70,9 +77,12 @@ For rollout, set these variables, pull the latest published service image, and
 restart the service. Verify `/health`, check `/info` for `/classify` and
 `decisions_url_configured: true`, then submit a classification request and check
 that all eight probabilities are present and sum to one. `/health` alone does
-not test provider readiness. Keep the previous image reference for rollback.
+not test provider readiness. Also verify `/sentiment` with and without
+`include_emotions: true`: check the label, score, and optional compatible emotions.
+Keep the previous image reference for rollback.
 To roll back the endpoint, restore that image and restart. Clearing `DECISIONS_URL`
-restores generative routing only for `/cybersec-classification`; it disables `/classify`.
+restores generative routing only for `/cybersec-classification`; it disables `/classify`
+and `/sentiment`. To restore generative sentiment, roll back to the previous image.
 
 ## Other optional settings
 

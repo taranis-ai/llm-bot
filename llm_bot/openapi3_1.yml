@@ -240,11 +240,23 @@ paths:
       summary: Analyze sentiment for input text
       description: |
         Accepts input text and returns a high-level sentiment label with a
-        confidence score.
+        confidence score using the independent decisions service. Requires
+        DECISIONS_URL; supports systemone and openai modes. The label is the
+        most probable sentiment, and score is its probability. Ties prefer
+        neutral, then positive, then negative.
 
         When `include_emotions` is true, the response also includes zero or
         more Plutchik emotions that are compatible with the predicted
         sentiment. The `emotions` value must be an array, never null.
+        Each emotion is assessed independently in the same request and included
+        only when its yes probability exceeds 0.5 and it is compatible:
+        joy/trust for positive, fear/sadness/disgust/anger for negative,
+        surprise/anticipation for any sentiment. Emotions follow the order
+        joy, trust, fear, surprise, sadness, disgust, anger, anticipation.
+
+        Legacy reasoning_effort and thinking_budget_tokens fields are accepted
+        but ignored. Missing configuration, invalid output, or upstream failures
+        return 502 without repair or generative fallback.
 
         This endpoint can be protected with a Bearer token using the `API_KEY`
         environment variable.
@@ -267,8 +279,6 @@ paths:
                 value:
                   text: "The breach left customers angry and alarmed."
                   include_emotions: true
-                  reasoning_effort: "high"
-                  thinking_budget_tokens: 256
       responses:
         "200":
           description: Sentiment analyzed successfully
@@ -1301,6 +1311,7 @@ components:
     SentimentRequest:
       type: object
       additionalProperties: false
+      description: Sentiment decisions input; legacy reasoning fields are accepted but ignored.
       required:
         - text
       properties:
@@ -1432,9 +1443,9 @@ components:
           type: number
           minimum: 0
           maximum: 1
+          description: Provider probability of the winning sentiment label
         emotions:
           type: array
-          nullable: true
           uniqueItems: true
           items:
             type: string

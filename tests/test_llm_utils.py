@@ -3,12 +3,11 @@ import json
 import pytest
 
 from llm_bot.client import LLMClient
-from llm_bot.schemas import ClusterRequest, CybersecClassificationRequest, NerRequest, SentimentRequest, SummarizeRequest, TitleRequest
+from llm_bot.schemas import ClusterRequest, CybersecClassificationRequest, NerRequest, SummarizeRequest, TitleRequest
 from llm_bot.tasks.cluster import prepare_cluster
 from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
 from llm_bot.tasks.llm_utils import loads_json_output
 from llm_bot.tasks.ner import prepare_ner
-from llm_bot.tasks.sentiment import prepare_sentiment
 from llm_bot.tasks.summarize import prepare_summary
 from llm_bot.tasks.title import prepare_title
 
@@ -44,7 +43,6 @@ def test_noisy_json_does_not_salvage_nested_object_from_invalid_final_object():
         (prepare_cluster, ClusterRequest, {"stories": [{"id": "s1", "summary": "Story", "tags": {}}]}),
         (prepare_cybersec_classification, CybersecClassificationRequest, {"text": "Story"}),
         (prepare_ner, NerRequest, {"text": "Story"}),
-        (prepare_sentiment, SentimentRequest, {"text": "Story"}),
         (prepare_summary, SummarizeRequest, {"text": "Story"}),
         (prepare_title, TitleRequest, {"text": "Story"}),
     ],

@@ -1,129 +1,73 @@
 from pathlib import Path
-from typing import Any
 
-from llm_bot.client import LLMClient
-from llm_bot.log import logger
+from llm_bot.decisions_client import ChoiceProbabilities, ChoiceQuestion, DecisionsClient
 from llm_bot.schemas import (
-    PLUTCHIK_8,
+    ALLOWED_SENTIMENTS_BY_EMOTION,
     EmotionLabel,
     SentimentLabel,
     SentimentRequest,
     SentimentResponse,
+    SentimentResult,
 )
-from llm_bot.tasks.llm_utils import (
-    InvalidLLMOutputError,
-    LLMTask,
-    get_output_text,
-    loads_json_output,
-)
+from llm_bot.tasks.decision_utils import DecisionsTask
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "sentiment.txt"
 
-
-def load_sentiment_prompt() -> str:
-    return PROMPT_PATH.read_text(encoding="utf-8").strip()
-
-
-def build_sentiment_messages(request: SentimentRequest) -> list[dict[str, str]]:
-    system_prompt = load_sentiment_prompt()
-    if request.include_emotions:
-        emotions = ", ".join(emotion.value for emotion in PLUTCHIK_8)
-        system_prompt = (
-            f"{system_prompt}\n"
-            "Emotion extraction is enabled.\n"
-            f"Allowed emotions: {emotions}.\n"
-            "- Return the emotions field as an array, even if it is empty.\n"
-            "- Only include emotions that are clearly supported by the text.\n"
-        )
-    else:
-        system_prompt = f"{system_prompt}\nEmotion extraction is disabled.\n- Do not include an emotions field in the response.\n"
-
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": request.text},
-    ]
+EMOTION_DESCRIPTIONS = {
+    EmotionLabel.JOY: "Happiness, delight, or satisfaction.",
+    EmotionLabel.TRUST: "Confidence, acceptance, or a sense of safety and reliability.",
+    EmotionLabel.FEAR: "Anxiety, alarm, or apprehension about danger or harm.",
+    EmotionLabel.SURPRISE: "Astonishment or a reaction to something unexpected.",
+    EmotionLabel.SADNESS: "Sorrow, grief, disappointment, or a sense of loss.",
+    EmotionLabel.DISGUST: "Revulsion, aversion, or strong repulsion.",
+    EmotionLabel.ANGER: "Rage, frustration, outrage, or hostility.",
+    EmotionLabel.ANTICIPATION: "Expectation, interest, or looking forward to a future event.",
+}
 
 
-def parse_sentiment_response(response_data: dict[str, Any], include_emotions: bool = False) -> SentimentResponse:
-    output_text = get_output_text(response_data)
-    logger.debug("Raw sentiment output: %s", output_text)
-    parsed_output = loads_json_output(output_text)
-    response = SentimentResponse.model_validate(parsed_output)
-    sentiment = response.sentiment
-
-    has_emotions = "emotions" in sentiment.model_fields_set
-    if include_emotions and sentiment.emotions is None:
-        raise InvalidLLMOutputError("Emotion extraction was enabled but the response omitted the emotions array")
-    if not include_emotions and has_emotions:
-        raise InvalidLLMOutputError("Emotion extraction was disabled but the response included emotions")
-
-    return response
-
-
-def get_sentiment_response_format(include_emotions: bool) -> dict[str, Any]:
-    sentiment_properties: dict[str, Any] = {
-        "label": {
-            "type": "string",
-            "enum": [label.value for label in SentimentLabel],
-        },
-        "score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-        },
-    }
-    required_fields = ["label", "score"]
-
+def parse_sentiment_response(probabilities: ChoiceProbabilities, include_emotions: bool = False) -> SentimentResponse:
+    distribution = probabilities["sentiment"]
+    # Prefer neutral on a tie, consistently across provider response ordering.
+    label = max((SentimentLabel.NEUTRAL, SentimentLabel.POSITIVE, SentimentLabel.NEGATIVE), key=distribution.__getitem__)
+    emotions = None
     if include_emotions:
-        sentiment_properties["emotions"] = {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "enum": [emotion.value for emotion in EmotionLabel],
-            },
-            "uniqueItems": True,
-        }
-        required_fields.append("emotions")
+        emotions = [
+            emotion
+            for emotion in EmotionLabel
+            if probabilities[emotion.value]["yes"] > 0.5 and label in ALLOWED_SENTIMENTS_BY_EMOTION[emotion]
+        ]
+    return SentimentResponse(sentiment=SentimentResult(label=label, score=distribution[label], emotions=emotions))
 
-    return {
-        "type": "json_schema",
-        "name": "sentiment_response",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "additionalProperties": False,
-            "required": ["sentiment"],
-            "properties": {
-                "sentiment": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": required_fields,
-                    "properties": sentiment_properties,
-                }
+
+def prepare_sentiment(request: SentimentRequest) -> DecisionsTask[SentimentResponse]:
+    prompt = PROMPT_PATH.read_text(encoding="utf-8").strip()
+    questions = {
+        "sentiment": ChoiceQuestion(
+            instructions=prompt,
+            criteria={
+                "positive": "The overall tone is clearly favorable, approving, optimistic, or satisfied.",
+                "negative": "The overall tone is clearly unfavorable, critical, pessimistic, or distressed.",
+                "neutral": "The text is factual, mixed, or does not clearly support a positive or negative tone.",
             },
-        },
+        ),
     }
-
-
-def prepare_sentiment(request: SentimentRequest) -> LLMTask[SentimentResponse]:
-    system_message, user_message = build_sentiment_messages(request)
-    return LLMTask(
-        task_name="sentiment",
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-        user_input=user_message["content"],
-        system_input=system_message["content"],
-        response_format=get_sentiment_response_format(request.include_emotions),
-        parse_response=lambda response_data: parse_sentiment_response(response_data, request.include_emotions),
+    if request.include_emotions:
+        for emotion, description in EMOTION_DESCRIPTIONS.items():
+            questions[emotion.value] = ChoiceQuestion(
+                instructions=f"{prompt}\nIs {emotion.value} clearly expressed in the text? {description}",
+                criteria={
+                    "yes": f"The text clearly expresses {emotion.value}; it is not merely mentioned or weakly implied.",
+                    "no": f"The text does not clearly express {emotion.value}, or the evidence is ambiguous.",
+                },
+            )
+    return DecisionsTask(
+        state=request.text,
+        questions=questions,
+        parse_response=lambda probabilities: parse_sentiment_response(probabilities, request.include_emotions),
     )
 
 
-async def analyze_sentiment(
-    request: SentimentRequest,
-    client: LLMClient | None = None,
-) -> SentimentResponse:
-    llm_client = client or LLMClient(
-        reasoning_effort=request.reasoning_effort,
-        thinking_budget_tokens=request.thinking_budget_tokens,
-    )
-    return await prepare_sentiment(request).run(llm_client)
+async def analyze_sentiment(request: SentimentRequest, client: DecisionsClient | None = None) -> SentimentResponse:
+    if client is None:
+        client = DecisionsClient()
+    return await prepare_sentiment(request).run(client)
