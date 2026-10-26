@@ -26,7 +26,7 @@ class SentimentLabel(StrEnum):
 
 PLUTCHIK_8: tuple[EmotionLabel, ...] = tuple(EmotionLabel)
 
-_ALLOWED_SENTIMENTS_BY_EMOTION: dict[EmotionLabel, set[SentimentLabel]] = {
+ALLOWED_SENTIMENTS_BY_EMOTION: dict[EmotionLabel, set[SentimentLabel]] = {
     EmotionLabel.JOY: {SentimentLabel.POSITIVE},
     EmotionLabel.TRUST: {SentimentLabel.POSITIVE},
     EmotionLabel.FEAR: {SentimentLabel.NEGATIVE},
@@ -233,7 +233,7 @@ class SentimentResult(BaseModel):
         if len(self.emotions) != len(set(self.emotions)):
             raise ValueError("Emotions must not contain duplicates")
 
-        invalid_emotions = [emotion for emotion in self.emotions if self.label not in _ALLOWED_SENTIMENTS_BY_EMOTION[emotion]]
+        invalid_emotions = [emotion for emotion in self.emotions if self.label not in ALLOWED_SENTIMENTS_BY_EMOTION[emotion]]
         if invalid_emotions:
             invalid_names = ", ".join(emotion.value for emotion in invalid_emotions)
             raise ValueError(f"Emotions not allowed for sentiment {self.label.value}: {invalid_names}")

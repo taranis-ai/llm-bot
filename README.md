@@ -42,14 +42,15 @@ asyncio.run(main())
 In an existing async application, use `await summarize(...)` directly. Other
 tasks follow the same pattern: request models in `llm_bot.schemas`, async functions
 in `llm_bot.tasks` (for example, `ner.extract_entities` and `translate.translate_text`).
-An optional `client=LLMClient(...)` argument overrides the LLM connection for a call;
+Generative tasks accept an optional `client=LLMClient(...)` to override the connection;
 import it from `llm_bot.client`. Inputs and outputs are Pydantic models, and errors
 propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embeddings
 use `EMBEDDING_*`. Cybersecurity classification uses the independent `DECISIONS_*`
 connection when `DECISIONS_URL` is set; you can inject a `DecisionsClient` from
 `llm_bot.decisions_client` or an `LLMClient` to explicitly select either transport.
 Fine-grained classification uses `ClassifyRequest` and `llm_bot.tasks.classify.classify_text`,
-always with a `DecisionsClient` and the `DECISIONS_*` connection.
+always with a `DecisionsClient` and the `DECISIONS_*` connection. Sentiment analysis
+also requires this connection and accepts an optional `DecisionsClient` override.
 
 For the HTTP service, install the `server` extra with
 `uv add "taranis-llm-bot[server]"`. Then import `create_app` from `llm_bot.app`
@@ -84,6 +85,12 @@ threat intelligence, security policy, security news, general news, and other.
 These describe the main topic; disinformation is a topic label, not a truth verdict.
 See the [classification API](docs/api.md#post-classify) for category definitions.
 The [live evaluation](docs/classify-evaluation.md) records 24 examples and how to rerun them.
+
+`POST /sentiment` also requires decisions configuration. Its response keeps the
+`sentiment.label` and `sentiment.score` fields, with the score taken from the winning
+label's probability. Set `include_emotions: true` for compatible Plutchik emotions,
+assessed independently in the same decisions request. Existing sentiment reasoning
+fields are accepted but ignored. There is no generative fallback.
 
 ## Run
 
