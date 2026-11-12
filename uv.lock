@@ -992,7 +992,6 @@ name = "taranis-llm-bot"
 source = { editable = "." }
 dependencies = [
     { name = "langcodes", extra = ["data"] },
-    { name = "niquests" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
@@ -1005,8 +1004,12 @@ dev = [
     { name = "python-dotenv" },
     { name = "ruff" },
 ]
+inference = [
+    { name = "niquests" },
+]
 server = [
     { name = "granian" },
+    { name = "niquests" },
     { name = "quart" },
 ]
 
@@ -1014,7 +1017,8 @@ server = [
 requires-dist = [
     { name = "granian", marker = "extra == 'server'" },
     { name = "langcodes", extras = ["data"], specifier = ">=3.5.1" },
-    { name = "niquests" },
+    { name = "niquests", marker = "extra == 'inference'" },
+    { name = "niquests", marker = "extra == 'server'" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pydantic-settings" },
@@ -1024,7 +1028,7 @@ requires-dist = [
     { name = "quart", marker = "extra == 'server'", specifier = ">=0.20.0" },
     { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["server", "dev"]
+provides-extras = ["inference", "server", "dev"]
 
 [[package]]
 name = "typing-extensions"
