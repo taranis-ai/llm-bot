@@ -670,3 +670,7 @@ configuration, including:
 - active non-secret config such as the current reasoning profile and whether
   lookup/linking is configured
 - decisions URL configured status, model, payload mode, and timeout (URL and key omitted)
+
+## Evidence tasks for library callers
+
+`llm_bot.tasks.evidence` provides `prepare_evidence_extraction(text, vocabulary, result_model, validate=...)` and `prepare_retrieval_plan(context, result_model)`. These return prepared `LLMTask` objects with the common one-repair execution path. The caller supplies a Pydantic contract and content-evidence validator; extraction requires exact passages and preserves uncertainty/negation. Planning returns structured fields for the application to compile, never executable queries. `SYNTHESIS_PROMPT` is available for applications with their own streaming transport. These tasks have no HTTP route or database dependency. Library use supports Python 3.13 and 3.14.
