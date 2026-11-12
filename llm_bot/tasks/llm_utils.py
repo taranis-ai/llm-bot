@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from copy import copy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import ValidationError
 
@@ -19,6 +19,10 @@ from llm_bot.reasoning import (
 
 if TYPE_CHECKING:
     from llm_bot.client import LLMClient
+
+
+class InferenceClient(Protocol):
+    async def create_response(self, system_input: str, user_input: str, response_format: dict[str, Any] | None = None) -> dict[str, Any]: ...
 
 
 class InvalidLLMOutputError(ValueError):
@@ -42,7 +46,7 @@ class LLMTask[T]:
     reasoning_effort: str | None = None
     thinking_budget_tokens: int | None = None
 
-    async def run(self, client: LLMClient) -> T:
+    async def run(self, client: InferenceClient) -> T:
         return await create_and_parse_response(
             client=client,
             task_name=self.task_name,
@@ -164,7 +168,7 @@ def _build_repair_instructions(instructions: str, error: Exception) -> str:
 
 async def create_and_parse_response[T](
     *,
-    client: LLMClient,
+    client: InferenceClient,
     task_name: str,
     user_input: str,
     system_input: str,
