@@ -7,7 +7,7 @@ Read this before editing application code, tests, configuration, packaging, CI, 
 ## Environment
 
 - The project targets Python 3.13 and uses `uv` for dependency management. Do not use `pip` or edit `uv.lock` by hand.
-- Runtime and development dependencies are declared in `pyproject.toml`. The base dependencies support direct library use, while the `server` extra installs Quart and Granian. `scripts/check.sh` installs the `dev` and `server` extras from the lockfile before running checks.
+- Runtime and development dependencies are declared in `pyproject.toml`. The base dependencies support prepared evidence tasks; install the `inference` extra for bundled HTTP clients, while the `server` extra installs Quart and Granian. `scripts/check.sh` installs the `dev` and `server` extras from the lockfile before running checks.
 - Install the local Git pre-commit hook with `uv sync --locked --extra dev --extra server && uv run pre-commit install`. It runs `scripts/check.sh` before each commit, including repository-wide Ruff lint, formatting of Python files and Markdown examples, and the full test suite. Run it manually with `uv run pre-commit run --all-files`.
 - Copy `.env.example` to `.env` for local configuration. Never commit secrets or copy values from an existing `.env` into documentation, tests, or logs.
 - Settings are loaded by `llm_bot.config.Config` from the process environment and `.env`. When adding a setting, update `Settings`, `.env.example`, and the relevant README/API metadata together.

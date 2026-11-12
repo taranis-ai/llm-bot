@@ -10,10 +10,9 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Security",
 ]
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.13"
 dependencies = [
     "langcodes[data]>=3.5.1",
-    "niquests",
     "pydantic>=2.11.0",
     "pydantic-settings",
 ]
@@ -24,7 +23,9 @@ Repository = "https://github.com/taranis-ai/llm-bot"
 Documentation = "https://github.com/taranis-ai/llm-bot#readme"
 
 [project.optional-dependencies]
+inference = ["niquests"]
 server = [
+    "niquests",
     "granian",
     "quart>=0.20.0",
 ]

@@ -8,12 +8,6 @@ from importlib.util import find_spec
 from unittest.mock import AsyncMock
 
 from llm_bot import __version__
-from llm_bot.client import LLMClient
-from llm_bot.decisions_client import DecisionsClient
-from llm_bot.schemas import ClassifyRequest, CybersecClassificationRequest, SummarizeRequest
-from llm_bot.tasks.classify import prepare_classify
-from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
-from llm_bot.tasks.summarize import summarize
 
 
 async def main() -> None:
@@ -39,6 +33,22 @@ async def main() -> None:
         "translate",
     ):
         assert prompts.joinpath(f"{name}.txt").read_text(encoding="utf-8").strip()
+
+    if find_spec("niquests") is None:
+        from llm_bot.schemas import SummarizeResponse
+        from llm_bot.tasks.evidence import prepare_retrieval_plan
+
+        task = prepare_retrieval_plan({"question": "Example"}, SummarizeResponse)
+        assert task.parse_response({"output_text": '{"summary": "Example"}'}).summary == "Example"
+        print("Installed base library: prepared evidence task OK")
+        return
+
+    from llm_bot.client import LLMClient
+    from llm_bot.decisions_client import DecisionsClient
+    from llm_bot.schemas import ClassifyRequest, CybersecClassificationRequest, SummarizeRequest
+    from llm_bot.tasks.classify import prepare_classify
+    from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
+    from llm_bot.tasks.summarize import summarize
 
     client = AsyncMock(spec=LLMClient)
     client.create_response.return_value = {"output_text": '{"summary": "A short summary."}'}
