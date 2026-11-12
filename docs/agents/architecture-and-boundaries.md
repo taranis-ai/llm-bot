@@ -25,6 +25,8 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 
 ## Request Data Flow
 
+The `inference` extra installs Niquests for the bundled clients; the `server` extra includes it. Base-library evidence tasks can use an injected client without a transport dependency.
+
 The installed Python library exposes the same async task functions under
 `llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
 validated request models directly to tasks, optionally inject clients, and receive

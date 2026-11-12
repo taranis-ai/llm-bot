@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Callable
 from copy import copy
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 
-from llm_bot.client import LLMClient
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.reasoning import (
@@ -15,6 +16,9 @@ from llm_bot.reasoning import (
     extract_structured_reasoning,
     strip_reasoning_output,
 )
+
+if TYPE_CHECKING:
+    from llm_bot.client import LLMClient
 
 
 class InvalidLLMOutputError(ValueError):
