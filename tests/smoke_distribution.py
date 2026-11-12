@@ -35,11 +35,11 @@ async def main() -> None:
         assert prompts.joinpath(f"{name}.txt").read_text(encoding="utf-8").strip()
 
     if find_spec("niquests") is None:
-        from llm_bot.schemas import NerResponse
+        from llm_bot.schemas import SummarizeResponse
         from llm_bot.tasks.evidence import prepare_retrieval_plan
 
-        task = prepare_retrieval_plan({"question": "Example"}, NerResponse)
-        assert task.parse_response({"output_text": '{"entities": {}}'}).entities == {}
+        task = prepare_retrieval_plan({"question": "Example"}, SummarizeResponse)
+        assert task.parse_response({"output_text": '{"summary": "Example"}'}).summary == "Example"
         print("Installed base library: prepared evidence task OK")
         return
 
