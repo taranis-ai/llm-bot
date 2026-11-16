@@ -24,6 +24,8 @@ async def test_evidence_task_repairs_unsupported_quote_and_keeps_caller_vocabula
     assert len(client.calls) == 2
     assert '"entities": ["ORG"]' in client.calls[0]["user_input"]
     assert "negation and uncertainty" in client.calls[0]["system_input"]
+    assert "name copied verbatim" in client.calls[0]["system_input"]
+    assert "the application resolves source spans" in client.calls[0]["system_input"]
     plan = prepare_retrieval_plan({"question": "Who attacked B?"}, Passage)
     assert "never SQL or Cypher" in plan.system_input
     assert plan.response_format["schema"] == Passage.model_json_schema()
