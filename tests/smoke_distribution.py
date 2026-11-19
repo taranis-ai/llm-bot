@@ -37,7 +37,7 @@ async def main() -> None:
     if find_spec("niquests") is None:
         from llm_bot.schemas import EntityRelationshipExtractionRequest, SummarizeResponse
         from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
-        from llm_bot.tasks.evidence import prepare_retrieval_plan
+        from llm_bot.tasks.retrieval_planning import prepare_retrieval_plan
 
         task = prepare_retrieval_plan({"question": "Example"}, SummarizeResponse)
         assert task.parse_response({"output_text": '{"summary": "Example"}'}).summary == "Example"

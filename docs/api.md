@@ -688,6 +688,6 @@ configuration, including:
 
 `llm_bot.tasks.entity_relationship_extraction.prepare_entity_relationship_extraction(request)` prepares the existing extraction task without inference. The default response and validation match `/entity-relationship-extraction`. Library callers can supply `result_model=...` and `validate=...` to own their output schema and validation, including exact source quotes and assertion polarity. Callers calculate and validate source offsets locally. Both modes use the same prompt and common one-repair execution path.
 
-`llm_bot.tasks.evidence` provides `prepare_retrieval_plan(context, result_model)` and `SYNTHESIS_PROMPT`. Planning returns structured fields for the application to compile, never executable queries. These prepared tasks have no HTTP route or database dependency, support an injected client, and work on Python 3.13 and 3.14.
+`llm_bot.tasks.retrieval_planning` provides `prepare_retrieval_plan(context, result_model)`; `llm_bot.tasks.grounded_answer` supplies `SYNTHESIS_PROMPT`. Planning returns structured fields for the application to compile, never executable queries. These prepared tasks have no HTTP route or database dependency, support an injected client, and work on Python 3.13 and 3.14.
 
 Install `taranis-llm-bot[inference]` for the bundled HTTP clients, or `[server]` for the HTTP application. The base package supports prepared evidence tasks with an injected client, without installing an HTTP transport. This keeps applications using Requests independent of Niquests/urllib3-future.
