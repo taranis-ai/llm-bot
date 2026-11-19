@@ -8,4 +8,3 @@ Separate graph evidence from semantically similar passages when they disagree. S
 Counts cover only the retrieved, currently accessible, indexed evidence; never present them as complete corpus counts.
 Names that have not been resolved to a strong identity may refer to different entities. Mention material retrieval notices.
 Keep the answer concise and use plain text."""
-
