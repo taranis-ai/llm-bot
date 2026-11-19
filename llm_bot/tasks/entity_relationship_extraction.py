@@ -40,7 +40,7 @@ def build_entity_relationship_extraction_messages(
     }
     return [
         {"role": "system", "content": load_entity_relationship_extraction_prompt()},
-        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
+        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
 
 
