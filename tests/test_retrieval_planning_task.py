@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from llm_bot.tasks.evidence import prepare_retrieval_plan
+from llm_bot.tasks.retrieval_planning import prepare_retrieval_plan
 
 
 class Passage(BaseModel):
