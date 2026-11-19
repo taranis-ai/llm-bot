@@ -46,6 +46,8 @@ def test_build_messages_include_evidence_and_strict_grounding_rules():
     assert "Cite only evidence IDs" in system_message["content"]
     assert "insufficient" in system_message["content"]
     assert "Preserve uncertainty and negation" in system_message["content"]
+    assert "Give graph_facts greater weight than semantic-search passages" in system_message["content"]
+    assert "explicitly report the conflict" in system_message["content"]
     assert json.loads(prepare_hrag(make_request()).user_input) == REQUEST_PAYLOAD
 
 
