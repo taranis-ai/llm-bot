@@ -4,7 +4,7 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes sentiment analysis, title generation, translation,
+    The current implementation exposes embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
     extraction, graph query generation, general chat, grounded HRAG answering, and
     classification routes backed by OpenAI-compatible APIs and a decisions API.
@@ -178,6 +178,64 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to generate grounded answer"
+
+  /embed:
+    post:
+      tags:
+        - Embeddings
+      summary: Create embeddings for one text or a batch
+      description: |
+        Sends one text or a text array to the independent embedding provider.
+        Returns embedding for a single text or embeddings in input order for a batch.
+        Vectors must be finite, nonzero, and have matching dimensions.
+        Optional dimensions is forwarded to providers that support it.
+
+        This endpoint can be protected with a Bearer token using the `API_KEY`
+        environment variable.
+      operationId: createEmbedding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmbedRequest"
+            example:
+              text: "Text to embed"
+      responses:
+        "200":
+          description: Embedding created successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/EmbedResponse"
+                  - $ref: "#/components/schemas/EmbedBatchResponse"
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Invalid embedding request payload"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Unauthorized"
+        "502":
+          description: Upstream embedding service or response validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Failed to create embedding"
 
   /sentiment:
     post:
@@ -1202,6 +1260,45 @@ components:
         insufficient_evidence:
           type: boolean
           description: True when the supplied evidence cannot support a reliable answer
+    EmbedRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          description: Nonblank text or a nonempty array of nonblank texts
+          oneOf:
+            - {type: string, minLength: 1}
+            - type: array
+              minItems: 1
+              items: {type: string, minLength: 1}
+        dimensions:
+          type: [integer, "null"]
+          minimum: 1
+          default: null
+          description: Requested vector length; requires provider support
+    EmbedResponse:
+      type: object
+      additionalProperties: false
+      required: [embedding]
+      properties:
+        embedding:
+          type: array
+          minItems: 1
+          items: {type: number}
+    EmbedBatchResponse:
+      type: object
+      additionalProperties: false
+      required: [embeddings]
+      properties:
+        embeddings:
+          type: array
+          minItems: 1
+          description: Vectors in input order
+          items:
+            type: array
+            minItems: 1
+            items: {type: number}
     ReasoningEffort:
       type: string
       nullable: true
@@ -1949,6 +2046,8 @@ tags:
     description: Stateless general chat completion
   - name: Grounded Answering
     description: Stateless answers grounded in caller-supplied hybrid evidence
+  - name: Embeddings
+    description: Single and batched text embeddings
   - name: Sentiment
     description: Sentiment analysis operations
   - name: Classification

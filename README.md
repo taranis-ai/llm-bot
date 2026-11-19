@@ -2,7 +2,7 @@
 
 Async Python library and LLM-backed bot service.
 
-The current implementation exposes stateless chat and grounded HRAG answering, sentiment analysis,
+The current implementation exposes embeddings, stateless chat and grounded HRAG answering, sentiment analysis,
 title generation, summary, named entity recognition, entity relationship extraction, structured graph retrieval planning,
 translation, linking, clustering, and classification endpoints backed by OpenAI-compatible APIs and a decisions API.
 

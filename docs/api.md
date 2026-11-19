@@ -102,6 +102,43 @@ The model is instructed to use no outside knowledge and to report insufficient
 evidence explicitly. The service validates that every returned citation is one
 of the evidence IDs supplied in the request.
 
+## `POST /embed`
+
+Creates embeddings through the independent [embedding connection](configuration.md#embedding-connection).
+The service sends no generative prompt and does not apply reasoning settings.
+
+For one text:
+
+```json
+{"text": "Text to embed", "dimensions": 3}
+```
+
+```json
+{"embedding": [0.25, -0.5, 0.75]}
+```
+
+For a batch:
+
+```json
+{"text": ["First text", "Second text"], "dimensions": 3}
+```
+
+```json
+{"embeddings": [[0.25, -0.5, 0.75], [0.5, 0.25, -0.75]]}
+```
+
+`dimensions` is optional and requires provider support. Inputs must be nonblank;
+batches must be nonempty. Vectors must be finite, nonzero, and have consistent
+lengths matching `dimensions` when supplied. Provider indices determine batch
+output order; missing, duplicate, or unexpected indices fail validation.
+Invalid requests return `400`; provider or output failures return a static `502`.
+If `API_KEY` is configured, send `Authorization: Bearer <API_KEY>`.
+Chunking, indexing, storage, and similarity search belong to the caller.
+
+Python callers use `EmbeddingClient.create_embedding()` or `create_embeddings()`
+with the `inference` extra. With an application-owned HTTP transport, use
+`build_request()` and `parse_response()` from the base package instead.
+
 ## `POST /sentiment`
 
 Analyzes sentiment using the independent [decisions connection](configuration.md#decisions-connection).
@@ -650,4 +687,4 @@ confidence field; that score is not Decisions verification.
 
 Install `[inference]` for bundled clients or `[server]` for the HTTP service.
 The base package exposes these prepared tasks with an injected transport and
-supports Python 3.13 and newer. No embedding task/client is included.
+supports Python 3.13 and newer.

@@ -1,4 +1,5 @@
 import json
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -73,22 +74,40 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["translate"] == "/translate"
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
     assert body["endpoints"]["graph_query_generation"] == "/graph-query-generation"
-    assert "embed" not in body["endpoints"]
+    assert body["endpoints"]["embed"] == "/embed"
     assert body["endpoints"]["chat"] == "/chat"
     assert body["endpoints"]["hrag"] == "/hrag"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
-    assert not any(key.startswith("embedding_") for key in body["current"])
+    assert "embedding_base_url_configured" in body["current"]
     assert body["current"]["decisions_url_configured"] is True
     assert body["current"]["decisions_model"] == "decision-model"
     assert "decision-secret" not in str(body)
     assert "url-secret" not in str(body)
 
 
-async def test_removed_embedding_endpoint(app):
-    response = await app.test_client().post("/embed", json={"text": "Example"})
-    assert response.status_code == 404
+@pytest.mark.parametrize(
+    "text,expected", [("Example", {"embedding": [1.0, 0.0]}), (["One", "Two"], {"embeddings": [[1.0, 0.0], [0.0, 1.0]]})]
+)
+async def test_embedding_endpoint(app, monkeypatch, text, expected):
+    single = AsyncMock(return_value=[1, 0])
+    batch = AsyncMock(return_value=[[1, 0], [0, 1]])
+    monkeypatch.setattr("llm_bot.embedding_client.EmbeddingClient.create_embedding", single)
+    monkeypatch.setattr("llm_bot.embedding_client.EmbeddingClient.create_embeddings", batch)
+    client = app.test_client()
+    response = await client.post("/embed", json={"text": text, "dimensions": 2})
+    assert response.status_code == 200
+    assert await response.get_json() == expected
+    (single if isinstance(text, str) else batch).assert_awaited_once_with(text, dimensions=2)
+    for invalid in ({"text": " "}, {"text": ["One", ""]}, {"text": []}, {"text": "One", "dimensions": 0}):
+        assert (await client.post("/embed", json=invalid)).status_code == 400
+    single.side_effect = RuntimeError("private provider text")
+    response = await client.post("/embed", json={"text": "Example"})
+    assert response.status_code == 502
+    assert await response.get_json() == {"error": "Failed to create embedding"}
+    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "service-key")
+    assert (await client.post("/embed", json={"text": "Example"})).status_code == 401
 
 
 async def test_openapi_endpoint(app, monkeypatch):
@@ -106,7 +125,7 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "/docs:" in body
     assert "/classify:" in body
     assert "/entity-relation-extraction:" in body
-    assert "/embed:" not in body
+    assert "/embed:" in body
     assert "/graph-query-generation:" in body
 
 

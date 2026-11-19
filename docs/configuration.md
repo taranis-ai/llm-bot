@@ -12,6 +12,17 @@ For Python library use, set configuration before importing task modules.
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
+## Embedding connection
+
+- `EMBEDDING_BASE_URL`: OpenAI-compatible base URL; the client appends `/embeddings`
+- `EMBEDDING_API_KEY`: independent bearer token, never inherited from `LLM_API_KEY`
+- `EMBEDDING_MODEL`: optional when the provider supplies a default
+- `EMBEDDING_TIMEOUT`: request timeout in seconds, default `120`
+
+Python callers can supply these values explicitly to `EmbeddingClient`.
+An explicit empty API key disables authorization. The service's `/embed` route
+uses this connection; `/info` reports only URL-configured status, model, and timeout.
+
 ## Decisions connection
 
 `/cybersec-classification` uses an independent decision model when `DECISIONS_URL`

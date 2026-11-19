@@ -1,7 +1,7 @@
 from enum import StrEnum
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, RootModel, field_validator, model_validator
 
 
 class EmotionLabel(StrEnum):
@@ -124,6 +124,36 @@ class HragResponse(BaseModel):
         if any(not citation for citation in citations):
             raise ValueError("Citations must not contain empty IDs")
         return citations
+
+
+EmbeddingVector = Annotated[list[FiniteFloat], Field(min_length=1)]
+
+
+class EmbedRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | list[str] = Field(min_length=1)
+    dimensions: int | None = Field(default=None, gt=0)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str | list[str]) -> str | list[str]:
+        texts = [value] if isinstance(value, str) else value
+        if any(not text.strip() for text in texts):
+            raise ValueError("Embedding input must not be blank")
+        return value
+
+
+class EmbedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    embedding: EmbeddingVector
+
+
+class EmbedBatchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    embeddings: list[EmbeddingVector] = Field(min_length=1)
 
 
 class StoryRequest(LLMRequest):

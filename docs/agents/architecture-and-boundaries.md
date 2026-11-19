@@ -24,7 +24,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 
 ## Request Data Flow
 
-The base package supports prepared extraction, graph planning, and HRAG answering with injected clients. The `inference` extra installs Niquests; `server` includes it. These three tasks share their existing modules and HTTP routes. Extraction defaults to low reasoning; graph-query generation returns a structured plan, never executable query text. Callers own query compilation, authorization, embeddings, storage, and relationship verification.
+The base package supports prepared extraction, graph planning, and HRAG answering with injected clients. The `inference` extra installs Niquests; `server` includes it. These three tasks share their existing modules and HTTP routes. Extraction defaults to low reasoning; graph-query generation returns a structured plan, never executable query text. Callers own query compilation, authorization, chunking, storage, and relationship verification.
 
 The installed Python library exposes the same async task functions under
 `llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
@@ -118,7 +118,7 @@ The lookup service supplies candidates. Deterministic mode selects the first can
 `Config` is a module-level `Settings` instance created during import. Code reads it directly, and tests commonly monkeypatch its attributes. New configuration should have a safe default and should not cause network access or secret validation at import time.
 
 The service is stateless: it has no database or queue. Its external state boundaries are the LLM provider and, for linking, the lookup service.
-Embeddings and vector storage are owned by the calling application.
+`embedding_client.py` builds OpenAI-compatible single/batch requests and validates finite nonzero vectors, dimensions, and batch indices. Its build/parse methods have no HTTP dependency; async methods lazily load Niquests from the inference extra. `/embed` uses independent `EMBEDDING_*` settings. The calling application owns chunking, scheduling, vector storage, and search.
 
 ## Contract Invariants
 
