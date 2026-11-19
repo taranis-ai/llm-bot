@@ -483,7 +483,7 @@ If no schema-valid explicit extraction exists, both response lists are empty.
 
 Returns a structured retrieval plan. It does not return or execute Cypher or SQL.
 The caller supplies the same entity/relationship vocabulary used for extraction,
-validates filters and permissions, and compiles the plan into fixed queries.
+resolves article filters separately, enforces permissions, and compiles the plan into fixed queries.
 
 ```json
 {
@@ -506,16 +506,15 @@ validates filters and permissions, and compiles the plan into fixed queries.
   "names": ["alice"],
   "entity_types": ["Person"],
   "relationships": ["WORKS_AT"],
-  "hops": 1,
-  "filters": {}
+  "hops": 1
 }
 ```
 
-`context` can contain conversation history and available filter catalogs/IDs.
-Only explicitly requested filters should be returned; the application must validate
-these before retrieval. Names are stripped and case-folded. Empty lists mean
-unrestricted search; hops are limited to zero through three. Unknown entity or
-relationship types trigger the common repair attempt.
+`context` can contain conversation history to interpret the question. The planner
+only returns entity names, entity types, relationships, and hop count; article
+filters belong to the caller. Names are stripped and case-folded. Empty lists
+mean unrestricted graph search, and hops are limited to zero through three.
+Unknown types or extra output fields trigger the common repair attempt.
 
 This replaces the previous `graph_name`/property-schema input and
 `cypher`/`parameters`/`explanation` output. Update consumers to compile structured

@@ -740,7 +740,7 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
         assert request_model.question == "Which organization employs Alice?"
         assert request_model.graph_schema.entity_types[0].name == "Person"
         assert "schema" in request_model.model_dump() and "graph_schema" not in request_model.model_dump()
-        return GraphQueryGenerationResponse(names=["alice"], entity_types=["Person"], relationships=[], hops=1, filters={})
+        return GraphQueryGenerationResponse(names=["alice"], entity_types=["Person"], relationships=[], hops=1)
 
     monkeypatch.setattr("llm_bot.routes.generate_graph_query", fake_generate_graph_query)
     response = await app.test_client().post(
@@ -751,7 +751,7 @@ async def test_graph_query_generation_endpoint(app, monkeypatch):
         },
     )
     assert response.status_code == 200
-    assert await response.get_json() == {"names": ["alice"], "entity_types": ["Person"], "relationships": [], "hops": 1, "filters": {}}
+    assert await response.get_json() == {"names": ["alice"], "entity_types": ["Person"], "relationships": [], "hops": 1}
 
 
 async def test_graph_query_generation_endpoint_rejects_invalid_payload(app):

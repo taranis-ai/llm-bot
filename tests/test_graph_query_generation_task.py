@@ -13,9 +13,9 @@ SCHEMA = {
 REQUEST = {
     "question": "Which organization employs Alice?",
     "schema": SCHEMA,
-    "context": {"available_filters": {"read": [True, False]}, "conversation": []},
+    "context": {"conversation": []},
 }
-PLAN = {"names": ["alice"], "entity_types": ["Person"], "relationships": ["WORKS_AT"], "hops": 1, "filters": {"read": False}}
+PLAN = {"names": ["alice"], "entity_types": ["Person"], "relationships": ["WORKS_AT"], "hops": 1}
 
 
 def test_prepared_graph_query_is_a_plan_with_caller_vocabulary():
@@ -33,6 +33,7 @@ def test_prepared_graph_query_is_a_plan_with_caller_vocabulary():
         {**PLAN, "entity_types": ["Unknown"]},
         {**PLAN, "relationships": ["Unknown"]},
         {**PLAN, "hops": 4},
+        {**PLAN, "filters": {"read": False}},
     ],
 )
 async def test_graph_query_repairs_unsupported_or_executable_output(invalid):

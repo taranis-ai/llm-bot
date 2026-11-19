@@ -966,9 +966,9 @@ paths:
         - Graph Query Generation
       summary: Build a structured graph retrieval plan
       description: |
-        Returns entity names, allowed types, relationships, zero to three hops,
-        and optional filters. It never generates SQL or Cypher. The caller validates
-        filters and permissions and compiles the plan into fixed database queries.
+        Returns entity names, allowed types, relationships, and zero to three hops.
+        It never generates SQL or Cypher or selects article filters. The caller
+        enforces permissions and compiles the plan into fixed database queries.
       operationId: generateGraphQuery
       security:
         - bearerAuth: []
@@ -999,7 +999,6 @@ paths:
                 entity_types: [Person]
                 relationships: [WORKS_AT]
                 hops: 1
-                filters: {}
         "400":
           description: Invalid question or extraction vocabulary
           content:
@@ -1756,7 +1755,7 @@ components:
           type: object
           additionalProperties: true
           default: {}
-          description: Conversation and available filter catalog, treated as untrusted context
+          description: Conversation context, treated as untrusted data
         reasoning_effort:
           $ref: "#/components/schemas/ReasoningEffort"
         thinking_budget_tokens:
@@ -1764,7 +1763,7 @@ components:
     GraphQueryGenerationResponse:
       type: object
       additionalProperties: false
-      required: [names, entity_types, relationships, hops, filters]
+      required: [names, entity_types, relationships, hops]
       properties:
         names:
           type: array
@@ -1783,11 +1782,6 @@ components:
           minimum: 0
           maximum: 3
           default: 1
-        filters:
-          type: object
-          additionalProperties: true
-          default: {}
-          description: Caller must validate filters and catalog references before retrieval
     LinkedEntity:
       type: object
       additionalProperties: false

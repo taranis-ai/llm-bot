@@ -351,7 +351,6 @@ class GraphQueryGenerationResponse(BaseModel):
     entity_types: list[str] = Field(default_factory=list, max_length=20)
     relationships: list[str] = Field(default_factory=list, max_length=18)
     hops: int = Field(default=1, ge=0, le=3)
-    filters: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("names")
     @classmethod

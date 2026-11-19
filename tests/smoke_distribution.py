@@ -46,7 +46,7 @@ async def main() -> None:
         )
         assert extraction.parse_response({"output_text": '{"entities":[],"relations":[]}'}).relations == []
         plan = prepare_graph_query_generation(GraphQueryGenerationRequest.model_validate({"question": "Who?", "schema": schema}))
-        assert plan.parse_response({"output_text": '{"names":[],"entity_types":[],"relationships":[],"hops":0,"filters":{}}'}).hops == 0
+        assert plan.parse_response({"output_text": '{"names":[],"entity_types":[],"relationships":[],"hops":0}'}).hops == 0
         answer = prepare_hrag(HragRequest(question="Who?", passages=[], graph_facts=[]))
         assert answer.parse_response(
             {"output_text": '{"answer":"Insufficient evidence","citations":[],"insufficient_evidence":true}'}
