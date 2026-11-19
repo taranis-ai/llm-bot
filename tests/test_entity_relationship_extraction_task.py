@@ -1,12 +1,15 @@
 import json
+from typing import Literal
 
 import pytest
+from pydantic import BaseModel, ConfigDict
 
-from llm_bot.schemas import EntityRelationshipExtractionRequest
+from llm_bot.schemas import EntityRelationshipExtractionRequest, EntityRelationshipExtractionResponse
 from llm_bot.tasks.entity_relationship_extraction import (
     build_entity_relationship_extraction_messages,
     extract_entity_relationships,
     parse_entity_relationship_extraction_response,
+    prepare_entity_relationship_extraction,
 )
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from tests.test_helpers import StubLLMClient
@@ -121,3 +124,41 @@ async def test_extraction_repairs_malformed_llm_output_once():
     relation_type_schema = response_schema["properties"]["relations"]["items"]["properties"]["type"]
     assert entity_type_schema["enum"] == ["ThreatActor", "Vulnerability"]
     assert relation_type_schema["enum"] == ["EXPLOITS"]
+
+
+class QuotedRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: str
+    source_id: str
+    target_id: str
+    quote: str
+    assertion: Literal["affirmed", "negated", "uncertain"]
+
+
+class SourcedExtraction(EntityRelationshipExtractionResponse):
+    relations: list[QuotedRelation]
+
+
+@pytest.mark.asyncio
+async def test_prepared_extraction_uses_caller_schema_and_repairs_unsupported_quote():
+    text = "APT28 did not exploit CVE-2025-1234."
+    request = EntityRelationshipExtractionRequest.model_validate({**REQUEST_PAYLOAD, "text": text})
+    relation = {key: value for key, value in VALID_OUTPUT["relations"][0].items() if key != "confidence"}
+    output = {"entities": VALID_OUTPUT["entities"], "relations": [{**relation, "quote": text, "assertion": "negated"}]}
+    invalid = {**output, "relations": [{**output["relations"][0], "quote": "APT28 exploited CVE-2025-1234."}]}
+
+    def validate(result):
+        if any(relation.quote not in text for relation in result.relations):
+            raise InvalidLLMOutputError("Unsupported source quote")
+        return result
+
+    task = prepare_entity_relationship_extraction(request, result_model=SourcedExtraction, validate=validate)
+    client = StubLLMClient([{"output_text": json.dumps(invalid)}, {"output_text": json.dumps(output)}])
+    result = await task.run(client)
+    assert result.model_dump() == output
+    assert len(client.calls) == 2
+    assert task.response_format["schema"] == SourcedExtraction.model_json_schema()
+    assert json.loads(task.user_input) == {**REQUEST_PAYLOAD, "text": text}
+    assert "negation and uncertainty" in task.system_input
+    assert "names copied verbatim" in task.system_input
+    assert "the application resolves source spans" in task.system_input
