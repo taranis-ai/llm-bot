@@ -516,11 +516,6 @@ filters belong to the caller. Names are stripped and case-folded. Empty lists
 mean unrestricted graph search, and hops are limited to zero through three.
 Unknown types or extra output fields trigger the common repair attempt.
 
-This replaces the previous `graph_name`/property-schema input and
-`cypher`/`parameters`/`explanation` output. Update consumers to compile structured
-plans rather than execute returned query text. Embedding endpoints and settings
-have been removed; embeddings remain application-owned.
-
 ## `POST /ner-link`
 
 Request body:
@@ -650,8 +645,8 @@ request reasoning settings, and the common one-repair execution path.
 Extraction defaults to low reasoning in immediate and batch execution. Library
 callers can pass `result_model=...` and `validate=...` to extraction for exact
 source quotes and assertion polarity. The caller computes source offsets and
-performs any Decisions verification. The HTTP extraction response retains its
-existing confidence field; that score is not Decisions verification.
+performs any Decisions verification. The HTTP extraction response includes a
+confidence field; that score is not Decisions verification.
 
 Install `[inference]` for bundled clients or `[server]` for the HTTP service.
 The base package exposes these prepared tasks with an injected transport and
