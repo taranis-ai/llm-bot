@@ -24,10 +24,6 @@ class Settings(BaseSettings):
     DECISIONS_MODEL: str = ""
     DECISIONS_API_MODE: Literal["systemone", "openai"] = "systemone"
     DECISIONS_TIMEOUT: int = 120
-    EMBEDDING_BASE_URL: str = ""
-    EMBEDDING_API_KEY: str = ""
-    EMBEDDING_MODEL: str = ""
-    EMBEDDING_TIMEOUT: int = 120
     LOOKUP_BASE_URL: str = ""
     LOOKUP_API_KEY: str = ""
     LOOKUP_DEFAULT_LANGUAGE: str = "en"

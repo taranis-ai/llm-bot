@@ -1,12 +1,16 @@
 import json
+from typing import Literal
 
 import pytest
+from pydantic import BaseModel, ConfigDict
 
-from llm_bot.schemas import EntityRelationshipExtractionRequest
+from llm_bot.client import LLMClient
+from llm_bot.schemas import EntityRelationshipExtractionRequest, ExtractedEntity
 from llm_bot.tasks.entity_relationship_extraction import (
     build_entity_relationship_extraction_messages,
     extract_entity_relationships,
     parse_entity_relationship_extraction_response,
+    prepare_entity_relationship_extraction,
 )
 from llm_bot.tasks.llm_utils import InvalidLLMOutputError
 from tests.test_helpers import StubLLMClient
@@ -121,3 +125,52 @@ async def test_extraction_repairs_malformed_llm_output_once():
     relation_type_schema = response_schema["properties"]["relations"]["items"]["properties"]["type"]
     assert entity_type_schema["enum"] == ["ThreatActor", "Vulnerability"]
     assert relation_type_schema["enum"] == ["EXPLOITS"]
+
+
+class QuotedRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: str
+    source_id: str
+    target_id: str
+    quote: str
+    assertion: Literal["affirmed", "negated", "uncertain"]
+
+
+class SourcedExtraction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    entities: list[ExtractedEntity]
+    relations: list[QuotedRelation]
+
+
+async def test_prepared_extraction_keeps_low_reasoning_and_caller_source_validation(monkeypatch):
+    text = "APT28 did not exploit CVE-2025-1234."
+    request = EntityRelationshipExtractionRequest.model_validate({**REQUEST_PAYLOAD, "text": text})
+    output = {
+        "entities": VALID_OUTPUT["entities"],
+        "relations": [{"type": "EXPLOITS", "source_id": "e1", "target_id": "e2", "quote": text, "assertion": "negated"}],
+    }
+    invalid = {**output, "relations": [{**output["relations"][0], "quote": "Not in the source"}]}
+
+    def validate(result):
+        if any(relation.quote not in text for relation in result.relations):
+            raise InvalidLLMOutputError("Unsupported source quote")
+        return result
+
+    task = prepare_entity_relationship_extraction(request, result_model=SourcedExtraction, validate=validate)
+    client = StubLLMClient([{"output_text": json.dumps(invalid)}, {"output_text": json.dumps(output)}])
+    assert (await task.run(client)).model_dump() == output
+    assert len(client.calls) == 2
+    assert task.response_format["schema"] == SourcedExtraction.model_json_schema()
+    wire_client = LLMClient(base_url="https://provider.example/v1", reasoning_effort="high")
+    assert task.build_request(wire_client)["reasoning"] == {"effort": "low"}
+    assert wire_client.reasoning_effort == "high"
+
+    efforts = []
+
+    async def generate(client, _system_input, _user_input, _response_format=None):
+        efforts.append(client.reasoning_effort)
+        return {"output_text": json.dumps(output)}
+
+    monkeypatch.setattr(LLMClient, "create_response", generate)
+    assert (await task.run(wire_client)).model_dump() == output
+    assert efforts == ["low"] and wire_client.reasoning_effort == "high"
