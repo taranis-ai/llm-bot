@@ -35,12 +35,18 @@ async def main() -> None:
         assert prompts.joinpath(f"{name}.txt").read_text(encoding="utf-8").strip()
 
     if find_spec("niquests") is None:
-        from llm_bot.schemas import SummarizeResponse
+        from llm_bot.schemas import EntityRelationshipExtractionRequest, SummarizeResponse
+        from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
         from llm_bot.tasks.evidence import prepare_retrieval_plan
 
         task = prepare_retrieval_plan({"question": "Example"}, SummarizeResponse)
         assert task.parse_response({"output_text": '{"summary": "Example"}'}).summary == "Example"
-        print("Installed base library: prepared evidence task OK")
+        request = EntityRelationshipExtractionRequest.model_validate(
+            {"text": "Example", "schema": {"entity_types": [{"name": "ORG", "description": "Organization"}], "relation_types": []}}
+        )
+        extraction = prepare_entity_relationship_extraction(request)
+        assert extraction.parse_response({"output_text": '{"entities":[],"relations":[]}'}).relations == []
+        print("Installed base library: prepared extraction and retrieval tasks OK")
         return
 
     from llm_bot.client import LLMClient
