@@ -35,10 +35,15 @@ async def main() -> None:
         assert prompts.joinpath(f"{name}.txt").read_text(encoding="utf-8").strip()
 
     if find_spec("niquests") is None:
+        from llm_bot.embedding_client import EmbeddingClient
         from llm_bot.schemas import EntityRelationshipExtractionRequest, GraphQueryGenerationRequest, HragRequest
         from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
         from llm_bot.tasks.graph_query_generation import prepare_graph_query_generation
         from llm_bot.tasks.hrag import prepare_hrag
+
+        embeddings = EmbeddingClient(model="embed-model")
+        assert embeddings.build_request("Example")["input"] == "Example"
+        assert embeddings.parse_response({"data": [{"embedding": [1, 0]}]}, dimensions=2) == [[1, 0]]
 
         schema = {"entity_types": [{"name": "ORG", "description": "Organization"}], "relation_types": []}
         extraction = prepare_entity_relationship_extraction(
