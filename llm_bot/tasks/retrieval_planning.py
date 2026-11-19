@@ -13,6 +13,7 @@ Use at most three relationship hops. Empty lists mean unrestricted, not a claim 
 Include Assess filters only when explicitly required; omit unused filters. Use only supplied catalog IDs and recent story IDs.
 Follow the latest question in conversation context. Do not answer the question or invent graph results."""
 
+
 def prepare_retrieval_plan[T: BaseModel](context: dict, result_model: type[T]) -> LLMTask[T]:
     def parse(body: dict) -> T:
         return result_model.model_validate(loads_json_output(get_output_text(body)))
