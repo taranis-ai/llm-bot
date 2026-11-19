@@ -10,14 +10,12 @@ from quart import Blueprint, Response, request
 from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
-from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ChatRequest,
     ClassifyRequest,
     ClusterRequest,
     CybersecClassificationRequest,
-    EmbedRequest,
     EntityRelationshipExtractionRequest,
     GraphQueryGenerationRequest,
     HragRequest,
@@ -33,7 +31,6 @@ from llm_bot.tasks.chat import chat
 from llm_bot.tasks.classify import classify_text
 from llm_bot.tasks.cluster import cluster_stories
 from llm_bot.tasks.cybersec_classification import classify_cybersecurity_text
-from llm_bot.tasks.embed import embed_text
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
 from llm_bot.tasks.graph_query_generation import generate_graph_query
@@ -120,7 +117,7 @@ async def _handle_model_request[RequestModel: BaseModel](
     except client_error_exceptions as exc:
         logger.warning("%s client error: %s", log_prefix, exc)
         return {"error": str(exc)}, 400
-    except (UpstreamLLMError, UpstreamEmbeddingError) as exc:
+    except UpstreamLLMError as exc:
         logger.error("%s upstream error: %s", log_prefix, exc)
         return {"error": f"{processing_error_message}: {exc}"}, 502
     # Keep unexpected task failures out of HTTP responses.
@@ -157,7 +154,6 @@ def build_info_response() -> dict[str, object]:
             "cluster": "/cluster",
             "entity_relation_extraction": "/entity-relation-extraction",
             "graph_query_generation": "/graph-query-generation",
-            "embed": "/embed",
             "chat": "/chat",
             "hrag": "/hrag",
         },
@@ -173,9 +169,6 @@ def build_info_response() -> dict[str, object]:
             "decisions_model": Config.DECISIONS_MODEL,
             "decisions_api_mode": Config.DECISIONS_API_MODE,
             "decisions_timeout": Config.DECISIONS_TIMEOUT,
-            "embedding_base_url_configured": bool(Config.EMBEDDING_BASE_URL),
-            "embedding_model": Config.EMBEDDING_MODEL,
-            "embedding_timeout": Config.EMBEDDING_TIMEOUT,
             "lookup_base_url_configured": bool(Config.LOOKUP_BASE_URL),
             "lookup_default_language": Config.LOOKUP_DEFAULT_LANGUAGE,
             "lookup_candidate_limit": Config.LOOKUP_CANDIDATE_LIMIT,
@@ -235,17 +228,6 @@ def create_api_blueprint() -> Blueprint:
             processing_error_message="Failed to generate grounded answer",
             request_model_factory=HragRequest.model_validate,
             task=answer_with_hrag,
-        )
-
-    @api.post("/embed")
-    @api_key_required
-    async def embed_view() -> tuple[dict[str, Any], int]:
-        return await _handle_model_request(
-            log_prefix="Embedding",
-            validation_error_message="Invalid embedding request payload",
-            processing_error_message="Failed to create embedding",
-            request_model_factory=EmbedRequest.model_validate,
-            task=embed_text,
         )
 
     @api.post("/classify")

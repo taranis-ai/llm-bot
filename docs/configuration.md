@@ -86,16 +86,12 @@ and `/sentiment`. To restore generative sentiment, roll back to the previous ima
 
 ## Other optional settings
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `gemma` reasoning is enabled by prefixing the system prompt with `<|think|>` and the service strips Gemma thought-channel output before parsing when output stripping is enabled
-- `EMBEDDING_BASE_URL`: base URL for the OpenAI-compatible embedding service; required by `/embed`
-- `EMBEDDING_API_KEY`
-- `EMBEDDING_MODEL`
-- `EMBEDDING_TIMEOUT`
 - `LOOKUP_BASE_URL`
 - `LOOKUP_API_KEY`
 - `LOOKUP_DEFAULT_LANGUAGE`

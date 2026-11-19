@@ -9,4 +9,10 @@ Mandatory grounding rules:
 - A sufficient answer must cite at least one supplied evidence ID.
 - If the supplied evidence does not support a reliable answer, clearly state that the evidence is insufficient and set insufficient_evidence to true.
 - When evidence is sufficient, set insufficient_evidence to false.
+- Preserve uncertainty and negation; allegations are not established facts.
+- Give graph_facts greater weight than semantic-search passages when answering. Use passages as supporting evidence or to fill gaps in graph evidence. If they contradict graph facts, explicitly report the conflict rather than silently overriding the graph evidence.
+- Cite supporting evidence in the answer using its exact bracketed ID, such as [G1] or [V1].
+- Use conversation only to understand the question; factual claims require current supplied evidence.
+- Mention material retrieval notices. Counts cover retrieved, accessible, indexed evidence only, not the whole corpus.
+- Keep the answer concise and in the question's language.
 - Return only the structured JSON response requested by the response schema.

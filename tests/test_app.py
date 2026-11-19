@@ -3,7 +3,6 @@ import json
 import pytest
 
 from llm_bot.client import UpstreamLLMError
-from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.schemas import (
     ChatResponse,
     EntityRelationshipExtractionResponse,
@@ -49,7 +48,6 @@ async def test_health_endpoint(app):
 
 async def test_info_endpoint(app, monkeypatch):
     monkeypatch.setattr("llm_bot.routes.Config.LLM_REASONING_PROFILE", "gemma")
-    monkeypatch.setattr("llm_bot.routes.Config.EMBEDDING_BASE_URL", "https://embeddings.example")
     monkeypatch.setattr("llm_bot.routes.Config.LOOKUP_BASE_URL", "https://lookup.example")
     monkeypatch.setattr("llm_bot.routes.Config.NER_LINKING_ENABLED", True)
     monkeypatch.setattr("llm_bot.routes.Config.DECISIONS_URL", "https://private.example/decisions?key=url-secret")
@@ -75,57 +73,22 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["translate"] == "/translate"
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
     assert body["endpoints"]["graph_query_generation"] == "/graph-query-generation"
-    assert body["endpoints"]["embed"] == "/embed"
+    assert "embed" not in body["endpoints"]
     assert body["endpoints"]["chat"] == "/chat"
     assert body["endpoints"]["hrag"] == "/hrag"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
     assert body["current"]["lookup_base_url_configured"] is True
     assert body["current"]["ner_linking_enabled"] is True
-    assert body["current"]["embedding_base_url_configured"] is True
+    assert not any(key.startswith("embedding_") for key in body["current"])
     assert body["current"]["decisions_url_configured"] is True
     assert body["current"]["decisions_model"] == "decision-model"
     assert "decision-secret" not in str(body)
     assert "url-secret" not in str(body)
 
 
-async def test_embed_endpoint(app, monkeypatch):
-    class FakeEmbeddingClient:
-        async def create_embedding(self, text):
-            assert text == "Text to embed"
-            return [0.25, -0.5, 0.75]
-
-    monkeypatch.setattr("llm_bot.tasks.embed.EmbeddingClient", FakeEmbeddingClient)
-
-    test_client = app.test_client()
-    response = await test_client.post("/embed", json={"text": "Text to embed"})
-    body = await response.get_json()
-
-    assert response.status_code == 200
-    assert body == {"embedding": [0.25, -0.5, 0.75]}
-
-
-async def test_embed_endpoint_rejects_invalid_payload(app):
-    test_client = app.test_client()
-
-    response = await test_client.post("/embed", json={"text": ""})
-    body = await response.get_json()
-
-    assert response.status_code == 400
-    assert body == {"error": "Invalid embedding request payload"}
-
-
-async def test_embed_endpoint_returns_upstream_error(app, monkeypatch):
-    async def failing_embed_text(_request_model):
-        raise UpstreamEmbeddingError("Unknown embedding model")
-
-    monkeypatch.setattr("llm_bot.routes.embed_text", failing_embed_text)
-
-    test_client = app.test_client()
-    response = await test_client.post("/embed", json={"text": "Text to embed"})
-    body = await response.get_json()
-
-    assert response.status_code == 502
-    assert body == {"error": "Failed to create embedding: Unknown embedding model"}
+async def test_removed_embedding_endpoint(app):
+    response = await app.test_client().post("/embed", json={"text": "Example"})
+    assert response.status_code == 404
 
 
 async def test_openapi_endpoint(app, monkeypatch):
@@ -143,6 +106,7 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "/docs:" in body
     assert "/classify:" in body
     assert "/entity-relation-extraction:" in body
+    assert "/embed:" not in body
     assert "/graph-query-generation:" in body
 
 
@@ -714,6 +678,7 @@ async def test_cluster_endpoint_rejects_invalid_payload(app):
 async def test_entity_relationship_extraction_endpoint(app, monkeypatch):
     async def fake_extract_entity_relationships(request_model):
         assert request_model.text == "APT28 exploited CVE-2025-1234."
+        assert request_model.reasoning_effort == "low"
         assert request_model.extraction_schema.entity_types[0].name == "ThreatActor"
         assert request_model.model_dump()["schema"]["entity_types"][0]["name"] == "ThreatActor"
         assert "extraction_schema" not in request_model.model_dump()
@@ -773,88 +738,40 @@ async def test_entity_relationship_extraction_endpoint_rejects_invalid_schema(ap
 async def test_graph_query_generation_endpoint(app, monkeypatch):
     async def fake_generate_graph_query(request_model):
         assert request_model.question == "Which organization employs Alice?"
-        assert request_model.graph_name == "knowledge_graph"
-        assert request_model.graph_schema.maximum_limit == 100
-        assert request_model.model_dump()["schema"]["maximum_limit"] == 100
-        assert "graph_schema" not in request_model.model_dump()
-        return GraphQueryGenerationResponse.model_validate(
-            {
-                "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
-                "parameters": {"person_name": "Alice"},
-                "explanation": "Returns Alice's employer.",
-            }
-        )
+        assert request_model.graph_schema.entity_types[0].name == "Person"
+        assert "schema" in request_model.model_dump() and "graph_schema" not in request_model.model_dump()
+        return GraphQueryGenerationResponse(names=["alice"], entity_types=["Person"], relationships=[], hops=1)
 
     monkeypatch.setattr("llm_bot.routes.generate_graph_query", fake_generate_graph_query)
-    test_client = app.test_client()
-    response = await test_client.post(
+    response = await app.test_client().post(
         "/graph-query-generation",
         json={
             "question": "Which organization employs Alice?",
-            "graph_name": "knowledge_graph",
-            "schema": {
-                "node_labels": [
-                    {
-                        "label": "Person",
-                        "properties": [{"name": "name", "type": "string"}],
-                    },
-                    {
-                        "label": "Organization",
-                        "properties": [{"name": "name", "type": "string"}],
-                    },
-                ],
-                "relationship_types": [
-                    {
-                        "type": "WORKS_AT",
-                        "source_labels": ["Person"],
-                        "target_labels": ["Organization"],
-                    }
-                ],
-                "default_limit": 25,
-                "maximum_limit": 100,
-            },
+            "schema": {"entity_types": [{"name": "Person", "description": "A person"}], "relation_types": []},
         },
     )
-
     assert response.status_code == 200
-    assert await response.get_json() == {
-        "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
-        "parameters": {"person_name": "Alice"},
-        "explanation": "Returns Alice's employer.",
-    }
+    assert await response.get_json() == {"names": ["alice"], "entity_types": ["Person"], "relationships": [], "hops": 1}
 
 
 async def test_graph_query_generation_endpoint_rejects_invalid_payload(app):
-    test_client = app.test_client()
-    response = await test_client.post(
-        "/graph-query-generation",
-        json={"question": "List nodes", "graph_name": "knowledge_graph"},
-    )
-
+    response = await app.test_client().post("/graph-query-generation", json={"question": "List nodes"})
     assert response.status_code == 400
     assert await response.get_json() == {"error": "Invalid graph query generation request payload"}
 
 
 async def test_graph_query_generation_endpoint_returns_provider_failure(app, monkeypatch):
-    async def failing_generate_graph_query(_request_model):
+    async def fail(_request_model):
         raise UpstreamLLMError("provider unavailable")
 
-    monkeypatch.setattr("llm_bot.routes.generate_graph_query", failing_generate_graph_query)
-    test_client = app.test_client()
-    response = await test_client.post(
+    monkeypatch.setattr("llm_bot.routes.generate_graph_query", fail)
+    response = await app.test_client().post(
         "/graph-query-generation",
         json={
             "question": "List people",
-            "graph_name": "knowledge_graph",
-            "schema": {
-                "node_labels": [{"label": "Person", "properties": []}],
-                "relationship_types": [],
-                "default_limit": 25,
-                "maximum_limit": 100,
-            },
+            "schema": {"entity_types": [{"name": "Person", "description": "A person"}], "relation_types": []},
         },
     )
-
     assert response.status_code == 502
     assert await response.get_json() == {"error": "Failed to generate graph query: provider unavailable"}
 

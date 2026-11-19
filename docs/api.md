@@ -95,37 +95,12 @@ Response body:
 }
 ```
 
+`conversation` and `notices` are optional arrays for question context and retrieval limits.
+Facts must still come from the current evidence; negation and uncertainty are preserved.
+
 The model is instructed to use no outside knowledge and to report insufficient
 evidence explicitly. The service validates that every returned citation is one
 of the evidence IDs supplied in the request.
-
-## `POST /embed`
-
-Creates an embedding for one text using the separately configured OpenAI-compatible
-embedding service. The service sends the text to its `/embeddings` path and returns
-the first embedding vector.
-
-Request body:
-
-```json
-{
-  "text": "Text to embed"
-}
-```
-
-Response body:
-
-```json
-{
-  "embedding": [0.012, -0.034, 0.056]
-}
-```
-
-If `API_KEY` is configured, send it as:
-
-```http
-Authorization: Bearer <API_KEY>
-```
 
 ## `POST /sentiment`
 
@@ -449,7 +424,9 @@ Authorization: Bearer <API_KEY>
 ## `POST /entity-relation-extraction`
 
 Extracts schema-constrained entities and directed relationships using only information explicitly
-stated in the supplied text. Entity and relation type names are caller-defined. Relation source
+stated in the supplied text. Reasoning defaults to `low`; an explicit request can override it.
+This is initial generation only; Decisions verification belongs to the caller.
+Entity and relation type names are caller-defined. Relation source
 and target types must reference declared entity types.
 
 Request body:
@@ -504,67 +481,40 @@ If no schema-valid explicit extraction exists, both response lists are empty.
 
 ## `POST /graph-query-generation`
 
-Generates one AGE-compatible, read-only Cypher query from a natural-language question and a
-caller-supplied graph schema. The service returns parameters separately, validates the query
-against the allowed labels, relationship directions, and queryable properties, and requires a
-bounded `LIMIT`. It does not execute Cypher, connect to PostgreSQL, or persist anything.
-
-`graph_name` is part of the caller contract but is never embedded in the generated Cypher. The
-caller must bind that fixed name separately when it executes the returned query.
-
-Request body:
+Returns a structured retrieval plan. It does not return or execute Cypher or SQL.
+The caller supplies the same entity/relationship vocabulary used for extraction,
+resolves article filters separately, enforces permissions, and compiles the plan into fixed queries.
 
 ```json
 {
   "question": "Which organization employs Alice?",
-  "graph_name": "knowledge_graph",
   "schema": {
-    "node_labels": [
-      {
-        "label": "Person",
-        "properties": [
-          {"name": "name", "type": "string"}
-        ]
-      },
-      {
-        "label": "Organization",
-        "properties": [
-          {"name": "name", "type": "string"}
-        ]
-      }
+    "entity_types": [
+      {"name": "Person", "description": "A person"},
+      {"name": "Organization", "description": "An organization"}
     ],
-    "relationship_types": [
-      {
-        "type": "WORKS_AT",
-        "source_labels": ["Person"],
-        "target_labels": ["Organization"],
-        "properties": []
-      }
-    ],
-    "default_limit": 25,
-    "maximum_limit": 100
-  }
+    "relation_types": [
+      {"name": "WORKS_AT", "source_types": ["Person"], "target_types": ["Organization"]}
+    ]
+  },
+  "context": {}
 }
 ```
-
-Response body:
 
 ```json
 {
-  "cypher": "MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25",
-  "parameters": {
-    "person_name": "Alice"
-  },
-  "explanation": "Returns organizations that employ the named person."
+  "names": ["alice"],
+  "entity_types": ["Person"],
+  "relationships": ["WORKS_AT"],
+  "hops": 1
 }
 ```
 
-Only standard unquoted identifiers are accepted in the supplied graph schema. Generated values
-must use named `$parameter` placeholders. Mutations, procedures, administration, external data
-loading, dynamic schema access, comments, multiple statements, and unbounded results are rejected.
-Every relationship must specify an allowed type, and `RETURN` must contain one
-expression aliased as `result` (which may be a map or a function call).
-Invalid model output receives the service's standard single repair attempt.
+`context` can contain conversation history to interpret the question. The planner
+only returns entity names, entity types, relationships, and hop count; article
+filters belong to the caller. Names are stripped and case-folded. Empty lists
+mean unrestricted graph search, and hops are limited to zero through three.
+Unknown types or extra output fields trigger the common repair attempt.
 
 ## `POST /ner-link`
 
@@ -683,3 +633,21 @@ configuration, including:
 - active non-secret config such as the current reasoning profile and whether
   lookup/linking is configured
 - decisions URL configured status, model, payload mode, and timeout (URL and key omitted)
+
+
+## Prepared HRAG tasks
+
+Use `prepare_entity_relationship_extraction(request)`,
+`prepare_graph_query_generation(request)`, and `prepare_hrag(request)` from their
+existing task modules. Each returns an `LLMTask` with prompt, schema, parser,
+request reasoning settings, and the common one-repair execution path.
+
+Extraction defaults to low reasoning in immediate and batch execution. Library
+callers can pass `result_model=...` and `validate=...` to extraction for exact
+source quotes and assertion polarity. The caller computes source offsets and
+performs any Decisions verification. The HTTP extraction response includes a
+confidence field; that score is not Decisions verification.
+
+Install `[inference]` for bundled clients or `[server]` for the HTTP service.
+The base package exposes these prepared tasks with an injected transport and
+supports Python 3.13 and newer. No embedding task/client is included.

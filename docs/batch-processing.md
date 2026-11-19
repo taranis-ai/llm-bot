@@ -159,3 +159,13 @@ errors before saving results. Keep the original story inputs so tasks can be
 recreated if your process restarts.
 `parse_result()` validates model output locally and raises on invalid output;
 it does not send a repair request or recover truncated NER output.
+
+
+## Prepared HRAG tasks
+
+The existing extraction, graph-query generation, and HRAG modules expose
+`prepare_entity_relationship_extraction()`, `prepare_graph_query_generation()`,
+and `prepare_hrag()`. They use the same `build_request(client)` and
+`parse_result(body, client)` interface as the other generative tasks. Extraction
+defaults to low reasoning. Request settings apply without mutating the client.
+Graph-query generation returns a structured plan; the application builds queries.
