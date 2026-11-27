@@ -8,12 +8,6 @@ from importlib.util import find_spec
 from unittest.mock import AsyncMock
 
 from llm_bot import __version__
-from llm_bot.client import LLMClient
-from llm_bot.decisions_client import DecisionsClient
-from llm_bot.schemas import ClassifyRequest, CybersecClassificationRequest, SummarizeRequest
-from llm_bot.tasks.classify import prepare_classify
-from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
-from llm_bot.tasks.summarize import summarize
 
 
 async def main() -> None:
@@ -39,6 +33,38 @@ async def main() -> None:
         "translate",
     ):
         assert prompts.joinpath(f"{name}.txt").read_text(encoding="utf-8").strip()
+
+    if find_spec("niquests") is None:
+        from llm_bot.embedding_client import EmbeddingClient
+        from llm_bot.schemas import EntityRelationshipExtractionRequest, GraphQueryGenerationRequest, HragRequest
+        from llm_bot.tasks.entity_relationship_extraction import prepare_entity_relationship_extraction
+        from llm_bot.tasks.graph_query_generation import prepare_graph_query_generation
+        from llm_bot.tasks.hrag import prepare_hrag
+
+        embeddings = EmbeddingClient(model="embed-model")
+        assert embeddings.build_request("Example")["input"] == "Example"
+        assert embeddings.parse_response({"data": [{"embedding": [1, 0]}]}, dimensions=2) == [[1, 0]]
+
+        schema = {"entity_types": [{"name": "ORG", "description": "Organization"}], "relation_types": []}
+        extraction = prepare_entity_relationship_extraction(
+            EntityRelationshipExtractionRequest.model_validate({"text": "Example", "schema": schema})
+        )
+        assert extraction.parse_response({"output_text": '{"entities":[],"relations":[]}'}).relations == []
+        plan = prepare_graph_query_generation(GraphQueryGenerationRequest.model_validate({"question": "Who?", "schema": schema}))
+        assert plan.parse_response({"output_text": '{"names":[],"entity_types":[],"relationships":[],"hops":0}'}).hops == 0
+        answer = prepare_hrag(HragRequest(question="Who?", passages=[], graph_facts=[]))
+        assert answer.parse_response(
+            {"output_text": '{"answer":"Insufficient evidence","citations":[],"insufficient_evidence":true}'}
+        ).insufficient_evidence
+        print("Installed base library: extraction, graph planning and HRAG tasks OK")
+        return
+
+    from llm_bot.client import LLMClient
+    from llm_bot.decisions_client import DecisionsClient
+    from llm_bot.schemas import ClassifyRequest, CybersecClassificationRequest, SummarizeRequest
+    from llm_bot.tasks.classify import prepare_classify
+    from llm_bot.tasks.cybersec_classification import prepare_cybersec_classification
+    from llm_bot.tasks.summarize import summarize
 
     client = AsyncMock(spec=LLMClient)
     client.create_response.return_value = {"output_text": '{"summary": "A short summary."}'}

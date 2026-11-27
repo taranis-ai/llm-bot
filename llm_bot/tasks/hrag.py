@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from llm_bot.client import LLMClient
 from llm_bot.log import logger
 from llm_bot.schemas import HragRequest, HragResponse
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
-    create_and_parse_response,
+    LLMTask,
     get_output_text,
     loads_json_output,
 )
+
+if TYPE_CHECKING:
+    from llm_bot.client import LLMClient
+
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "hrag.txt"
 
@@ -25,9 +30,13 @@ def build_hrag_messages(request: HragRequest) -> list[dict[str, str]]:
         "passages": [passage.model_dump() for passage in request.passages],
         "graph_facts": [fact.model_dump() for fact in request.graph_facts],
     }
+    if request.conversation:
+        user_payload["conversation"] = [message.model_dump() for message in request.conversation]
+    if request.notices:
+        user_payload["notices"] = request.notices
     return [
         {"role": "system", "content": load_hrag_prompt()},
-        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
+        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
 
 
@@ -78,23 +87,22 @@ def parse_hrag_response(
     return response
 
 
-async def answer_with_hrag(
-    request: HragRequest,
-    client: LLMClient | None = None,
-) -> HragResponse:
-    llm_client = client or LLMClient(
+def prepare_hrag(request: HragRequest) -> LLMTask[HragResponse]:
+    system_message, user_message = build_hrag_messages(request)
+    return LLMTask(
+        task_name="HRAG",
+        system_input=system_message["content"],
+        user_input=user_message["content"],
+        response_format=get_hrag_response_format(),
+        parse_response=lambda body: parse_hrag_response(body, request),
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
     )
-    system_message, user_message = build_hrag_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
-        task_name="HRAG",
-        user_input=user_message["content"],
-        system_input=system_message["content"],
-        response_format=get_hrag_response_format(),
-        parse_response=lambda response_data: parse_hrag_response(
-            response_data,
-            request,
-        ),
-    )
+
+
+async def answer_with_hrag(request: HragRequest, client: LLMClient | None = None) -> HragResponse:
+    if client is None:
+        from llm_bot.client import LLMClient
+
+        client = LLMClient(reasoning_effort=request.reasoning_effort, thinking_budget_tokens=request.thinking_budget_tokens)
+    return await prepare_hrag(request).run(client)

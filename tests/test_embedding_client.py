@@ -1,89 +1,55 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from niquests.exceptions import HTTPError
 
 from llm_bot.embedding_client import EmbeddingClient, UpstreamEmbeddingError
 
 
-class FakeResponse:
-    def __init__(
-        self,
-        text: str = '{"data":[{"embedding":[0.25,-0.5,0.75]}]}',
-        error: Exception | None = None,
-    ):
-        self.text = text
-        self.error = error
-
-    def raise_for_status(self):
-        if self.error is not None:
-            raise self.error
-
-
-class FakeSession:
-    def __init__(self, *, base_url=None, headers=None, response=None):
-        self.base_url = base_url
-        self.headers = headers
-        self.response = response or FakeResponse()
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def post(self, path, json, timeout):
-        self.path = path
-        self.json = json
-        self.timeout = timeout
-        return self.response
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("api_key", ["embedding-key", ""])
-async def test_create_embedding_calls_configured_service(monkeypatch, api_key):
+async def test_embedding_transport_single_and_batch(monkeypatch, api_key):
+    response = MagicMock(status_code=200)
+    response.json.return_value = {"data": [{"embedding": [0.25, -0.5]}]}
+    session = AsyncMock()
+    session.post.return_value = response
+    session.__aenter__.return_value = session
+    factory = MagicMock(return_value=session)
+    monkeypatch.setattr("niquests.AsyncSession", factory)
     monkeypatch.setattr("llm_bot.embedding_client.Config.EMBEDDING_API_KEY", "configured-key")
-    session = FakeSession()
+    client = EmbeddingClient(base_url="https://embeddings.example/v1/", api_key=api_key, model="embed-model", timeout=15)
 
-    def fake_async_session(*, base_url=None, headers=None):
-        session.base_url = base_url
-        session.headers = headers
-        return session
-
-    monkeypatch.setattr("llm_bot.embedding_client.AsyncSession", fake_async_session)
-
-    client = EmbeddingClient(
-        base_url="https://embeddings.example/v1/",
-        api_key=api_key,
-        model="embedding-model",
+    assert await client.create_embedding("First", dimensions=2) == [0.25, -0.5]
+    assert factory.call_args.kwargs == {
+        "base_url": "https://embeddings.example/v1",
+        "headers": {"Content-Type": "application/json", **({"Authorization": f"Bearer {api_key}"} if api_key else {})},
+    }
+    session.post.assert_awaited_once_with(
+        "/embeddings",
+        json={"input": "First", "model": "embed-model", "dimensions": 2, "encoding_format": "float"},
         timeout=15,
+        allow_redirects=False,
     )
-
-    embedding = await client.create_embedding("Text to embed")
-
-    assert embedding == [0.25, -0.5, 0.75]
-    assert session.base_url == "https://embeddings.example/v1"
-    assert session.path == "/embeddings"
-    assert session.json == {"input": "Text to embed", "model": "embedding-model"}
-    assert session.timeout == 15
-    assert session.headers.get("Authorization") == (f"Bearer {api_key}" if api_key else None)
+    response.json.return_value = {"data": [{"index": 1, "embedding": [0, 1]}, {"index": 0, "embedding": [1, 0]}]}
+    assert await client.create_embeddings(["First", "Second"], dimensions=2) == [[1, 0], [0, 1]]
+    assert session.post.call_args.kwargs["json"]["input"] == ["First", "Second"]
+    response.raise_for_status.side_effect = HTTPError("private provider error")
+    with pytest.raises(UpstreamEmbeddingError, match="^Embedding provider request failed$"):
+        await client.create_embedding("First")
+    assert session.__aexit__.await_count == 3
 
 
-@pytest.mark.asyncio
-async def test_create_embedding_extracts_upstream_error_message(monkeypatch):
-    session = FakeSession(
-        response=FakeResponse(
-            text='{"error":{"message":"Unknown embedding model"}}',
-            error=HTTPError("bad request"),
-        )
-    )
-
-    def fake_async_session(*, base_url=None, headers=None):
-        session.base_url = base_url
-        session.headers = headers
-        return session
-
-    monkeypatch.setattr("llm_bot.embedding_client.AsyncSession", fake_async_session)
-
-    client = EmbeddingClient(base_url="https://embeddings.example/v1", timeout=15)
-
-    with pytest.raises(UpstreamEmbeddingError, match="Unknown embedding model"):
-        await client.create_embedding("Text to embed")
+@pytest.mark.parametrize(
+    "data",
+    [
+        [],
+        [{"index": 0, "embedding": [1, 0]}],
+        [{"index": 0, "embedding": [1, 0]}, {"index": 0, "embedding": [0, 1]}],
+        [{"index": 0, "embedding": [1, 0]}, {"index": 2, "embedding": [0, 1]}],
+        [{"index": 0, "embedding": [1]}, {"index": 1, "embedding": [0, 1]}],
+        [{"index": 0, "embedding": [1, 0]}, {"index": 1, "embedding": [0, 0]}],
+        [{"index": 0, "embedding": [1, 0]}, {"index": 1, "embedding": [float("nan"), 1]}],
+    ],
+)
+def test_embedding_response_rejects_invalid_batch(data):
+    with pytest.raises(ValueError):
+        EmbeddingClient.parse_response({"data": data}, count=2, dimensions=2)

@@ -3,215 +3,41 @@ import json
 import pytest
 
 from llm_bot.schemas import GraphQueryGenerationRequest
-from llm_bot.tasks.graph_query_generation import (
-    build_graph_query_generation_messages,
-    generate_graph_query,
-    parse_graph_query_generation_response,
-)
-from llm_bot.tasks.llm_utils import InvalidLLMOutputError
+from llm_bot.tasks.graph_query_generation import generate_graph_query, prepare_graph_query_generation
 from tests.test_helpers import StubLLMClient
 
-REQUEST_PAYLOAD = {
+SCHEMA = {
+    "entity_types": [{"name": "Person", "description": "A person"}, {"name": "Organization", "description": "An organization"}],
+    "relation_types": [{"name": "WORKS_AT", "source_types": ["Person"], "target_types": ["Organization"]}],
+}
+REQUEST = {
     "question": "Which organization employs Alice?",
-    "graph_name": "knowledge_graph",
-    "schema": {
-        "node_labels": [
-            {
-                "label": "Person",
-                "properties": [
-                    {"name": "name", "type": "string"},
-                    {"name": "age", "type": "integer"},
-                ],
-            },
-            {
-                "label": "Organization",
-                "properties": [{"name": "name", "type": "string"}],
-            },
-        ],
-        "relationship_types": [
-            {
-                "type": "WORKS_AT",
-                "source_labels": ["Person"],
-                "target_labels": ["Organization"],
-                "properties": [],
-            }
-        ],
-        "default_limit": 25,
-        "maximum_limit": 100,
-    },
+    "schema": SCHEMA,
+    "context": {"conversation": []},
 }
-VALID_OUTPUT = {
-    "cypher": ("MATCH (p:Person)-[:WORKS_AT]->(o:Organization) WHERE p.name = $person_name RETURN o.name AS result LIMIT 25"),
-    "parameters": {"person_name": "Alice"},
-    "explanation": "Returns organizations that employ the named person.",
-}
+PLAN = {"names": ["alice"], "entity_types": ["Person"], "relationships": ["WORKS_AT"], "hops": 1}
 
 
-def make_request() -> GraphQueryGenerationRequest:
-    return GraphQueryGenerationRequest.model_validate(REQUEST_PAYLOAD)
-
-
-def test_build_messages_include_question_schema_graph_name_and_safety_rules():
-    system_message, user_message = build_graph_query_generation_messages(make_request())
-    payload = json.loads(user_message["content"])
-
-    assert payload == REQUEST_PAYLOAD
-    assert "Apache AGE" in system_message["content"]
-    assert "Never put a graph name in the Cypher" in system_message["content"]
-    assert "parameter placeholders" in system_message["content"]
-    assert "Do not generate mutations" in system_message["content"]
-
-
-def test_parse_valid_graph_query():
-    response = parse_graph_query_generation_response({"output_text": json.dumps(VALID_OUTPUT)}, make_request())
-
-    assert response.model_dump() == VALID_OUTPUT
-
-
-@pytest.mark.parametrize("projection", ["{p: p.name}", "{name: p.name, age: p.age}", "coalesce(p.name, $fallback)"])
-def test_parse_accepts_one_result_expression(projection):
-    output = {
-        **VALID_OUTPUT,
-        "cypher": f"MATCH (p:Person) RETURN {projection} AS result LIMIT 25",
-        "parameters": {"fallback": "Unknown"} if "$fallback" in projection else {},
-    }
-
-    response = parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
-
-    assert response.model_dump() == output
-
-
-def test_parse_rejects_a_return_value_without_the_required_result_alias():
-    output = {**VALID_OUTPUT, "cypher": "MATCH (p:Person) RETURN p.name AS name LIMIT 25", "parameters": {}}
-
-    with pytest.raises(InvalidLLMOutputError, match="aliased as result"):
-        parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
+def test_prepared_graph_query_is_a_plan_with_caller_vocabulary():
+    task = prepare_graph_query_generation(GraphQueryGenerationRequest.model_validate(REQUEST))
+    assert json.loads(task.user_input) == REQUEST
+    assert "Never generate SQL, Cypher" in task.system_input
+    assert task.response_format["schema"]["properties"]["relationships"]["items"]["enum"] == ["WORKS_AT"]
+    assert task.parse_response({"output_text": json.dumps(PLAN)}).model_dump() == PLAN
 
 
 @pytest.mark.parametrize(
-    ("cypher", "error"),
+    "invalid",
     [
-        (
-            "MATCH (p:Account) RETURN p.name AS name LIMIT 25",
-            "unknown node label",
-        ),
-        (
-            "MATCH (p:Person) RETURN p.secret AS secret LIMIT 25",
-            "unknown property",
-        ),
-        (
-            "MATCH (p:Person)-[:OWNS]->(o:Organization) RETURN o.name AS name LIMIT 25",
-            "unknown relationship type",
-        ),
-        (
-            "MATCH (o:Organization)-[:WORKS_AT]->(p:Person) RETURN o.name AS name LIMIT 25",
-            "does not allow source label",
-        ),
+        {"cypher": "MATCH (n) RETURN n", "parameters": {}, "explanation": "Query"},
+        {**PLAN, "entity_types": ["Unknown"]},
+        {**PLAN, "relationships": ["Unknown"]},
+        {**PLAN, "hops": 4},
+        {**PLAN, "filters": {"read": False}},
     ],
 )
-def test_parse_rejects_schema_violations(cypher, error):
-    output = {**VALID_OUTPUT, "cypher": cypher, "parameters": {}}
-
-    with pytest.raises(InvalidLLMOutputError, match=error):
-        parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
-
-
-@pytest.mark.parametrize(
-    ("cypher", "error"),
-    [
-        (
-            "MATCH (p:Person) DELETE p RETURN p.name AS name LIMIT 25",
-            "prohibited clauses",
-        ),
-        (
-            "CALL db.labels() RETURN $value AS value LIMIT 25",
-            "prohibited clauses",
-        ),
-        (
-            "LOAD CSV FROM $url AS row RETURN row LIMIT 25",
-            "prohibited clauses",
-        ),
-        (
-            "MATCH (p:Person) RETURN p.name AS name",
-            "exactly one integer LIMIT",
-        ),
-        (
-            "MATCH (p:Person) RETURN p.name AS name LIMIT 101",
-            "between 1 and 100",
-        ),
-        (
-            "MATCH (p:Person) WHERE p.name = 'Alice' RETURN p.name AS name LIMIT 25",
-            "quoted literals",
-        ),
-        (
-            "MATCH (p:Person), (anything) RETURN p.name AS name LIMIT 25",
-            "Every node in a MATCH pattern",
-        ),
-        (
-            "MATCH (p:Person) RETURN p LIMIT 25",
-            "must not return whole graph variable",
-        ),
-        (
-            "MATCH (p:Person) WHERE p.age = 42 RETURN p.name AS name LIMIT 25",
-            "parameters instead of numeric literal",
-        ),
-        (
-            "MATCH (p:Person) RETURN p.name AS name LIMIT 25 RETURN p.name",
-            "LIMIT must be the final clause",
-        ),
-        (
-            "MATCH (p:Person)-->(o:Organization) RETURN o.name AS result LIMIT 25",
-            "explicit allowed relationship type",
-        ),
-        (
-            "MATCH (p:Person) <-- (o:Organization) RETURN o.name AS result LIMIT 25",
-            "explicit allowed relationship type",
-        ),
-        (
-            "MATCH (p:Person)--(o:Organization) RETURN o.name AS result LIMIT 25",
-            "explicit allowed relationship type",
-        ),
-        (
-            "MATCH (p:Person) RETURN p.name AS first, p.age AS result LIMIT 25",
-            "exactly one value aliased as result",
-        ),
-    ],
-)
-def test_parse_rejects_unsafe_or_unbounded_cypher(cypher, error):
-    output = {**VALID_OUTPUT, "cypher": cypher, "parameters": {}}
-
-    with pytest.raises(InvalidLLMOutputError, match=error):
-        parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
-
-
-@pytest.mark.parametrize(
-    ("parameters", "error"),
-    [
-        ({}, "placeholders have no parameter values"),
-        (
-            {"person_name": "Alice", "unused": "value"},
-            "Parameters are not used",
-        ),
-    ],
-)
-def test_parse_rejects_missing_or_extra_parameters(parameters, error):
-    output = {**VALID_OUTPUT, "parameters": parameters}
-
-    with pytest.raises(InvalidLLMOutputError, match=error):
-        parse_graph_query_generation_response({"output_text": json.dumps(output)}, make_request())
-
-
-@pytest.mark.asyncio
-async def test_generation_repairs_malformed_provider_output_once():
-    client = StubLLMClient(
-        [
-            {"output_text": "not JSON"},
-            {"output_text": json.dumps(VALID_OUTPUT)},
-        ]
-    )
-
-    response = await generate_graph_query(make_request(), client=client)
-
-    assert response.model_dump() == VALID_OUTPUT
+async def test_graph_query_repairs_unsupported_or_executable_output(invalid):
+    client = StubLLMClient([{"output_text": json.dumps(invalid)}, {"output_text": json.dumps(PLAN)}])
+    result = await generate_graph_query(GraphQueryGenerationRequest.model_validate(REQUEST), client=client)
+    assert result.model_dump() == PLAN
     assert len(client.calls) == 2
-    assert client.calls[0]["response_format"]["name"] == ("graph_query_generation_response")

@@ -10,7 +10,6 @@ from quart import Blueprint, Response, request
 from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
-from llm_bot.embedding_client import UpstreamEmbeddingError
 from llm_bot.log import logger
 from llm_bot.schemas import (
     ChatRequest,
@@ -120,7 +119,7 @@ async def _handle_model_request[RequestModel: BaseModel](
     except client_error_exceptions as exc:
         logger.warning("%s client error: %s", log_prefix, exc)
         return {"error": str(exc)}, 400
-    except (UpstreamLLMError, UpstreamEmbeddingError) as exc:
+    except UpstreamLLMError as exc:
         logger.error("%s upstream error: %s", log_prefix, exc)
         return {"error": f"{processing_error_message}: {exc}"}, 502
     # Keep unexpected task failures out of HTTP responses.
@@ -157,9 +156,9 @@ def build_info_response() -> dict[str, object]:
             "cluster": "/cluster",
             "entity_relation_extraction": "/entity-relation-extraction",
             "graph_query_generation": "/graph-query-generation",
-            "embed": "/embed",
             "chat": "/chat",
             "hrag": "/hrag",
+            "embed": "/embed",
         },
         "current": {
             "llm_base_url": Config.LLM_BASE_URL,

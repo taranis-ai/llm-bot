@@ -12,6 +12,17 @@ For Python library use, set configuration before importing task modules.
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
+## Embedding connection
+
+- `EMBEDDING_BASE_URL`: OpenAI-compatible base URL; the client appends `/embeddings`
+- `EMBEDDING_API_KEY`: independent bearer token, never inherited from `LLM_API_KEY`
+- `EMBEDDING_MODEL`: optional when the provider supplies a default
+- `EMBEDDING_TIMEOUT`: request timeout in seconds, default `120`
+
+Python callers can supply these values explicitly to `EmbeddingClient`.
+An explicit empty API key disables authorization. The service's `/embed` route
+uses this connection; `/info` reports only URL-configured status, model, and timeout.
+
 ## Decisions connection
 
 `/cybersec-classification` uses an independent decision model when `DECISIONS_URL`
@@ -121,16 +132,12 @@ cleanup. The HTTP service retains this default; no deployment settings change.
 
 ## Other optional settings
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/embed`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
 - `LLM_PARSE_REASONING_AS_OUTPUT`: use structured reasoning text as fallback output when a provider emits no final message
 - `gemma` reasoning is enabled by prefixing the system prompt with `<|think|>` and the service strips Gemma thought-channel output before parsing when output stripping is enabled
-- `EMBEDDING_BASE_URL`: base URL for the OpenAI-compatible embedding service; required by `/embed`
-- `EMBEDDING_API_KEY`
-- `EMBEDDING_MODEL`
-- `EMBEDDING_TIMEOUT`
 - `LOOKUP_BASE_URL`
 - `LOOKUP_API_KEY`
 - `LOOKUP_DEFAULT_LANGUAGE`

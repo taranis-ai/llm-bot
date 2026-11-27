@@ -2,20 +2,21 @@
 
 Async Python library and LLM-backed bot service.
 
-The current implementation exposes stateless chat and grounded HRAG answering, embeddings, sentiment analysis,
-title generation, summary, named entity recognition, entity relationship extraction, graph query generation,
+The current implementation exposes embeddings, stateless chat and grounded HRAG answering, sentiment analysis,
+title generation, summary, named entity recognition, entity relationship extraction, structured graph retrieval planning,
 translation, linking, clustering, and classification endpoints backed by OpenAI-compatible APIs and a decisions API.
 
 ## Requirements
 
 - `uv`
-- Python 3.13
+- Python 3.13 or newer
 
 ## Python library
 
-Install a published release into a Python 3.13 project with `uv add taranis-llm-bot`.
+Install a published release into a Python 3.13+ project with `uv add "taranis-llm-bot[inference]"`.
 The PyPI distribution is `taranis-llm-bot`; Python imports use `llm_bot`.
-This base install contains the reusable task library without the HTTP server runtime.
+The base install supports prepared HRAG tasks with an injected transport. Install
+`taranis-llm-bot[inference]` for the bundled HTTP clients; `[server]` adds the HTTP service.
 Before publishing, install a locally built wheel with
 `uv add /absolute/path/to/taranis_llm_bot-VERSION-py3-none-any.whl`.
 
@@ -44,8 +45,7 @@ tasks follow the same pattern: request models in `llm_bot.schemas`, async functi
 in `llm_bot.tasks` (for example, `ner.extract_entities` and `translate.translate_text`).
 Generative tasks accept an optional `client=LLMClient(...)` to override the connection;
 import it from `llm_bot.client`. Inputs and outputs are Pydantic models, and errors
-propagate to the caller. Linking also needs the `LOOKUP_*` configuration; embeddings
-use `EMBEDDING_*`. Cybersecurity classification uses the independent `DECISIONS_*`
+propagate to the caller. Linking also needs the `LOOKUP_*` configuration. Cybersecurity classification uses the independent `DECISIONS_*`
 connection when `DECISIONS_URL` is set; you can inject a `DecisionsClient` from
 `llm_bot.decisions_client` or an `LLMClient` to explicitly select either transport.
 Fine-grained classification uses `ClassifyRequest` and `llm_bot.tasks.classify.classify_text`,
@@ -117,7 +117,7 @@ docs are available at `GET /docs`; the OpenAPI document is at `GET /openapi.yaml
 ## Guides
 
 - [Batch processing](docs/batch-processing.md): process multiple story texts in one provider batch job.
-- [Configuration](docs/configuration.md): LLM, reasoning, embedding, and lookup settings.
+- [Configuration](docs/configuration.md): LLM, reasoning, and lookup settings.
 - [Build and publish](docs/publishing.md): build distributions and publish releases.
 
 ## Development checks

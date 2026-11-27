@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import json
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, overload
 
-from llm_bot.client import LLMClient
+from pydantic import BaseModel
+
 from llm_bot.log import logger
 from llm_bot.schemas import (
     EntityRelationshipExtractionRequest,
@@ -11,10 +15,14 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.llm_utils import (
     InvalidLLMOutputError,
-    create_and_parse_response,
+    LLMTask,
     get_output_text,
     loads_json_output,
 )
+
+if TYPE_CHECKING:
+    from llm_bot.client import LLMClient
+
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "entity_relationship_extraction.txt"
 
@@ -32,7 +40,7 @@ def build_entity_relationship_extraction_messages(
     }
     return [
         {"role": "system", "content": load_entity_relationship_extraction_prompt()},
-        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=True)},
+        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
 
 
@@ -129,20 +137,54 @@ def get_entity_relationship_extraction_response_format(
     }
 
 
-async def extract_entity_relationships(
-    request: EntityRelationshipExtractionRequest,
-    client: LLMClient | None = None,
-) -> EntityRelationshipExtractionResponse:
-    llm_client = client or LLMClient(
+@overload
+def prepare_entity_relationship_extraction(request: EntityRelationshipExtractionRequest) -> LLMTask[EntityRelationshipExtractionResponse]: ...
+
+
+@overload
+def prepare_entity_relationship_extraction[T: BaseModel](
+    request: EntityRelationshipExtractionRequest, *, result_model: type[T], validate: Callable[[T], T] | None = None
+) -> LLMTask[T]: ...
+
+
+def prepare_entity_relationship_extraction(
+    request: EntityRelationshipExtractionRequest, *, result_model: type[BaseModel] | None = None, validate: Callable | None = None
+) -> LLMTask:
+    """Prepare initial generative proposals; callers own any Decisions verification."""
+    system_message, user_message = build_entity_relationship_extraction_messages(request)
+
+    def parse(body: dict) -> BaseModel:
+        result = (
+            result_model.model_validate(loads_json_output(get_output_text(body)))
+            if result_model
+            else parse_entity_relationship_extraction_response(body, request)
+        )
+        return validate(result) if validate else result
+
+    response_format = get_entity_relationship_extraction_response_format(request)
+    if result_model is not None:
+        response_format = {
+            "type": "json_schema",
+            "name": "entity_relationship_extraction_response",
+            "strict": False,
+            "schema": result_model.model_json_schema(),
+        }
+    return LLMTask(
+        task_name="entity relationship extraction",
+        system_input=system_message["content"],
+        user_input=user_message["content"],
+        response_format=response_format,
+        parse_response=parse,
         reasoning_effort=request.reasoning_effort,
         thinking_budget_tokens=request.thinking_budget_tokens,
     )
-    system_message, user_message = build_entity_relationship_extraction_messages(request)
-    return await create_and_parse_response(
-        client=llm_client,
-        task_name="entity relationship extraction",
-        user_input=user_message["content"],
-        system_input=system_message["content"],
-        response_format=get_entity_relationship_extraction_response_format(request),
-        parse_response=lambda response_data: parse_entity_relationship_extraction_response(response_data, request),
-    )
+
+
+async def extract_entity_relationships(
+    request: EntityRelationshipExtractionRequest, client: LLMClient | None = None
+) -> EntityRelationshipExtractionResponse:
+    if client is None:
+        from llm_bot.client import LLMClient
+
+        client = LLMClient(reasoning_effort=request.reasoning_effort, thinking_budget_tokens=request.thinking_budget_tokens)
+    return await prepare_entity_relationship_extraction(request).run(client)

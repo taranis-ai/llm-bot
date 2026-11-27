@@ -12,7 +12,6 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
 - `llm_bot/decisions_client.py`: independent decisions transport for named choice questions, translating System One and OpenAI formats.
-- `llm_bot/embedding_client.py`: asynchronous OpenAI-compatible embedding transport.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
 - `llm_bot/tasks/`: task orchestration, prompt construction, structured-output definitions, parsing, validation, and post-processing.
@@ -24,6 +23,8 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `Containerfile` and `.github/workflows/`: image construction, test, build, and tagged-release automation.
 
 ## Request Data Flow
+
+The base package supports prepared extraction, graph planning, and HRAG answering with injected clients. The `inference` extra installs Niquests; `server` includes it. These three tasks share their existing modules and HTTP routes. Extraction defaults to low reasoning; graph-query generation returns a structured plan, never executable query text. Callers own query compilation, authorization, chunking, storage, and relationship verification.
 
 The installed Python library exposes the same async task functions under
 `llm_bot.tasks` and Pydantic models under `llm_bot.schemas`. Library callers pass
@@ -130,9 +131,7 @@ The lookup service supplies candidates. Deterministic mode selects the first can
 `Config` is a module-level `Settings` instance created during import. Code reads it directly, and tests commonly monkeypatch its attributes. New configuration should have a safe default and should not cause network access or secret validation at import time.
 
 The service is stateless: it has no database or queue. Its external state boundaries are the LLM provider and, for linking, the lookup service.
-The embedding provider is a separate external boundary configured through `EMBEDDING_*`
-settings. `/embed` sends one text to its OpenAI-compatible `/embeddings` path and
-returns the first validated vector.
+`embedding_client.py` builds OpenAI-compatible single/batch requests and validates finite nonzero vectors, dimensions, and batch indices. Its build/parse methods have no HTTP dependency; async methods lazily load Niquests from the inference extra. `/embed` uses independent `EMBEDDING_*` settings. The calling application owns chunking, scheduling, vector storage, and search.
 
 ## Contract Invariants
 

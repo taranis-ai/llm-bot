@@ -94,9 +94,7 @@ Invalid batch output raises without issuing a synchronous repair request.
 
 Explicit task reasoning settings override the client's defaults during batch
 serialization without changing the client; unset settings retain its defaults.
-Immediate execution still uses the supplied client's settings, preserving client
-injection behavior. To match batch and immediate payloads when injecting a client,
-configure that client with the same reasoning settings as the request.
+Immediate and batch execution apply explicit task settings to a copy of the bundled client, preserving its saved defaults. Injected transports without reasoning attributes own their request settings. Extraction defaults to `low` reasoning; its caller may override that request value.
 
 The existing async entry points call the prepared task's `run(client)`.
 Generative tasks retain `create_and_parse_response()` and its one repair attempt;

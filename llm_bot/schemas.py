@@ -1,10 +1,7 @@
-import re
 from enum import StrEnum
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
-
-GRAPH_IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*$"
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, RootModel, field_validator, model_validator
 
 
 class EmotionLabel(StrEnum):
@@ -101,6 +98,8 @@ class HragRequest(LLMRequest):
     question: str = Field(min_length=1)
     passages: list[HragDocumentPassage]
     graph_facts: list[HragGraphFact]
+    conversation: list[ChatMessage] = Field(default_factory=list)
+    notices: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_evidence_ids(self) -> Self:
@@ -128,16 +127,34 @@ class HragResponse(BaseModel):
         return citations
 
 
+EmbeddingVector = Annotated[list[FiniteFloat], Field(min_length=1)]
+
+
 class EmbedRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field(min_length=1)
+    text: str | list[str] = Field(min_length=1)
+    dimensions: int | None = Field(default=None, gt=0)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str | list[str]) -> str | list[str]:
+        texts = [value] if isinstance(value, str) else value
+        if any(not text.strip() for text in texts):
+            raise ValueError("Embedding input must not be blank")
+        return value
 
 
 class EmbedResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    embedding: list[float] = Field(min_length=1)
+    embedding: EmbeddingVector
+
+
+class EmbedBatchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    embeddings: list[EmbeddingVector] = Field(min_length=1)
 
 
 class StoryRequest(LLMRequest):
@@ -323,6 +340,7 @@ class EntityRelationshipExtractionRequest(LLMRequest):
 
     text: str = Field(min_length=1)
     extraction_schema: EntityRelationshipSchema = Field(alias="schema")
+    reasoning_effort: str | None = Field(default="low", min_length=1)
 
 
 class ExtractedEntity(BaseModel):
@@ -349,98 +367,28 @@ class EntityRelationshipExtractionResponse(BaseModel):
     relations: list[ExtractedRelation]
 
 
-class GraphQueryableProperty(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
-    type: str | None = Field(default=None, min_length=1)
-    description: str | None = Field(default=None, min_length=1)
-
-
-class GraphNodeLabel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    label: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
-    properties: list[GraphQueryableProperty]
-
-    @model_validator(mode="after")
-    def validate_property_names(self) -> Self:
-        property_names = [prop.name for prop in self.properties]
-        if len(property_names) != len(set(property_names)):
-            raise ValueError(f"Property names for node label {self.label} must be unique")
-        return self
-
-
-class GraphRelationshipType(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: str = Field(min_length=1, pattern=GRAPH_IDENTIFIER_PATTERN)
-    source_labels: list[str] = Field(min_length=1)
-    target_labels: list[str] = Field(min_length=1)
-    properties: list[GraphQueryableProperty] = Field(default_factory=list)
-
-    @field_validator("source_labels", "target_labels")
-    @classmethod
-    def validate_label_names(cls, labels: list[str]) -> list[str]:
-        if len(labels) != len(set(labels)):
-            raise ValueError("Relationship source_labels and target_labels must not contain duplicates")
-        for label in labels:
-            if not label or not re.fullmatch(GRAPH_IDENTIFIER_PATTERN, label):
-                raise ValueError("Relationship source_labels and target_labels must contain valid identifiers")
-        return labels
-
-    @model_validator(mode="after")
-    def validate_property_names(self) -> Self:
-        property_names = [prop.name for prop in self.properties]
-        if len(property_names) != len(set(property_names)):
-            raise ValueError(f"Property names for relationship type {self.type} must be unique")
-        return self
-
-
-class GraphQuerySchema(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    node_labels: list[GraphNodeLabel] = Field(min_length=1)
-    relationship_types: list[GraphRelationshipType]
-    default_limit: int = Field(ge=1)
-    maximum_limit: int = Field(ge=1)
-
-    @model_validator(mode="after")
-    def validate_schema_references(self) -> Self:
-        node_labels = [node.label for node in self.node_labels]
-        if len(node_labels) != len(set(node_labels)):
-            raise ValueError("Graph node labels must be unique")
-
-        relationship_types = [relationship.type for relationship in self.relationship_types]
-        if len(relationship_types) != len(set(relationship_types)):
-            raise ValueError("Graph relationship types must be unique")
-
-        known_labels = set(node_labels)
-        referenced_labels = {
-            label for relationship in self.relationship_types for label in relationship.source_labels + relationship.target_labels
-        }
-        unknown_labels = sorted(referenced_labels - known_labels)
-        if unknown_labels:
-            raise ValueError("Relationship constraints reference unknown node labels: " + ", ".join(unknown_labels))
-        if self.default_limit > self.maximum_limit:
-            raise ValueError("Graph query default limit must not exceed maximum")
-        return self
-
-
 class GraphQueryGenerationRequest(LLMRequest):
     model_config = ConfigDict(serialize_by_alias=True)
 
     question: str = Field(min_length=1)
-    graph_name: str = Field(min_length=1)
-    graph_schema: GraphQuerySchema = Field(alias="schema")
+    graph_schema: EntityRelationshipSchema = Field(alias="schema")
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 class GraphQueryGenerationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cypher: str = Field(min_length=1)
-    parameters: dict[str, Any]
-    explanation: str = Field(min_length=1, max_length=500)
+    names: list[str] = Field(default_factory=list, max_length=12)
+    entity_types: list[str] = Field(default_factory=list, max_length=20)
+    relationships: list[str] = Field(default_factory=list, max_length=18)
+    hops: int = Field(default=1, ge=0, le=3)
+
+    @field_validator("names")
+    @classmethod
+    def normalize_names(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() or len(value) > 200 for value in values):
+            raise ValueError("Invalid entity search name")
+        return [value.strip().casefold() for value in values]
 
 
 class LinkedEntity(BaseModel):
