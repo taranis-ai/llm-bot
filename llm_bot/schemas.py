@@ -19,26 +19,29 @@ class SentimentLabel(StrEnum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     NEUTRAL = "neutral"
+    MIXED = "mixed"
 
 
 PLUTCHIK_8: tuple[EmotionLabel, ...] = tuple(EmotionLabel)
 
 ALLOWED_SENTIMENTS_BY_EMOTION: dict[EmotionLabel, set[SentimentLabel]] = {
-    EmotionLabel.JOY: {SentimentLabel.POSITIVE},
-    EmotionLabel.TRUST: {SentimentLabel.POSITIVE},
-    EmotionLabel.FEAR: {SentimentLabel.NEGATIVE},
+    EmotionLabel.JOY: {SentimentLabel.POSITIVE, SentimentLabel.MIXED},
+    EmotionLabel.TRUST: {SentimentLabel.POSITIVE, SentimentLabel.MIXED},
+    EmotionLabel.FEAR: {SentimentLabel.NEGATIVE, SentimentLabel.MIXED},
     EmotionLabel.SURPRISE: {
         SentimentLabel.POSITIVE,
         SentimentLabel.NEUTRAL,
         SentimentLabel.NEGATIVE,
+        SentimentLabel.MIXED,
     },
-    EmotionLabel.SADNESS: {SentimentLabel.NEGATIVE},
-    EmotionLabel.DISGUST: {SentimentLabel.NEGATIVE},
-    EmotionLabel.ANGER: {SentimentLabel.NEGATIVE},
+    EmotionLabel.SADNESS: {SentimentLabel.NEGATIVE, SentimentLabel.MIXED},
+    EmotionLabel.DISGUST: {SentimentLabel.NEGATIVE, SentimentLabel.MIXED},
+    EmotionLabel.ANGER: {SentimentLabel.NEGATIVE, SentimentLabel.MIXED},
     EmotionLabel.ANTICIPATION: {
         SentimentLabel.POSITIVE,
         SentimentLabel.NEUTRAL,
         SentimentLabel.NEGATIVE,
+        SentimentLabel.MIXED,
     },
 }
 
@@ -203,6 +206,7 @@ class TranslateResponse(BaseModel):
 class SentimentRequest(LLMRequest):
     text: str = Field(min_length=1)
     include_emotions: bool = False
+    include_mixed: bool = False
 
 
 class CybersecClassificationRequest(LLMRequest):

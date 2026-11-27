@@ -21,9 +21,12 @@ body = task.build_request(client)
 
 `prepare_sentiment(request)` also always returns a `DecisionsTask`; use a
 `DecisionsClient` to build and parse it. It contains one sentiment choice question
-and, when requested, eight independent emotion yes/no questions. Parsing preserves
+with `positive`, `negative`, and `neutral` labels by default and, when requested,
+eight independent emotion yes/no questions. Parsing preserves
 the public sentiment response shape and applies the emotion compatibility rules.
 Reasoning settings are accepted but ignored; invalid output fails without repair.
+Set `include_mixed=True` to add a fourth label. Use the same request options
+for submission and parsing. The default accepts saved three-label results.
 
 ```python
 from llm_bot.decisions_client import DecisionsClient

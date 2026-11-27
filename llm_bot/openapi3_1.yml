@@ -247,7 +247,14 @@ paths:
         confidence score using the independent decisions service. Requires
         DECISIONS_URL; supports systemone and openai modes. The label is the
         most probable sentiment, and score is its probability. Ties prefer
-        neutral, then positive, then negative.
+        neutral, then positive, then negative, then mixed.
+        Default labels are positive, negative, and neutral. Neutral includes mixed
+        tone by default. Set include_mixed to true to classify clearly expressed
+        positive and negative sentiment together as mixed. In that mode, neutral
+        means neither tone is clearly expressed.
+        Classifies expressed tone, not whether reported events are harmful or
+        beneficial. Factual reporting of a breach, vulnerability, loss, or recovery
+        does not by itself express sentiment or emotion.
 
         When `include_emotions` is true, the response also includes zero or
         more Plutchik emotions that are compatible with the predicted
@@ -255,7 +262,8 @@ paths:
         Each emotion is assessed independently in the same request and included
         only when its yes probability exceeds 0.5 and it is compatible:
         joy/trust for positive, fear/sadness/disgust/anger for negative,
-        surprise/anticipation for any sentiment. Emotions follow the order
+        surprise/anticipation for any sentiment. All eight emotions are compatible
+        with mixed, subject to the same probability threshold. Emotions follow the order
         joy, trust, fear, surprise, sadness, disgust, anger, anticipation.
 
         Legacy reasoning_effort and thinking_budget_tokens fields are accepted
@@ -1326,6 +1334,10 @@ components:
           type: string
           minLength: 1
           description: Text to analyze for sentiment
+        include_mixed:
+          type: boolean
+          default: false
+          description: Add mixed as a fourth choice for clearly expressed positive and negative sentiment together.
         include_emotions:
           type: boolean
           default: false
@@ -1446,6 +1458,7 @@ components:
             - positive
             - negative
             - neutral
+            - mixed
         score:
           type: number
           minimum: 0

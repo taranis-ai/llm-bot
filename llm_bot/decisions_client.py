@@ -1,4 +1,5 @@
 import json
+from contextlib import nullcontext
 from dataclasses import dataclass
 from math import isclose
 from typing import Annotated, Any, Literal
@@ -65,12 +66,16 @@ class DecisionsClient:
         model: str | None = None,
         api_mode: str | None = None,
         timeout: int | None = None,
+        *,
+        session: AsyncSession | None = None,
     ) -> None:
         self.url = Config.DECISIONS_URL if url is None else url
         self.api_key = Config.DECISIONS_API_KEY if api_key is None else api_key
         self.model = Config.DECISIONS_MODEL if model is None else model
         self.api_mode = Config.DECISIONS_API_MODE if api_mode is None else api_mode
         self.timeout = Config.DECISIONS_TIMEOUT if timeout is None else timeout
+        # Borrowed sessions remain open; the caller owns their lifecycle.
+        self._session = session
         if self.api_mode not in {"systemone", "openai"}:
             raise ValueError("DECISIONS_API_MODE must be systemone or openai")
 
@@ -130,8 +135,12 @@ class DecisionsClient:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        async with AsyncSession(headers=headers) as session:
-            response = await session.post(self.url, json=self.build_request(state, questions), timeout=self.timeout)
+        session_context = AsyncSession() if self._session is None else nullcontext(self._session)
+        async with session_context as session:
+            response = await session.post(
+                self.url, json=self.build_request(state, questions), headers=headers, timeout=self.timeout, stream=False
+            )
+            await session.gather(response)
             try:
                 response.raise_for_status()
             except HTTPError as exc:

@@ -61,12 +61,15 @@ question names, or choice values are rejected. Invalid output and refusals
 fail with `502` without a generative repair request. Reasoning profiles,
 `reasoning_effort`, and `thinking_budget_tokens` do not apply in decisions mode.
 
-`/sentiment` asks one three-label `sentiment` question and returns its winning
-label and probability. With `include_emotions: true`, it adds eight independent
+`/sentiment` asks one three-label (`positive`, `negative`, `neutral`) question
+and returns its winning label and probability. Set `include_mixed: true` to
+add a fourth label. With `include_emotions: true`, it adds eight independent
 yes/no questions to the same request. Emotions need a `yes` probability above
 `0.5` and must be compatible with the selected sentiment. The same probability
 validation applies to every question; missing emotion answers fail the request.
 Sentiment always uses decisions, including when legacy reasoning fields are supplied.
+The fourth label applies when the text expresses substantial positive and negative
+sentiment together. All eight emotions are compatible with `mixed`.
 
 For a manual OpenRouter check, export the connection before starting the service
 or importing the library:
@@ -91,9 +94,39 @@ that all eight probabilities are present and sum to one. `/health` alone does
 not test provider readiness. Also verify `/sentiment` with and without
 `include_emotions: true`: check the label, score, and optional compatible emotions.
 Keep the previous image reference for rollback.
-To roll back the endpoint, restore that image and restart. Clearing `DECISIONS_URL`
-restores generative routing only for `/cybersec-classification`; it disables `/classify`
-and `/sentiment`. To restore generative sentiment, roll back to the previous image.
+Before enabling `include_mixed` in a consumer, verify it can store, display,
+and aggregate the fourth label. Test a mixed-tone request with emotions enabled.
+Use the original request options to parse saved results. When rolling back to
+a service version that predates `include_mixed`, remove the field from requests
+before restoring the previous image.
+
+### Reusing decisions connections
+
+Library callers processing multiple articles can reuse HTTP connections by
+passing a dedicated `niquests.AsyncSession` to `DecisionsClient`. Create, use,
+and close the session within the same event loop. The caller owns its lifetime,
+including cleanup after errors or cancellation; the client never closes an
+injected session. Pass the same client to sentiment, classification, or other
+decisions tasks:
+
+```python
+from niquests import AsyncSession
+
+from llm_bot.decisions_client import DecisionsClient
+from llm_bot.schemas import SentimentRequest
+from llm_bot.tasks.sentiment import analyze_sentiment
+
+
+async def analyze_articles(texts: list[str]):
+    async with AsyncSession() as session:
+        client = DecisionsClient(session=session)
+        return [await analyze_sentiment(SentimentRequest(text=text), client=client) for text in texts]
+```
+
+Request headers and credentials are supplied per call without changing the
+session's defaults. Use a session dedicated to this provider, without unrelated
+authentication defaults. Without `session=`, calls retain automatic per-request
+cleanup. The HTTP service retains this default; no deployment settings change.
 
 ## Other optional settings
 

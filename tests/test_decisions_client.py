@@ -1,3 +1,4 @@
+import asyncio
 import json
 from copy import deepcopy
 from unittest.mock import AsyncMock, Mock
@@ -46,10 +47,11 @@ async def test_decision_transport_uses_independent_connection(transport, monkeyp
     result = await client.create_decision("Untrusted article text", QUESTIONS)
 
     assert result == {"topic": {"security": 0.9, "other": 0.1}}
-    assert factory.call_args.kwargs == {
-        "headers": {"Content-Type": "application/json", **({"Authorization": f"Bearer {api_key}"} if api_key else {})}
-    }
+    factory.assert_called_once_with()
     call = session.post.call_args
+    assert call.kwargs["stream"] is False
+    session.gather.assert_awaited_once_with(response)
+    assert call.kwargs["headers"] == {"Content-Type": "application/json", **({"Authorization": f"Bearer {api_key}"} if api_key else {})}
     assert call.args == ("https://decisions.example/api/alpha/decisions",)
     assert call.kwargs["timeout"] == 17
     if api_mode == "systemone":
@@ -71,6 +73,38 @@ async def test_decision_transport_uses_independent_connection(transport, monkeyp
                 }
             ],
         }
+
+
+@pytest.mark.parametrize("borrowed", [False, True])
+@pytest.mark.parametrize("failure", [None, "invalid", "http", "cancelled"])
+async def test_session_ownership_and_reuse(transport, borrowed, failure):
+    factory, session, response = transport
+    client = DecisionsClient(url="https://decisions.example/decisions", api_mode="systemone", session=session if borrowed else None)
+
+    assert await client.create_decision("First article", QUESTIONS) == {"topic": {"security": 0.9, "other": 0.1}}
+    if failure == "invalid":
+        response.text = '{"answers":{}}'
+    elif failure == "http":
+        response.raise_for_status.side_effect = HTTPError("bad request")
+    elif failure == "cancelled":
+        session.post.side_effect = asyncio.CancelledError
+
+    if failure:
+        with pytest.raises(asyncio.CancelledError if failure == "cancelled" else UpstreamLLMError):
+            await client.create_decision("Second article", QUESTIONS)
+    else:
+        assert await client.create_decision("Second article", QUESTIONS) == {"topic": {"security": 0.9, "other": 0.1}}
+
+    assert session.post.await_count == 2
+    if borrowed:
+        factory.assert_not_called()
+        session.__aenter__.assert_not_awaited()
+        session.__aexit__.assert_not_awaited()
+        session.close.assert_not_awaited()
+    else:
+        assert factory.call_count == 2
+        assert session.__aenter__.await_count == 2
+        assert session.__aexit__.await_count == 2
 
 
 @pytest.mark.parametrize(
@@ -191,14 +225,16 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
         payload = {"text": "A ransomware attack shut down a hospital."}
         error_prefix = "Failed to classify text"
     if endpoint == "/sentiment":
-        probabilities = {"positive": 0.02, "negative": 0.93, "neutral": 0.05}
-        question_name, choice = "sentiment", "negative"
+        probabilities = {"positive": 0.02, "negative": 0.03, "neutral": 0.05, "mixed": 0.9}
+        question_name, choice = "sentiment", "mixed"
+        payload["text"] = "I love the new interface, but I am furious about the unreliable support."
         payload["include_emotions"] = True
+        payload["include_mixed"] = True
         error_prefix = "Failed to analyze sentiment"
     answers = {question_name: {**ANSWER, "choice": choice, "probabilities": probabilities}}
     if endpoint == "/sentiment":
         for emotion in ("joy", "trust", "fear", "surprise", "sadness", "disgust", "anger", "anticipation"):
-            present = emotion in {"fear", "anger"}
+            present = emotion in {"joy", "anger"}
             answers[emotion] = {
                 "type": "choice",
                 "choice": "yes" if present else "no",
@@ -226,7 +262,7 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
     if failure:
         assert body == {"error": error_prefix + ": " + ("Unknown decisions model" if failure == "upstream" else "Invalid decisions response")}
     elif endpoint == "/sentiment":
-        assert body == {"sentiment": {"label": "negative", "score": 0.93, "emotions": ["fear", "anger"]}}
+        assert body == {"sentiment": {"label": "mixed", "score": 0.9, "emotions": ["joy", "anger"]}}
     else:
         assert body == probabilities
     assert session.post.call_count == 1
