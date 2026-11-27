@@ -92,9 +92,9 @@ Legacy sentiment reasoning fields are accepted but ignored.
 The sentiment prompt contains shared safety and tone instructions; sentiment
 label rules live in the choice descriptions, and emotion-specific instructions
 and descriptions are added only to the emotion questions.
-Labels are positive, negative, neutral, and mixed. Mixed requires substantial
+Labels are positive, negative, and neutral by default. With `include_mixed`, mixed requires substantial
 positive and negative sentiment together and permits all eight emotions; neutral
-has neither tone clearly expressed. Sentiment and emotions describe expressed
+also covers mixed tone when the fourth label is disabled. Sentiment and emotions describe expressed
 tone, not the harmfulness or benefit of the reported event.
 
 `llm_bot.tasks.llm_utils.create_and_parse_response()` applies the configured reasoning profile, makes the request, and retries exactly once when JSON decoding, Pydantic validation, or an `InvalidLLMOutputError` rejects model output. The retry includes the invalid output and validation error. Do not add independent retry loops to tasks without an explicit contract change.

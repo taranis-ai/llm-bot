@@ -49,6 +49,8 @@ async def test_decision_transport_uses_independent_connection(transport, monkeyp
     assert result == {"topic": {"security": 0.9, "other": 0.1}}
     factory.assert_called_once_with()
     call = session.post.call_args
+    assert call.kwargs["stream"] is False
+    session.gather.assert_awaited_once_with(response)
     assert call.kwargs["headers"] == {"Content-Type": "application/json", **({"Authorization": f"Bearer {api_key}"} if api_key else {})}
     assert call.args == ("https://decisions.example/api/alpha/decisions",)
     assert call.kwargs["timeout"] == 17
@@ -227,6 +229,7 @@ async def test_classification_route_uses_decisions_and_maps_errors(app, transpor
         question_name, choice = "sentiment", "mixed"
         payload["text"] = "I love the new interface, but I am furious about the unreliable support."
         payload["include_emotions"] = True
+        payload["include_mixed"] = True
         error_prefix = "Failed to analyze sentiment"
     answers = {question_name: {**ANSWER, "choice": choice, "probabilities": probabilities}}
     if endpoint == "/sentiment":

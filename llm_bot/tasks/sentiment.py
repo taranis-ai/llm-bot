@@ -3,6 +3,7 @@ from pathlib import Path
 from llm_bot.decisions_client import ChoiceProbabilities, ChoiceQuestion, DecisionsClient
 from llm_bot.schemas import (
     ALLOWED_SENTIMENTS_BY_EMOTION,
+    PLUTCHIK_8,
     EmotionLabel,
     SentimentLabel,
     SentimentRequest,
@@ -28,32 +29,31 @@ EMOTION_DESCRIPTIONS = {
 def parse_sentiment_response(probabilities: ChoiceProbabilities, include_emotions: bool = False) -> SentimentResponse:
     distribution = probabilities["sentiment"]
     # Prefer neutral on a tie, consistently across provider response ordering.
-    label = max(
-        (SentimentLabel.NEUTRAL, SentimentLabel.POSITIVE, SentimentLabel.NEGATIVE, SentimentLabel.MIXED), key=distribution.__getitem__
-    )
+    labels = (SentimentLabel.NEUTRAL, SentimentLabel.POSITIVE, SentimentLabel.NEGATIVE)
+    if SentimentLabel.MIXED in distribution:
+        labels += (SentimentLabel.MIXED,)
+    label = max(labels, key=distribution.__getitem__)
     emotions = None
     if include_emotions:
         emotions = [
-            emotion
-            for emotion in EmotionLabel
-            if probabilities[emotion.value]["yes"] > 0.5 and label in ALLOWED_SENTIMENTS_BY_EMOTION[emotion]
+            emotion for emotion in PLUTCHIK_8 if probabilities[emotion.value]["yes"] > 0.5 and label in ALLOWED_SENTIMENTS_BY_EMOTION[emotion]
         ]
     return SentimentResponse(sentiment=SentimentResult(label=label, score=distribution[label], emotions=emotions))
 
 
 def prepare_sentiment(request: SentimentRequest) -> DecisionsTask[SentimentResponse]:
     prompt = PROMPT_PATH.read_text(encoding="utf-8").strip()
-    questions = {
-        "sentiment": ChoiceQuestion(
-            instructions=prompt,
-            criteria={
-                "positive": "The expressed tone is favorable, approving, optimistic, or satisfied, without substantial negative sentiment.",
-                "negative": "The expressed tone is unfavorable, critical, pessimistic, or distressed, without substantial positive sentiment.",
-                "neutral": "The text conveys no clear positive or negative tone, including factual reporting without expressed sentiment.",
-                "mixed": "The text clearly expresses both substantial positive and negative sentiment; uncertainty alone is not mixed sentiment.",
-            },
-        ),
+    criteria = {
+        "positive": "The overall expressed tone is favorable, approving, optimistic, or satisfied.",
+        "negative": "The overall expressed tone is unfavorable, critical, pessimistic, or distressed.",
+        "neutral": "The text is factual, mixed, or does not clearly support a positive or negative tone.",
     }
+    if request.include_mixed:
+        criteria["neutral"] = "The text conveys no clear positive or negative tone, including factual reporting without expressed sentiment."
+        criteria["mixed"] = (
+            "The text clearly expresses both substantial positive and negative sentiment; uncertainty alone is not mixed sentiment."
+        )
+    questions = {"sentiment": ChoiceQuestion(instructions=prompt, criteria=criteria)}
     if request.include_emotions:
         for emotion, description in EMOTION_DESCRIPTIONS.items():
             questions[emotion.value] = ChoiceQuestion(

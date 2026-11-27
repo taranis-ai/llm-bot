@@ -31,7 +31,8 @@ topic coverage rather than the truthfulness of the input.
 one sentiment question with optional independent emotion questions, uses the
 winning sentiment probability as the score, and filters emotions above 0.5 through
 the shared compatibility map. Legacy reasoning settings are accepted but ignored.
-Its four labels are positive, negative, neutral, and mixed. Mixed means both
+Its default labels are positive, negative, and neutral. The optional fourth label
+(`include_mixed=True`) means both
 positive and negative sentiment are clearly expressed and permits all eight
 emotions. Classify expressed tone, not event harmfulness; factual reporting alone
 must not imply sentiment or emotion.

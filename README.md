@@ -97,10 +97,10 @@ The [live evaluation](docs/classify-evaluation.md) records 24 examples and how t
 label's probability. Set `include_emotions: true` for compatible Plutchik emotions,
 assessed independently in the same decisions request. Existing sentiment reasoning
 fields are accepted but ignored. There is no generative fallback.
-Labels are `positive`, `negative`, `neutral`, and `mixed`. Mixed means substantial
-positive and negative sentiment are both expressed and allows emotions from both
-sides. Classification measures expressed tone, not event harmfulness: factual
-reporting of a breach or recovery does not by itself imply sentiment or emotion.
+The default labels are `positive`, `negative`, and `neutral`. Set `include_mixed: true`
+to add `mixed` for text that clearly expresses both positive and negative sentiment.
+A mixed result can include emotions from both sides. Factual reporting of a breach
+or recovery alone does not imply an emotional tone.
 
 ## Run
 

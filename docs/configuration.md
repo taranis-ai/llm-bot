@@ -61,15 +61,15 @@ question names, or choice values are rejected. Invalid output and refusals
 fail with `502` without a generative repair request. Reasoning profiles,
 `reasoning_effort`, and `thinking_budget_tokens` do not apply in decisions mode.
 
-`/sentiment` asks one four-label (`positive`, `negative`, `neutral`, `mixed`) `sentiment` question and returns its winning
-label and probability. With `include_emotions: true`, it adds eight independent
+`/sentiment` asks one three-label (`positive`, `negative`, `neutral`) question
+and returns its winning label and probability. Set `include_mixed: true` to
+add a fourth label. With `include_emotions: true`, it adds eight independent
 yes/no questions to the same request. Emotions need a `yes` probability above
 `0.5` and must be compatible with the selected sentiment. The same probability
 validation applies to every question; missing emotion answers fail the request.
 Sentiment always uses decisions, including when legacy reasoning fields are supplied.
-It classifies expressed tone rather than event harmfulness. `mixed` requires both
-positive and negative sentiment, whereas `neutral` has neither clearly expressed.
-All eight emotions are compatible with `mixed`; the probability threshold still applies.
+The fourth label applies when the text expresses substantial positive and negative
+sentiment together. All eight emotions are compatible with `mixed`.
 
 For a manual OpenRouter check, export the connection before starting the service
 or importing the library:
@@ -94,13 +94,11 @@ that all eight probabilities are present and sum to one. `/health` alone does
 not test provider readiness. Also verify `/sentiment` with and without
 `include_emotions: true`: check the label, score, and optional compatible emotions.
 Keep the previous image reference for rollback.
-Before rollout, update consumers that restrict sentiment labels to accept `mixed`.
-Verify a mixed-tone request can return `mixed` with positive and negative emotions.
-Previously saved three-label decisions responses must be parsed with the previous
-task version; new prepared tasks require probabilities for all four labels.
-To roll back the endpoint, restore that image and restart. Clearing `DECISIONS_URL`
-restores generative routing only for `/cybersec-classification`; it disables `/classify`
-and `/sentiment`. To restore generative sentiment, roll back to the previous image.
+Before enabling `include_mixed` in a consumer, verify it can store, display,
+and aggregate the fourth label. Test a mixed-tone request with emotions enabled.
+Use the original request options to parse saved results. When rolling back to
+a service version that predates `include_mixed`, remove the field from requests
+before restoring the previous image.
 
 ### Reusing decisions connections
 

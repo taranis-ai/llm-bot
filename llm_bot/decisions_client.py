@@ -135,8 +135,12 @@ class DecisionsClient:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        async with nullcontext(self._session) if self._session is not None else AsyncSession() as session:
-            response = await session.post(self.url, json=self.build_request(state, questions), headers=headers, timeout=self.timeout)
+        session_context = AsyncSession() if self._session is None else nullcontext(self._session)
+        async with session_context as session:
+            response = await session.post(
+                self.url, json=self.build_request(state, questions), headers=headers, timeout=self.timeout, stream=False
+            )
+            await session.gather(response)
             try:
                 response.raise_for_status()
             except HTTPError as exc:

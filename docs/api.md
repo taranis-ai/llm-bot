@@ -143,23 +143,24 @@ with the `inference` extra. With an application-owned HTTP transport, use
 
 Analyzes sentiment using the independent [decisions connection](configuration.md#decisions-connection).
 `DECISIONS_URL` is required. Both `systemone` and `openai` modes are supported.
-The label is the most probable of `positive`, `negative`, `neutral`, and `mixed`; `score`
-is that label's probability, without rounding or renormalizing. Ties prefer
-`neutral`, then `positive`, then `negative`, then `mixed`.
+The default labels are `positive`, `negative`, and `neutral`. Set `include_mixed: true`
+to add a fourth choice. The score is the winning label's probability without rounding
+or renormalizing. Ties prefer `neutral`, then `positive`, then `negative`, then `mixed`.
 
 Sentiment describes the tone expressed in the text, not whether a reported event
 is harmful or beneficial. Factual reporting of a breach, vulnerability, loss, or
 recovery does not by itself express negative or positive sentiment or an emotion.
 `mixed` means the text clearly expresses both substantial positive and negative
 sentiment (for example, "I love the interface, but I hate the support"). `neutral`
-means neither tone is clearly expressed; uncertainty alone does not imply `mixed`.
+also covers mixed tone in the default three-label mode.
 
 Request body:
 
 ```json
 {
-  "text": "The launch was a success.",
-  "include_emotions": true
+  "text": "I love the interface, but I hate the support.",
+  "include_emotions": true,
+  "include_mixed": true
 }
 ```
 
@@ -168,7 +169,7 @@ Response body without emotions:
 ```json
 {
   "sentiment": {
-    "label": "positive",
+    "label": "mixed",
     "score": 0.88
   }
 }
@@ -179,9 +180,9 @@ Response body with emotions:
 ```json
 {
   "sentiment": {
-    "label": "negative",
+    "label": "mixed",
     "score": 0.91,
-    "emotions": ["fear", "anger"]
+    "emotions": ["joy", "anger"]
   }
 }
 ```
