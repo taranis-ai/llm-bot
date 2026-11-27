@@ -28,7 +28,9 @@ EMOTION_DESCRIPTIONS = {
 def parse_sentiment_response(probabilities: ChoiceProbabilities, include_emotions: bool = False) -> SentimentResponse:
     distribution = probabilities["sentiment"]
     # Prefer neutral on a tie, consistently across provider response ordering.
-    label = max((SentimentLabel.NEUTRAL, SentimentLabel.POSITIVE, SentimentLabel.NEGATIVE), key=distribution.__getitem__)
+    label = max(
+        (SentimentLabel.NEUTRAL, SentimentLabel.POSITIVE, SentimentLabel.NEGATIVE, SentimentLabel.MIXED), key=distribution.__getitem__
+    )
     emotions = None
     if include_emotions:
         emotions = [
@@ -45,16 +47,17 @@ def prepare_sentiment(request: SentimentRequest) -> DecisionsTask[SentimentRespo
         "sentiment": ChoiceQuestion(
             instructions=prompt,
             criteria={
-                "positive": "The overall tone is clearly favorable, approving, optimistic, or satisfied.",
-                "negative": "The overall tone is clearly unfavorable, critical, pessimistic, or distressed.",
-                "neutral": "The text is factual, mixed, or does not clearly support a positive or negative tone.",
+                "positive": "The expressed tone is favorable, approving, optimistic, or satisfied, without substantial negative sentiment.",
+                "negative": "The expressed tone is unfavorable, critical, pessimistic, or distressed, without substantial positive sentiment.",
+                "neutral": "The text conveys no clear positive or negative tone, including factual reporting without expressed sentiment.",
+                "mixed": "The text clearly expresses both substantial positive and negative sentiment; uncertainty alone is not mixed sentiment.",
             },
         ),
     }
     if request.include_emotions:
         for emotion, description in EMOTION_DESCRIPTIONS.items():
             questions[emotion.value] = ChoiceQuestion(
-                instructions=f"{prompt}\nIs {emotion.value} clearly expressed in the text? {description}",
+                instructions=f"{prompt}\nIs {emotion.value} clearly expressed in the text? {description} Assess this emotion independently.",
                 criteria={
                     "yes": f"The text clearly expresses {emotion.value}; it is not merely mentioned or weakly implied.",
                     "no": f"The text does not clearly express {emotion.value}, or the evidence is ambiguous.",

@@ -71,6 +71,12 @@ is set; an explicitly injected client overrides that selection. Fine-grained
 classification (`/classify`) and sentiment (`/sentiment`) always use decisions and require `DECISIONS_URL`.
 No other task automatically switches transport. A configured provider failure never falls back.
 
+Library callers can inject a dedicated `niquests.AsyncSession` through
+`DecisionsClient(session=...)` to reuse connections. The caller owns the session
+and closes it in the same event loop after all calls finish. Without injection,
+each request owns and closes its session, including on errors and cancellation.
+Request headers are supplied per call, without mutating shared session defaults.
+
 `llm_bot.tasks.decision_utils.DecisionsTask` provides the prepared-task methods
 for decisions requests. `prepare_cybersec_classification()` returns this type
 in decisions mode and retains `LLMTask` for generative mode.
@@ -82,6 +88,13 @@ and, optionally, eight independent emotion yes/no questions. Its parser uses the
 winning probability as the score and includes only emotions with probability above
 0.5 that satisfy the shared sentiment compatibility map in `schemas.py`.
 Legacy sentiment reasoning fields are accepted but ignored.
+The sentiment prompt contains shared safety and tone instructions; sentiment
+label rules live in the choice descriptions, and emotion-specific instructions
+and descriptions are added only to the emotion questions.
+Labels are positive, negative, neutral, and mixed. Mixed requires substantial
+positive and negative sentiment together and permits all eight emotions; neutral
+has neither tone clearly expressed. Sentiment and emotions describe expressed
+tone, not the harmfulness or benefit of the reported event.
 
 `llm_bot.tasks.llm_utils.create_and_parse_response()` applies the configured reasoning profile, makes the request, and retries exactly once when JSON decoding, Pydantic validation, or an `InvalidLLMOutputError` rejects model output. The retry includes the invalid output and validation error. Do not add independent retry loops to tasks without an explicit contract change.
 

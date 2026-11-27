@@ -52,6 +52,12 @@ Fine-grained classification uses `ClassifyRequest` and `llm_bot.tasks.classify.c
 always with a `DecisionsClient` and the `DECISIONS_*` connection. Sentiment analysis
 also requires this connection and accepts an optional `DecisionsClient` override.
 
+For repeated decisions tasks, pass a caller-owned `niquests.AsyncSession` as
+`DecisionsClient(session=session)` to reuse HTTP connections. Keep the session
+open around the calls with `async with AsyncSession() as session`; the client
+does not close it. See the [session example](docs/configuration.md#reusing-decisions-connections).
+Without an injected session, each call opens and closes its own session.
+
 For the HTTP service, install the `server` extra with
 `uv add "taranis-llm-bot[server]"`. Then import `create_app` from `llm_bot.app`
 and expose `app = create_app()` in your ASGI entry point.
@@ -91,6 +97,10 @@ The [live evaluation](docs/classify-evaluation.md) records 24 examples and how t
 label's probability. Set `include_emotions: true` for compatible Plutchik emotions,
 assessed independently in the same decisions request. Existing sentiment reasoning
 fields are accepted but ignored. There is no generative fallback.
+Labels are `positive`, `negative`, `neutral`, and `mixed`. Mixed means substantial
+positive and negative sentiment are both expressed and allows emotions from both
+sides. Classification measures expressed tone, not event harmfulness: factual
+reporting of a breach or recovery does not by itself imply sentiment or emotion.
 
 ## Run
 
