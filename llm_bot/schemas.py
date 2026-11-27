@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Annotated, Any, Literal, Self
 
@@ -75,6 +76,55 @@ class ChatResponse(BaseModel):
 
     answer: str = Field(min_length=1)
     model: str | None
+
+
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_DESCRIPTION_LENGTH = 16_000
+
+
+class ImageMimeType(StrEnum):
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+    WEBP = "image/webp"
+
+
+class Image2TextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    data: bytes = Field(strict=True, min_length=1, max_length=MAX_IMAGE_BYTES, repr=False)
+    mime_type: ImageMimeType
+
+    @model_validator(mode="after")
+    def check_image_signature(self) -> Self:
+        match self.mime_type:
+            case ImageMimeType.JPEG:
+                matches = self.data.startswith(b"\xff\xd8\xff")
+            case ImageMimeType.PNG:
+                matches = self.data.startswith(b"\x89PNG\r\n\x1a\n")
+            case ImageMimeType.WEBP:
+                matches = self.data.startswith(b"RIFF") and self.data[8:12] == b"WEBP"
+        if not matches:
+            raise ValueError("Image signature does not match its MIME type")
+        return self
+
+
+@dataclass(frozen=True)
+class ImageInput:
+    """Text and an inline image for one user message to a vision model."""
+
+    text: str
+    data_url: str = field(repr=False)
+
+
+class Image2TextResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    description: str = Field(min_length=1, max_length=MAX_DESCRIPTION_LENGTH, pattern=r"^[^\x00]+$")
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def trim_worker_caption(cls, value: Any) -> Any:
+        return value.strip() if isinstance(value, str) else value
 
 
 class HragDocumentPassage(BaseModel):

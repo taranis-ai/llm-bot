@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from importlib.metadata import version
+from importlib.metadata import entry_points, version
 from importlib.resources import files
 from importlib.util import find_spec
 from unittest.mock import AsyncMock
@@ -17,6 +17,8 @@ async def main() -> None:
         assert __version__ == arguments[0], (__version__, arguments[0])
 
     prompts = files("llm_bot").joinpath("prompts")
+    adapters = entry_points(group="taranis.image2text", name="describe")
+    assert len(adapters) == 1 and callable(adapters["describe"].load())
     assert files("llm_bot").joinpath("py.typed").is_file()
     for name in (
         "chat",
@@ -26,6 +28,7 @@ async def main() -> None:
         "entity_relationship_extraction",
         "graph_query_generation",
         "hrag",
+        "image2text",
         "ner",
         "sentiment",
         "summarize",

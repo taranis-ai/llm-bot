@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     LLM_REASONING_PROFILE: str = "none"
     LLM_STRIP_REASONING_OUTPUT: bool = True
     LLM_PARSE_REASONING_AS_OUTPUT: bool = False
+    IMAGE2TEXT_URL: str = ""
+    IMAGE2TEXT_API_KEY: str = ""
+    IMAGE2TEXT_TIMEOUT: int = 250
     DECISIONS_URL: str = ""
     DECISIONS_API_KEY: str = ""
     DECISIONS_MODEL: str = ""

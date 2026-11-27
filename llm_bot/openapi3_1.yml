@@ -4,7 +4,7 @@ info:
   description: |
     Multi-route LLM-backed bot service for Taranis AI.
 
-    The current implementation exposes embeddings, sentiment analysis, title generation, translation,
+    The current implementation exposes image captioning, embeddings, sentiment analysis, title generation, translation,
     summarization, clustering, named entity recognition, entity linking, entity relationship
     extraction, graph query generation, general chat, grounded HRAG answering, and
     classification routes backed by OpenAI-compatible APIs and a decisions API.
@@ -178,6 +178,66 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Failed to generate grounded answer"
+
+  /image2text:
+    post:
+      tags: [Images]
+      summary: Describe a news image
+      description: Send the original image bytes with their MIME type. The service checks the file signature and accepts up to 5 MiB.
+      operationId: describeImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              $ref: "#/components/schemas/ImageBytes"
+          image/png:
+            schema:
+              $ref: "#/components/schemas/ImageBytes"
+          image/webp:
+            schema:
+              $ref: "#/components/schemas/ImageBytes"
+      responses:
+        "200":
+          description: Validated plain-text caption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Image2TextResponse"
+              example:
+                description: A line chart shows monthly rainfall rising from March to May.
+        "400":
+          description: Empty image or file signature inconsistent with the supplied MIME type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Image exceeds the request size limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "415":
+          description: Missing or unsupported image MIME type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Vision provider failure or invalid caption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /embed:
     post:
@@ -1120,6 +1180,22 @@ components:
       scheme: bearer
       bearerFormat: API key
   schemas:
+    ImageBytes:
+      type: string
+      format: binary
+      minLength: 1
+      maxLength: 5242880
+    Image2TextResponse:
+      type: object
+      additionalProperties: false
+      required: [description]
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 16000
+          pattern: '^[^\x00]+$'
+          description: Plain text with surrounding whitespace removed
     ChatMessage:
       type: object
       additionalProperties: false
@@ -2042,6 +2118,8 @@ components:
           type: string
 
 tags:
+  - name: Images
+    description: Caption generation for news images
   - name: Chat
     description: Stateless general chat completion
   - name: Grounded Answering

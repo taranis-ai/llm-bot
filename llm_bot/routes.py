@@ -6,12 +6,14 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 from quart import Blueprint, Response, request
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from llm_bot import __version__
 from llm_bot.client import UpstreamLLMError
 from llm_bot.config import Config
 from llm_bot.log import logger
 from llm_bot.schemas import (
+    MAX_IMAGE_BYTES,
     ChatRequest,
     ClassifyRequest,
     ClusterRequest,
@@ -20,6 +22,8 @@ from llm_bot.schemas import (
     EntityRelationshipExtractionRequest,
     GraphQueryGenerationRequest,
     HragRequest,
+    Image2TextRequest,
+    ImageMimeType,
     LinkRequest,
     NerLinkRequest,
     NerRequest,
@@ -37,6 +41,7 @@ from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.entity_relationship_extraction import extract_entity_relationships
 from llm_bot.tasks.graph_query_generation import generate_graph_query
 from llm_bot.tasks.hrag import answer_with_hrag
+from llm_bot.tasks.image2text import describe_image
 from llm_bot.tasks.link_task import link_entities
 from llm_bot.tasks.ner import UnsupportedEntityTypesError, extract_entities
 from llm_bot.tasks.ner_link import extract_and_link
@@ -158,6 +163,7 @@ def build_info_response() -> dict[str, object]:
             "graph_query_generation": "/graph-query-generation",
             "chat": "/chat",
             "hrag": "/hrag",
+            "image2text": "/image2text",
             "embed": "/embed",
         },
         "current": {
@@ -235,6 +241,31 @@ def create_api_blueprint() -> Blueprint:
             request_model_factory=HragRequest.model_validate,
             task=answer_with_hrag,
         )
+
+    @api.post("/image2text")
+    @api_key_required
+    async def image2text_view() -> tuple[dict[str, Any], int]:
+        if request.mimetype not in ImageMimeType:
+            return {"error": "Expected image/jpeg, image/png, or image/webp"}, 415
+        if request.content_length is not None and request.content_length > MAX_IMAGE_BYTES:
+            return {"error": "Image exceeds 5 MiB"}, 413
+        try:
+            data = await request.get_data(cache=False)
+        except RequestEntityTooLarge:
+            return {"error": "Image exceeds the request size limit"}, 413
+        if len(data) > MAX_IMAGE_BYTES:
+            return {"error": "Image exceeds 5 MiB"}, 413
+        try:
+            image = Image2TextRequest(data=data, mime_type=request.mimetype)
+        except ValidationError:
+            return {"error": "Invalid image data for the supplied MIME type"}, 400
+        try:
+            result = await describe_image(image)
+        except Exception as exc:  # noqa: BLE001
+            # Provider errors can echo the entire inline image.
+            logger.error("Image2Text failed (%s)", type(exc).__name__)
+            return {"error": "Failed to describe image"}, 502
+        return result.model_dump(), 200
 
     @api.post("/embed")
     @api_key_required

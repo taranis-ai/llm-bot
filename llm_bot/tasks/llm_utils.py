@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from copy import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import ValidationError
@@ -16,13 +16,16 @@ from llm_bot.reasoning import (
     extract_structured_reasoning,
     strip_reasoning_output,
 )
+from llm_bot.schemas import ImageInput
 
 if TYPE_CHECKING:
     from llm_bot.client import LLMClient
 
 
 class InferenceClient(Protocol):
-    async def create_response(self, system_input: str, user_input: str, response_format: dict[str, Any] | None = None) -> dict[str, Any]: ...
+    async def create_response(
+        self, system_input: str, user_input: str | ImageInput, response_format: dict[str, Any] | None = None
+    ) -> dict[str, Any]: ...
 
 
 class InvalidLLMOutputError(ValueError):
@@ -38,7 +41,7 @@ class LLMTask[T]:
     """A prepared task that can run immediately or be submitted to a batch API."""
 
     task_name: str
-    user_input: str
+    user_input: str | ImageInput
     system_input: str
     response_format: dict[str, Any] | None
     parse_response: Callable[[dict[str, Any]], T]
@@ -153,15 +156,18 @@ def get_output_text(response_data: dict[str, Any]) -> str:
     raise MissingOutputTextError("Responses API payload did not contain output text")
 
 
-def _build_repair_input(input_text: str, invalid_output_text: str, error: Exception) -> str:
-    return json.dumps(
+def _build_repair_input(user_input: str | ImageInput, invalid_output_text: str, error: Exception) -> str | ImageInput:
+    repair_text = json.dumps(
         {
-            "original_input_text": input_text,
+            "original_input_text": user_input.text if isinstance(user_input, ImageInput) else user_input,
             "previous_invalid_output": invalid_output_text,
             "validation_error": str(error),
         },
         ensure_ascii=True,
     )
+    if isinstance(user_input, ImageInput):
+        return replace(user_input, text=repair_text)
+    return repair_text
 
 
 def _build_repair_instructions(instructions: str, error: Exception) -> str:
@@ -179,7 +185,7 @@ async def create_and_parse_response[T](
     *,
     client: InferenceClient,
     task_name: str,
-    user_input: str,
+    user_input: str | ImageInput,
     system_input: str,
     response_format: dict[str, Any] | None,
     parse_response: Callable[[dict[str, Any]], T],

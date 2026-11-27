@@ -5,6 +5,7 @@ from niquests import AsyncSession
 from niquests.exceptions import HTTPError
 
 from llm_bot.config import Config
+from llm_bot.schemas import ImageInput
 
 
 class UpstreamLLMError(RuntimeError):
@@ -62,13 +63,20 @@ class LLMClient:
     def _build_responses_payload(
         self,
         system_input: str,
-        user_input: str,
+        user_input: str | ImageInput,
         response_format: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        if isinstance(user_input, ImageInput):
+            content = [
+                {"type": "input_text", "text": user_input.text},
+                {"type": "input_image", "image_url": user_input.data_url},
+            ]
+        else:
+            content = user_input
         payload: dict[str, Any] = {
             "input": [
                 {"role": "system", "content": system_input},
-                {"role": "user", "content": user_input},
+                {"role": "user", "content": content},
             ],
         }
         if self.model:
@@ -84,13 +92,20 @@ class LLMClient:
     def _build_chat_completions_payload(
         self,
         system_input: str,
-        user_input: str,
+        user_input: str | ImageInput,
         response_format: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        if isinstance(user_input, ImageInput):
+            content = [
+                {"type": "text", "text": user_input.text},
+                {"type": "image_url", "image_url": {"url": user_input.data_url}},
+            ]
+        else:
+            content = user_input
         payload: dict[str, Any] = {
             "messages": [
                 {"role": "system", "content": system_input},
-                {"role": "user", "content": user_input},
+                {"role": "user", "content": content},
             ],
         }
         if self.model:
@@ -128,7 +143,7 @@ class LLMClient:
     def _request_target(
         self,
         system_input: str,
-        user_input: str,
+        user_input: str | ImageInput,
         response_format: dict[str, Any] | None,
     ) -> tuple[str, dict[str, Any]]:
         if self.api_mode == "chat_completions":
@@ -138,7 +153,7 @@ class LLMClient:
     async def create_response(
         self,
         system_input: str,
-        user_input: str,
+        user_input: str | ImageInput,
         response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         path, payload = self._request_target(system_input, user_input, response_format)

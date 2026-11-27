@@ -11,6 +11,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/routes.py`: HTTP boundary, optional bearer authentication, common validation/error mapping, health/docs/info endpoints, and task dispatch.
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
+- `llm_bot/image2text_adapter.py`: synchronous Taranis worker entry point that uploads stored image bytes to the llm-bot service.
 - `llm_bot/decisions_client.py`: independent decisions transport for named choice questions, translating System One and OpenAI formats.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
@@ -52,6 +53,11 @@ HTTP request
 `llm_bot.routes._handle_model_request()` owns the common HTTP behavior: request validation failures and supported client errors are `400`, upstream provider failures are `502` with their message, and unexpected processing failures are logged and returned as a generic `502`. Keep task code independent of Quart request/response objects.
 
 The optional incoming `API_KEY` protects only the LLM-backed POST routes. `/health`, `/info`, `/docs`, and `/openapi.yaml` stay public. The upstream `LLM_API_KEY` and lookup API key are separate credentials.
+
+`/image2text` reads a binary upload and verifies its MIME type, signature, and size
+before inference. Its route returns a generic provider error because upstream
+diagnostics can include the image. `LLMClient` translates an `ImageInput` to the
+selected provider's text and image parts. A caption repair keeps the image attached.
 
 ## Upstream LLM Boundary
 

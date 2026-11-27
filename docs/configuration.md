@@ -12,6 +12,32 @@ For Python library use, set configuration before importing task modules.
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
+## Image2Text worker adapter
+
+On the **llm-bot service**, configure the existing `LLM_*` connection with a
+vision-capable model that supports image input and structured JSON output.
+Both `responses` and `chat_completions` support inline images. Set `API_KEY`
+to require authentication on the service.
+
+In the **Taranis worker**, install a build of `taranis-llm-bot[inference]` that
+includes this feature. The worker in PR #1342 pins `0.1.6`; update that pin to
+a release containing the adapter when available. The worker discovers exactly
+one entry point named `describe` in `taranis.image2text`. Configure these
+variables before starting it.
+
+| Worker setting | Value |
+| --- | --- |
+| `IMAGE2TEXT_URL` | Full llm-bot endpoint, e.g. `https://llm-bot.internal/image2text` |
+| `IMAGE2TEXT_API_KEY` | The llm-bot service's incoming `API_KEY`, if enabled |
+| `IMAGE2TEXT_TIMEOUT` | HTTP timeout in seconds, default 250 to allow for one model repair with the default provider timeout |
+
+For rollout, pull the published service image, restart it, and verify `/health`
+and a [sample image upload](api.md#post-image2text) from the worker network.
+Restart the worker with the matching package and enable the Image2Text bot in
+Taranis Admin. Run it on an image without a description and check the caption
+in Assess. To roll back, disable the bot and restore the previous worker and
+service images. [Taranis integration](https://github.com/taranis-ai/taranis-ai/pull/1342)
+
 ## Embedding connection
 
 - `EMBEDDING_BASE_URL`: OpenAI-compatible base URL; the client appends `/embeddings`
@@ -97,7 +123,7 @@ and `/sentiment`. To restore generative sentiment, roll back to the previous ima
 
 ## Other optional settings
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to the task endpoints
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
