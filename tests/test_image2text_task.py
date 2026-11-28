@@ -19,14 +19,14 @@ def test_image2text_provider_payload_and_result(mode):
     if mode == "responses":
         messages = payload["input"]
         assert messages[1]["content"] == [
-            {"type": "input_text", "text": "Describe this news image."},
+            {"type": "input_text", "text": "Describe this image."},
             {"type": "input_image", "image_url": image_url},
         ]
         result = {"output": [{"type": "message", "content": [{"type": "output_text", "text": caption}]}]}
     else:
         messages = payload["messages"]
         assert messages[1]["content"] == [
-            {"type": "text", "text": "Describe this news image."},
+            {"type": "text", "text": "Describe this image."},
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
         result = {"choices": [{"message": {"content": caption}}]}

@@ -73,7 +73,7 @@ Configure the following values in `.env`:
 
 See [Configuration](docs/configuration.md) for optional settings.
 
-`POST /image2text` captions JPEG, PNG, and WebP news images using a vision-capable
+`POST /image2text` captions JPEG, PNG, and WebP images using a vision-capable
 `LLM_MODEL`. The package includes the synchronous adapter discovered by the Taranis
 Image2Text worker. See the [worker setup](docs/configuration.md#image2text-worker-adapter)
 and [image upload example](docs/api.md#post-image2text).

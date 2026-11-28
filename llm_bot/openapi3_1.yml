@@ -182,7 +182,7 @@ paths:
   /image2text:
     post:
       tags: [Images]
-      summary: Describe a news image
+      summary: Describe an image
       description: Send the original image bytes with their MIME type. The service checks the file signature and accepts up to 5 MiB.
       operationId: describeImage
       security:
@@ -2119,7 +2119,7 @@ components:
 
 tags:
   - name: Images
-    description: Caption generation for news images
+    description: Image caption generation
   - name: Chat
     description: Stateless general chat completion
   - name: Grounded Answering

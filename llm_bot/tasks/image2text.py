@@ -22,7 +22,7 @@ def prepare_image2text(request: Image2TextRequest) -> LLMTask[Image2TextResponse
     return LLMTask(
         task_name="image2text",
         system_input=PROMPT_PATH.read_text(encoding="utf-8").strip(),
-        user_input=ImageInput("Describe this news image.", f"data:{request.mime_type};base64,{encoded}"),
+        user_input=ImageInput("Describe this image.", f"data:{request.mime_type};base64,{encoded}"),
         response_format={
             "type": "json_schema",
             "name": "image2text_response",
