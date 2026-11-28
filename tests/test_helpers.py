@@ -1,4 +1,10 @@
+from base64 import b64decode
+
 from llm_bot.schemas import LookupResponse
+
+# One white pixel, encoded as a grayscale PNG.
+PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEAsTj2FAAAAABJRU5ErkJggg=="
+PNG_BYTES = b64decode(PNG_BASE64)
 
 
 class StubLLMClient:

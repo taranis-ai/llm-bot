@@ -18,6 +18,9 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.entry-points."taranis.image2text"]
+describe = "llm_bot.image2text_adapter:describe"
+
 [project.urls]
 Repository = "https://github.com/taranis-ai/llm-bot"
 Documentation = "https://github.com/taranis-ai/llm-bot#readme"

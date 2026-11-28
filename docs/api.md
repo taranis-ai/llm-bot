@@ -102,6 +102,32 @@ The model is instructed to use no outside knowledge and to report insufficient
 evidence explicitly. The service validates that every returned citation is one
 of the evidence IDs supplied in the request.
 
+## `POST /image2text`
+
+Send one JPEG, PNG, or WebP image as the raw request body, up to 5 MiB.
+Set `Content-Type` to match the image. If the service has an `API_KEY`,
+include its bearer token.
+
+```bash
+curl --fail-with-body http://localhost:5500/image2text \
+  -H "Authorization: Bearer $API_KEY" \
+  -H 'Content-Type: image/png' --data-binary @chart.png
+```
+
+```json
+{"description": "A line chart shows monthly rainfall rising from March to May."}
+```
+
+The caption is trimmed, contains 1–16,000 characters, and excludes NUL.
+An empty body or mismatched file signature returns `400`, a body over the size
+limit returns `413`, and an unsupported MIME type returns `415`. Provider
+failures and invalid captions after one repair attempt return `502`.
+
+Python callers can pass `Image2TextRequest(data=image_bytes, mime_type="image/png")`
+to the async `llm_bot.tasks.image2text.describe_image` function.
+For the Taranis Image2Text bot, select the captioning provider in
+[bot settings](configuration.md#image-captioning).
+
 ## `POST /embed`
 
 Creates embeddings through the independent [embedding connection](configuration.md#embedding-connection).

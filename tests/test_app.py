@@ -5,6 +5,7 @@ import pytest
 
 from llm_bot.client import UpstreamLLMError
 from llm_bot.schemas import (
+    MAX_IMAGE_BYTES,
     ChatResponse,
     EntityRelationshipExtractionResponse,
     GraphQueryGenerationResponse,
@@ -18,7 +19,7 @@ from llm_bot.schemas import (
 )
 from llm_bot.tasks.entity_linking import UnsupportedLinkingModeError
 from llm_bot.tasks.ner import UnsupportedEntityTypesError
-from tests.test_helpers import StubLLMClient, StubLookupClient
+from tests.test_helpers import PNG_BYTES, StubLLMClient, StubLookupClient
 
 
 @pytest.mark.parametrize("linking_mode", ["llm", "deterministic"])
@@ -75,6 +76,7 @@ async def test_info_endpoint(app, monkeypatch):
     assert body["endpoints"]["entity_relation_extraction"] == "/entity-relation-extraction"
     assert body["endpoints"]["graph_query_generation"] == "/graph-query-generation"
     assert body["endpoints"]["embed"] == "/embed"
+    assert body["endpoints"]["image2text"] == "/image2text"
     assert body["endpoints"]["chat"] == "/chat"
     assert body["endpoints"]["hrag"] == "/hrag"
     assert body["current"]["llm_reasoning_profile"] == "gemma"
@@ -126,7 +128,36 @@ async def test_openapi_endpoint(app, monkeypatch):
     assert "/classify:" in body
     assert "/entity-relation-extraction:" in body
     assert "/embed:" in body
+    assert "/image2text:" in body
     assert "/graph-query-generation:" in body
+
+
+async def test_image2text_endpoint(app, monkeypatch):
+    monkeypatch.setattr("llm_bot.routes.Config.API_KEY", "service-key")
+    provider = AsyncMock(return_value={"output_text": '{"description": "  A chart.  "}'})
+    monkeypatch.setattr("llm_bot.client.LLMClient.create_response", provider)
+    client = app.test_client()
+    headers = {"Content-Type": "image/png", "Authorization": "Bearer service-key"}
+    png = PNG_BYTES
+
+    assert (await client.post("/image2text", data=png)).status_code == 401
+    for data, mime_type, status in (
+        (b"", "image/png", 400),
+        (png, "image/jpeg", 400),
+        (png, "image/svg+xml", 415),
+        (png.ljust(MAX_IMAGE_BYTES + 1, b"x"), "image/png", 413),
+    ):
+        response = await client.post("/image2text", data=data, headers={**headers, "Content-Type": mime_type})
+        assert response.status_code == status
+    provider.assert_not_awaited()
+
+    response = await client.post("/image2text/", data=png, headers=headers)
+    assert response.status_code == 200
+    assert await response.get_json() == {"description": "A chart."}
+    provider.side_effect = UpstreamLLMError("private provider data")
+    response = await client.post("/image2text", data=png, headers=headers)
+    assert response.status_code == 502
+    assert await response.get_json() == {"error": "Failed to describe image"}
 
 
 async def test_docs_endpoint(app):

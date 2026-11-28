@@ -2,7 +2,7 @@
 
 Async Python library and LLM-backed bot service.
 
-The current implementation exposes embeddings, stateless chat and grounded HRAG answering, sentiment analysis,
+The current implementation exposes image captioning, embeddings, stateless chat and grounded HRAG answering, sentiment analysis,
 title generation, summary, named entity recognition, entity relationship extraction, structured graph retrieval planning,
 translation, linking, clustering, and classification endpoints backed by OpenAI-compatible APIs and a decisions API.
 
@@ -78,6 +78,11 @@ Configure the following values in `.env`:
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
 See [Configuration](docs/configuration.md) for optional settings.
+
+`POST /image2text` captions JPEG, PNG, and WebP images using a vision-capable
+`LLM_MODEL`. The Taranis Image2Text bot can use this Python library with its
+configured vision endpoint or send images to AIT Media Intelligence (Media Miner).
+See the [bot settings](docs/configuration.md#image-captioning) and [HTTP upload example](docs/api.md#post-image2text).
 
 To route `/cybersec-classification` to a decision model, also set `DECISIONS_URL`
 to the full endpoint URL, `DECISIONS_MODEL`, and `DECISIONS_API_KEY` if required.

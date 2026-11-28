@@ -12,6 +12,40 @@ For Python library use, set configuration before importing task modules.
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
+## Image captioning
+
+The **Captioning API** setting on the Image2Text bot in Taranis Admin selects the provider.
+
+- **llm-bot** (`llm_bot`) uses the Python library to send images to a vision-capable
+  endpoint. Select an endpoint on the bot or inherit the **Image descriptions**
+  assignment or shared default. The endpoint's processing mode controls realtime
+  or OpenRouter batch execution.
+- **Media Miner API** (`media_miner`, the default) sends images to AIT Media
+  Intelligence using the bot's Media Miner username and password.
+
+Run the bot on an image that lacks a description and check the caption in Assess.
+[Taranis Image2Text guide](https://github.com/taranis-ai/taranis-ai/blob/a4bce49c6df5e527610077eb7db6c69b13acf3c2/docs/osint-sources.md#news-item-images)
+
+For clients calling **`POST /image2text`**, configure the service's `LLM_*` connection with a
+vision-capable model that supports image input and structured JSON output.
+Both `responses` and `chat_completions` support inline images. Set `API_KEY`
+to require authentication. When deploying, pull the published service image,
+restart it, and verify `/health` and a [sample upload](api.md#post-image2text).
+To roll back, restore the previous service image.
+
+### Image2Text worker adapter
+
+For callers that discover `describe` in the `taranis.image2text` entry-point
+group, the package includes a synchronous HTTP adapter. Install a build of
+`taranis-llm-bot[inference]` that includes the adapter and set these variables
+in the calling process.
+
+| Adapter setting | Value |
+| --- | --- |
+| `IMAGE2TEXT_URL` | Full llm-bot endpoint, e.g. `https://llm-bot.internal/image2text` |
+| `IMAGE2TEXT_API_KEY` | The llm-bot service's incoming `API_KEY`, if enabled |
+| `IMAGE2TEXT_TIMEOUT` | HTTP timeout in seconds, default 250 to allow for one model repair with the default provider timeout |
+
 ## Embedding connection
 
 - `EMBEDDING_BASE_URL`: OpenAI-compatible base URL; the client appends `/embeddings`
@@ -130,7 +164,7 @@ cleanup. The HTTP service retains this default; no deployment settings change.
 
 ## Other optional settings
 
-- `API_KEY`: protects incoming requests to `/chat`, `/hrag`, `/sentiment`, `/classify`, `/cybersec-classification`, `/title`, `/translate`, `/summarize`, `/ner`, `/ner-link`, `/link`, `/cluster`, `/entity-relation-extraction`, and `/graph-query-generation`
+- `API_KEY`: protects incoming requests to the task endpoints
 - `LLM_TIMEOUT`
 - `LLM_REASONING_PROFILE`: use `none`, `ministral`, or `gemma`
 - `LLM_STRIP_REASONING_OUTPUT`: strip `[THINK]...[/THINK]` blocks before parsing model output
