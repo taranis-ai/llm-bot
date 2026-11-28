@@ -11,7 +11,7 @@ Read this before changing application structure, routes, schemas, prompts, upstr
 - `llm_bot/routes.py`: HTTP boundary, optional bearer authentication, common validation/error mapping, health/docs/info endpoints, and task dispatch.
 - `llm_bot/schemas.py`: Pydantic request, response, lookup, and internal cluster models. This is the runtime source of truth for payload validation.
 - `llm_bot/client.py`: asynchronous OpenAI-compatible transport for Responses and Chat Completions APIs.
-- `llm_bot/image2text_adapter.py`: synchronous Taranis worker entry point that uploads stored image bytes to the llm-bot service.
+- `llm_bot/image2text_adapter.py`: synchronous HTTP adapter for callers using the `taranis.image2text` entry-point group.
 - `llm_bot/decisions_client.py`: independent decisions transport for named choice questions, translating System One and OpenAI formats.
 - `llm_bot/lookup_client.py`: asynchronous client for the external entity-candidate lookup service.
 - `llm_bot/reasoning.py`: provider-specific reasoning prompt and output normalization.
@@ -58,6 +58,9 @@ The optional incoming `API_KEY` protects only the LLM-backed POST routes. `/heal
 before inference. Its route returns a generic provider error because upstream
 diagnostics can include the image. `LLMClient` translates an `ImageInput` to the
 selected provider's text and image parts. A caption repair keeps the image attached.
+The HTTP route runs `prepare_image2text` through `describe_image`. The synchronous
+`taranis.image2text` entry point implements the `describe(data, mime_type)` callback
+used by the [original worker prototype](https://github.com/taranis-ai/taranis-ai/blob/d7fd59305d500ae8aa667df1a4b82f60805afb2e/src/worker/worker/bots/image2text_bot.py#L18-L23).
 
 ## Upstream LLM Boundary
 

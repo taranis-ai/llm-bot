@@ -74,9 +74,9 @@ Configure the following values in `.env`:
 See [Configuration](docs/configuration.md) for optional settings.
 
 `POST /image2text` captions JPEG, PNG, and WebP images using a vision-capable
-`LLM_MODEL`. The package includes the synchronous adapter discovered by the Taranis
-Image2Text worker. See the [worker setup](docs/configuration.md#image2text-worker-adapter)
-and [image upload example](docs/api.md#post-image2text).
+`LLM_MODEL`. The Taranis Image2Text bot can use this Python library with its
+configured vision endpoint or send images to AIT Media Intelligence (Media Miner).
+See the [bot settings](docs/configuration.md#image-captioning) and [HTTP upload example](docs/api.md#post-image2text).
 
 To route `/cybersec-classification` to a decision model, also set `DECISIONS_URL`
 to the full endpoint URL, `DECISIONS_MODEL`, and `DECISIONS_API_KEY` if required.

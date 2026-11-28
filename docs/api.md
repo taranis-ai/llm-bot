@@ -124,8 +124,9 @@ limit returns `413`, and an unsupported MIME type returns `415`. Provider
 failures and invalid captions after one repair attempt return `502`.
 
 Python callers can pass `Image2TextRequest(data=image_bytes, mime_type="image/png")`
-to the async `llm_bot.tasks.image2text.describe_image` function. The Taranis
-worker uses the packaged synchronous adapter. See [worker setup](configuration.md#image2text-worker-adapter).
+to the async `llm_bot.tasks.image2text.describe_image` function.
+For the Taranis Image2Text bot, select the captioning provider in
+[bot settings](configuration.md#image-captioning).
 
 ## `POST /embed`
 

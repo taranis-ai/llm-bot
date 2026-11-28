@@ -12,31 +12,39 @@ For Python library use, set configuration before importing task modules.
 - `LLM_MODEL` (optional if your OpenAI-compatible backend provides a default model)
 - `LLM_API_MODE`: `responses` (default) or `chat_completions`
 
-## Image2Text worker adapter
+## Image captioning
 
-On the **llm-bot service**, configure the existing `LLM_*` connection with a
+The **Captioning API** setting on the Image2Text bot in Taranis Admin selects the provider.
+
+- **llm-bot** (`llm_bot`) uses the Python library to send images to a vision-capable
+  endpoint. Select an endpoint on the bot or inherit the **Image descriptions**
+  assignment or shared default. The endpoint's processing mode controls realtime
+  or OpenRouter batch execution.
+- **Media Miner API** (`media_miner`, the default) sends images to AIT Media
+  Intelligence using the bot's Media Miner username and password.
+
+Run the bot on an image that lacks a description and check the caption in Assess.
+[Taranis Image2Text guide](https://github.com/taranis-ai/taranis-ai/blob/a4bce49c6df5e527610077eb7db6c69b13acf3c2/docs/osint-sources.md#news-item-images)
+
+For clients calling **`POST /image2text`**, configure the service's `LLM_*` connection with a
 vision-capable model that supports image input and structured JSON output.
 Both `responses` and `chat_completions` support inline images. Set `API_KEY`
-to require authentication on the service.
+to require authentication. When deploying, pull the published service image,
+restart it, and verify `/health` and a [sample upload](api.md#post-image2text).
+To roll back, restore the previous service image.
 
-In the **Taranis worker**, install a build of `taranis-llm-bot[inference]` that
-includes this feature. The worker in PR #1342 pins `0.1.6`; update that pin to
-a release containing the adapter when available. The worker discovers exactly
-one entry point named `describe` in `taranis.image2text`. Configure these
-variables before starting it.
+### Image2Text worker adapter
 
-| Worker setting | Value |
+For callers that discover `describe` in the `taranis.image2text` entry-point
+group, the package includes a synchronous HTTP adapter. Install a build of
+`taranis-llm-bot[inference]` that includes the adapter and set these variables
+in the calling process.
+
+| Adapter setting | Value |
 | --- | --- |
 | `IMAGE2TEXT_URL` | Full llm-bot endpoint, e.g. `https://llm-bot.internal/image2text` |
 | `IMAGE2TEXT_API_KEY` | The llm-bot service's incoming `API_KEY`, if enabled |
 | `IMAGE2TEXT_TIMEOUT` | HTTP timeout in seconds, default 250 to allow for one model repair with the default provider timeout |
-
-For rollout, pull the published service image, restart it, and verify `/health`
-and a [sample image upload](api.md#post-image2text) from the worker network.
-Restart the worker with the matching package and enable the Image2Text bot in
-Taranis Admin. Run it on an image without a description and check the caption
-in Assess. To roll back, disable the bot and restore the previous worker and
-service images. [Taranis integration](https://github.com/taranis-ai/taranis-ai/pull/1342)
 
 ## Embedding connection
 

@@ -66,8 +66,7 @@ these bodies to the Chat Completions batch endpoint in the NER example below.
 Use `llm_bot.tasks.image2text.prepare_image2text(Image2TextRequest(data=image_bytes, mime_type="image/png"))`
 to prepare one task per image. Its `build_request(client)` includes the image
 as a base64 data URL in the selected provider format. Account for this encoded
-size in the provider's batch upload limit. The Taranis Image2Text worker
-adapter processes one image per HTTP request.
+size in the provider's batch upload limit.
 
 ## NER for multiple stories
 
